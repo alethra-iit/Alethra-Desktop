@@ -55,7 +55,8 @@ function publicSettings() {
   const s = Object.assign({}, ctx.settings.data);
   const l = s.lock || {}; s.lock = { mode: l.mode || 'off', parts: l.parts || [], grace: l.grace == null ? 60000 : l.grace, hasPin: !!l.hash };
   delete s.stkeyEnc; { const e = ctx.settings.data.stkeyEnc; const k = e ? SV.dec(e) : ''; s.stkeyMask = k ? '••••' + k.slice(-4) : ''; }
-  for (const k of ['sta', 'stf']) s[k] = SV.setting(k);
+  for (const k of ['sta', 'stf', 'stb', 'tools']) s[k] = SV.setting(k);
+  s.stDefs = { stf: SV.DEFAULTS.stf, stb: SV.DEFAULTS.stb, tools: SV.DEFAULTS.tools };
   s.dark = isDark(); s.engines = U.ENGINES; s.doh_list = U.DOH; s.trLangs = U.TR_LANGS; s.dlDirShown = SV.dlDir(); s.version = app.getVersion();
   for (const k of Object.keys(SV.DEFAULTS)) if (s[k] === undefined && k !== 'lock') s[k] = SV.DEFAULTS[k];
   return s;
@@ -499,7 +500,7 @@ function pip() {
 
 /* ================= menu utama (overlay) ================= */
 function mainMenuSpec() {
-  const t = curTab(), st = t ? tabState().find(x => x.id === t.id) : {}, web = t && /^https?:/.test(t.url);
+  const t = curTab(), st = t ? tabState().find(x => x.id === t.id) : {};
   const I = (id, label, o = {}) => Object.assign({ id, label }, o);
   return [
     I('tab.new', 'Tab baru', { key: 'Ctrl+T' }), I('tab.incog', 'Tab Incognito baru', { key: 'Ctrl+Shift+N' }), I('tab.reopen', 'Buka tab tertutup', { key: 'Ctrl+Shift+T', off: !closed.length }),
@@ -508,18 +509,42 @@ function mainMenuSpec() {
     { sep: 1 },
     { zoom: st.zoom || 100 },
     { sep: 1 },
-    I('find', 'Cari di halaman', { key: 'Ctrl+F', off: !web }), I('print', 'Cetak…', { key: 'Ctrl+P', off: !web }), I('pdf', 'Simpan sebagai PDF', { off: !web }), I('offline.save', 'Simpan halaman offline', { key: 'Ctrl+S', off: !web }),
-    ...(setting('ptr') !== false ? [I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web })] : []),
-    I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
-    ...(setting('stt') !== false ? [I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web })] : []),
-    I('reader', 'Mode baca', { key: 'Ctrl+Alt+R', off: !web }),
-    I('vq', 'Kualitas video…', { off: !web }), I('pip', 'Gambar dalam gambar', { off: !web }),
-    I('mobile', 'Tampilan situs seluler', { check: !!st.mobile, off: !web }), I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web }),
-    { sep: 1 },
     I('clear', 'Hapus data penjelajahan', { key: 'Ctrl+Shift+Del' }), I('fullscreen', 'Layar penuh', { key: 'F11' }), I('devtools', 'Alat pengembang', { key: 'F12' }),
     { sep: 1 },
     I('open.settings', 'Pengaturan', { key: 'Ctrl+,' }), I('open.about', 'Tentang Alethra'), I('quit', 'Keluar')
   ];
+}
+/* ================= menu Tools (overlay) ================= */
+// Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play ikut disembunyikan.
+function toolsMenuSpec() {
+  const t = curTab(), st = t ? tabState().find(x => x.id === t.id) : {}, web = t && /^https?:/.test(t.url);
+  const I = (id, label, o = {}) => Object.assign({ id, label }, o);
+  const cfg = setting('tools');
+  const on = (k) => cfg[k] !== false;
+  const groups = [
+    [on('find') && I('find', 'Cari di halaman', { key: 'Ctrl+F', off: !web }),
+     on('print') && I('print', 'Cetak…', { key: 'Ctrl+P', off: !web }),
+     on('pdf') && I('pdf', 'Simpan sebagai PDF', { off: !web }),
+     on('offline') && I('offline.save', 'Simpan halaman offline', { key: 'Ctrl+S', off: !web })],
+    [on('translate') && setting('ptr') !== false && I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }),
+     on('chat') && I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
+     on('stt') && setting('stt') !== false && I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web }),
+     on('reader') && I('reader', 'Mode baca', { key: 'Ctrl+Alt+R', off: !web })],
+    [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
+     on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
+     on('mobile') && I('mobile', 'Tampilan situs seluler', { check: !!st.mobile, off: !web }),
+     on('adsite') && I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web })]
+  ].map(g => g.filter(Boolean)).filter(g => g.length);
+  const out = [];
+  groups.forEach((g, i) => { if (i) out.push({ sep: 1 }); out.push(...g); });
+  if (!out.length) out.push(I('tools.config', 'Belum ada alat. Atur di Pengaturan → Tools'));
+  else { out.push({ sep: 1 }); out.push(I('tools.config', 'Atur menu Tools…')); }
+  return out;
+}
+function openMenu(kind, right) {
+  OV.suggest = null;
+  OV.menu = kind === 'tools' ? { kind, items: toolsMenuSpec(), right: Math.max(8, right | 0) } : { kind: 'main', items: mainMenuSpec() };
+  renderOverlay();
 }
 function menuAction(id) {
   OV.menu = null; renderOverlay();
@@ -528,6 +553,7 @@ function menuAction(id) {
     case 'tab.new': return createTab('alethra://home');
     case 'tab.incog': return newIncogTab();
     case 'tab.reopen': return reopenClosed();
+    case 'tools.config': { const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog); if (ex) { go(ex, 'alethra://settings#tools'); return selectTab(ex.id); } return createTab('alethra://settings#tools'); }
     case 'find': chromeWC.focus(); return ctx.sendChrome('find', { open: true, focus: true });
     case 'print': return wc.print();
     case 'pdf': return wc.printToPDF({ printBackground: true }).then(async b => { const r = await dialog.showSaveDialog(win, { defaultPath: path.join(SV.dlDir(), (t.title || 'halaman').replace(/[<>:"/\\|?*]/g, '_') + '.pdf') }); if (!r.canceled) { fs.writeFileSync(r.filePath, b); ctx.toast('PDF disimpan'); } });
@@ -556,7 +582,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'tools.open']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -590,9 +616,10 @@ const API = {
   'omni.go': (e, text, i) => { const it = OV.suggest && OV.suggest.items[i]; closePopups(); navigateInput(it ? it.target : text); },
   'ov.pick': (e, i) => { const it = OV.suggest && OV.suggest.items[i]; closePopups(); if (it) navigateInput(it.target); },
   'ov.close': () => { closePopups(); sendTo(chromeWC, 'omni-blur'); },
-  'menu.open': () => { if (OV.menu) { closePopups(); return; } OV.suggest = null; OV.menu = { items: mainMenuSpec() }; renderOverlay(); },
+  'menu.open': () => { if (OV.menu) { closePopups(); return; } openMenu('main'); },
+  'tools.open': (e, right) => { if (OV.menu) { closePopups(); return; } openMenu('tools', right); },
   'ov.menu': (e, id) => menuAction(id),
-  'ov.zoom': (e, d) => { zoomBy(d); OV.menu = { items: mainMenuSpec() }; renderOverlay(); },
+  'ov.zoom': (e, d) => { zoomBy(d); openMenu('main'); },
   'modal.result': (e, v) => endModal(v),
   'bookmark.toggle': toggleBookmark,
   'find.start': (e, text) => { const t = curTab(); if (!t) return; t.find = text; if (text) t.view.webContents.findInPage(text); else { t.view.webContents.stopFindInPage('clearSelection'); ctx.sendChrome('find', { open: true, ordinal: 0, total: 0 }); } },
@@ -614,7 +641,7 @@ const API = {
     if (k === 'dlDir' && v && !fs.existsSync(v)) return false;
     if (k === 'trLang' && !U.TR_LANGS[v]) return false;
     if (k === 'doh' && !U.DOH[v]) return false;
-    if (k === 'clock' || k === 'sta' || k === 'stf') { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = o; }
+    if (['clock', 'sta', 'stf', 'stb', 'tools'].includes(k)) { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = (k === 'stf' || k === 'stb') ? STT.sanitize(k, o) : o; }
     if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;
     if (k === 'stengine' && !['cloud', 'offline'].includes(v)) return false;
     if (k === 'trmode' && !['online', 'offline'].includes(v)) return false;
@@ -640,6 +667,7 @@ const API = {
   'oe.dir': () => OFF.openDir(),
   'stt.stop': () => STT.stop(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
+  'stt.resetpos': () => STT.resetPos(),
   'stt.key': (e, key) => {
     key = String(key || '').trim();
     if (!key) { delete ctx.settings.data.stkeyEnc; } else { ctx.settings.data.stkeyEnc = SV.enc(key); }

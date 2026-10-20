@@ -1,7 +1,8 @@
 (async function () {
   let built = false, sec = (location.hash || '#umum').slice(1), S = {};
-  S = await pageInit(s => { S = s; if (built) renderSec(false); });
-  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['unduhan', 'Unduhan', 'download'], ['play', 'Play', 'play'], ['mesinoff', 'Mesin offline', 'mic'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
+  let busyUI = false; // true saat slider/pemilih warna sedang dipakai, supaya halaman tidak dibangun ulang di tengah geseran
+  S = await pageInit(s => { S = s; if (built && !busyUI) renderSec(false); });
+  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['unduhan', 'Unduhan', 'download'], ['tools', 'Tools', 'tools'], ['play', 'Play', 'play'], ['mesinoff', 'Mesin offline', 'mic'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
   $('#side').innerHTML = '<h2>Pengaturan</h2>'; SECS.forEach(([k, l, ic, hid]) => { if (hid) return; const b = document.createElement('button'); b.dataset.k = k; b.innerHTML = ICON(ic, 18) + esc(l); b.onclick = () => { sec = k; history.replaceState(null, '', '#' + k); renderSec(true); }; $('#side').appendChild(b); });
   const set = (k, v) => api('settings.set', k, v);
   const el = (h) => { const t = document.createElement('div'); t.innerHTML = h.trim(); return t.firstChild; };
@@ -11,6 +12,32 @@
   const select = (title, desc, opts, val, fn) => { const s = document.createElement('select'); opts.forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; if (String(v) === String(val)) o.selected = true; s.appendChild(o); }); s.onchange = () => fn(s.value); return row(title, desc, s); };
   const button = (title, desc, label, fn, cls) => { const b = document.createElement('button'); b.className = 'btn sm ' + (cls || ''); b.textContent = label; b.onclick = fn; return row(title, desc, b); };
   const grp = (t) => el(`<div class="group">${esc(t)}</div>`);
+  // slider angka dengan nilai di sebelahnya; perubahan dikirim langsung (diperlambat) supaya terlihat saat geser
+  const slider = (title, desc, min, max, step, val, fmt, fn) => {
+    const w = document.createElement('div'); w.style.cssText = 'display:flex;align-items:center;gap:10px';
+    const r = document.createElement('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = val; r.style.cssText = 'width:200px;accent-color:var(--acc)';
+    const v = document.createElement('span'); v.style.cssText = 'min-width:68px;text-align:right;font-variant-numeric:tabular-nums;color:var(--sub);font-size:13px'; v.textContent = fmt(+val);
+    let t = 0; const end = () => { if (busyUI) { busyUI = false; renderSec(false); } };
+    r.onpointerdown = () => { busyUI = true; };
+    r.onpointerup = () => setTimeout(end, 200);
+    r.onblur = end;
+    r.oninput = () => { busyUI = true; v.textContent = fmt(+r.value); clearTimeout(t); t = setTimeout(() => fn(+r.value), 40); };
+    r.onchange = () => { clearTimeout(t); fn(+r.value); };
+    w.append(r, v); return row(title, desc, w);
+  };
+  const colorRow = (title, desc, val, fallback, fn, canReset) => {
+    const w = document.createElement('div'); w.style.cssText = 'display:flex;align-items:center;gap:8px';
+    const c = document.createElement('input'); c.type = 'color'; c.value = /^#[0-9a-f]{6}$/i.test(val) ? val : fallback; c.style.cssText = 'width:44px;height:32px;border:1px solid var(--line);border-radius:8px;background:none;padding:2px;cursor:pointer';
+    let t = 0; const end = () => { if (busyUI) { busyUI = false; renderSec(false); } };
+    c.onclick = () => { busyUI = true; };
+    c.oninput = () => { busyUI = true; clearTimeout(t); t = setTimeout(() => fn(c.value), 40); };
+    c.onchange = () => { clearTimeout(t); fn(c.value); setTimeout(end, 200); };
+    c.onblur = () => setTimeout(end, 200);
+    w.appendChild(c);
+    if (canReset && val) { const b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Ikuti tema'; b.onclick = () => { busyUI = false; fn(''); }; w.appendChild(b); }
+    return row(title, desc, w);
+  };
+  const flag = (title, desc, val, fn) => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = !!val; c.firstChild.onchange = () => fn(c.firstChild.checked); return row(title, desc, c); };
   const main = $('#main');
 
   const DEFSTA = { pg: 1, min: 0, max: 0, sens: 2.8, dur: 300, ns: 0, gate: 0, hp: 80, lp: 0, auto: 6, minlen: 2, filt: true, meter: false, legacy: false };
@@ -68,6 +95,7 @@
   });
 
   async function renderSec(scroll) {
+    busyUI = false;
     $$('#side button').forEach(b => b.classList.toggle('on', b.dataset.k === sec));
     const keep = main.scrollTop || window.scrollY; main.innerHTML = '';
     const title = SECS.find(x => x[0] === sec)[1]; main.appendChild(el(`<h1>${esc(title)}</h1>`));
@@ -97,7 +125,7 @@
       if (S.doh === 'custom') { const i = document.createElement('input'); i.className = 'inp'; i.style.width = '320px'; i.placeholder = 'https://…/dns-query'; i.value = S.dohcustom || ''; i.onchange = () => set('dohcustom', i.value.trim()); rows.push(row('Alamat DoH kustom', 'Harus diawali https://', i)); }
       rows.push(toggle('httpsOnly', 'Selalu gunakan HTTPS', 'Alihkan otomatis http:// ke https://'), toggle('tpc', 'Blokir cookie pihak ketiga', 'Selalu diblokir di tab Incognito'), toggle('dnt', 'Kirim sinyal "Jangan Lacak"', 'Mengirim header DNT dan Global Privacy Control'));
       A(box(rows));
-      A(grp('Blokir iklan')); A(box([toggle('adblock', 'Blokir iklan YouTube', 'Melewati iklan video dan menyembunyikan slot iklan'), toggle('sadblock', 'Blokir iklan situs web', 'Menyembunyikan banner & memblokir jaringan iklan umum. Bisa dimatikan per situs lewat menu ⋮')]));
+      A(grp('Blokir iklan')); A(box([toggle('adblock', 'Blokir iklan YouTube', 'Melewati iklan video dan menyembunyikan slot iklan'), toggle('sadblock', 'Blokir iklan situs web', 'Menyembunyikan banner & memblokir jaringan iklan umum. Bisa dimatikan per situs lewat menu Tools')]));
       A(grp('Data')); A(box([button('Hapus data penjelajahan', 'Histori, cookie, cache, unduhan, dll. (Ctrl+Shift+Del)', 'Hapus…', clearDlg, 'danger')]));
       A(grp('Kunci aplikasi (PIN)')); A(await lockUI());
       A(el('<div class="group" id="perms">Izin situs</div>')); A(await permsUI());
@@ -129,13 +157,28 @@
         row('Lokasi simpan', S.dlDirShown, (() => { const d = document.createElement('div'); d.style.display = 'flex'; d.style.gap = '6px'; const b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Pilih folder…'; b.onclick = () => api('dir.pick'); d.appendChild(b); if (S.dlDir) { const r = document.createElement('button'); r.className = 'btn sm'; r.textContent = 'Setel ulang'; r.onclick = () => set('dlDir', ''); d.appendChild(r); } return d; })()),
         toggle('dlAsk', 'Tanya lokasi simpan setiap unduhan')]));
     }
+    if (sec === 'tools') {
+      A(el('<p class="sub">Menu Tools dibuka dari ikon kunci pas di toolbar (antara Unduhan dan ⋮). Pilih fitur yang ingin ditampilkan di sana. Pintasan keyboard tetap berfungsi walau itemnya disembunyikan.</p>'));
+      const T = () => S.tools || {}, tt = (k) => (c) => set('tools', Object.assign({}, S.tools, { [k]: c }));
+      const tg = (k, title, desc) => flag(title, desc, T()[k] !== false, tt(k));
+      A(grp('Halaman')); A(box([
+        tg('find', 'Cari di halaman', 'Ctrl+F'), tg('print', 'Cetak…', 'Ctrl+P'), tg('pdf', 'Simpan sebagai PDF'), tg('offline', 'Simpan halaman offline', 'Ctrl+S')]));
+      A(grp('Terjemahan & baca')); A(box([
+        tg('translate', 'Terjemahkan halaman', 'Ctrl+Alt+T. Juga perlu dinyalakan di Play → Terjemahkan situs'),
+        tg('chat', 'Terjemahkan chat live', 'YouTube dan Twitch'),
+        tg('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara'),
+        tg('reader', 'Mode baca', 'Ctrl+Alt+R')]));
+      A(grp('Video & situs')); A(box([
+        tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('mobile', 'Tampilan situs seluler', 'Per situs'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs')]));
+      A(box([button('Tampilkan semua', 'Kembalikan semua item ke menu Tools', 'Atur ulang', () => set('tools', S.stDefs.tools))]));
+    }
     if (sec === 'play') {
       A(grp('Video')); A(box([
         toggle('adblock', 'Blokir iklan YouTube', 'Hilangkan iklan video dan banner di YouTube'),
-        row('Perkecil video', 'Menu ⋮ → Gambar dalam gambar (PiP bawaan Chromium), bisa dipakai di situs apa pun', null)]));
+        row('Perkecil video', 'Tools → Gambar dalam gambar (PiP bawaan Chromium), bisa dipakai di situs apa pun', null)]));
       A(grp('Terjemahan')); A(box([
-        toggle('ptr', 'Terjemahkan situs', 'Tampilkan "Terjemahkan halaman" di menu ⋮ (Ctrl+Alt+T)'),
-        toggle('tr', 'Terjemahan chat live', 'Terjemahkan chat live YouTube dan Twitch (juga tersedia di menu ⋮)'),
+        toggle('ptr', 'Terjemahkan situs', 'Aktifkan "Terjemahkan halaman" di menu Tools (Ctrl+Alt+T)'),
+        toggle('tr', 'Terjemahan chat live', 'Terjemahkan chat live YouTube dan Twitch (juga tersedia di menu Tools)'),
         select('Bahasa tujuan', 'Dipakai untuk terjemahan situs, chat live, dan Terjemahan Suara', Object.entries(S.trLangs), S.trLang, v => set('trLang', v)),
         toggle('trhide', 'Sembunyikan teks asli', 'Hanya tampilkan hasil terjemahan')]));
       A(grp('Terjemahan Suara'));
@@ -143,7 +186,7 @@
       const goOff = () => { sec = 'mesinoff'; history.replaceState(null, '', '#mesinoff'); renderSec(true); };
       const curM = OEs.stt.find(m => m.id === S.stmodel && m.installed);
       const sr = [
-        toggle('stt', 'Terjemahan Suara', 'Tampilkan "Terjemahan Suara" di menu ⋮ (Ctrl+Alt+S). Audio video dikenali lalu diterjemahkan di kotak popup, tanpa mikrofon.'),
+        toggle('stt', 'Terjemahan Suara', 'Aktifkan "Terjemahan Suara" di menu Tools (Ctrl+Alt+S). Audio video dikenali lalu diterjemahkan di kotak popup, tanpa mikrofon.'),
         select('Mesin suara ke teks', 'Cloud butuh internet dan kunci API. Offline berjalan di PC ini, tanpa internet dan tanpa kunci.', [['cloud', 'Whisper cloud (Groq / OpenAI / server sendiri)'], ['offline', 'Offline di PC (ringan dan cepat)']], S.stengine, v => set('stengine', v))];
       if (S.stengine === 'offline') {
         sr.push(button('Model suara offline', curM ? 'Dipakai: ' + curM.title : 'Belum ada model terpasang. Unduh satu dulu (mulai dari ±40 MB).', 'Kelola model…', goOff));
@@ -171,15 +214,47 @@
         select('Kecepatan teks', 'Makin cepat, makin banyak permintaan API per menit', [['fast', 'Cepat (potongan maks ±3,8 dtk)'], ['bal', 'Seimbang (±5,5 dtk, disarankan)'], ['eco', 'Hemat (±8,5 dtk, jatah gratis awet)']], S.stspeed, v => set('stspeed', v)),
         button('Pengaturan audio', audSummary(), 'Buka', () => { sec = 'audio'; history.replaceState(null, '', '#audio'); renderSec(true); }));
       A(box(sr));
-      A(grp('Teks suara di layar penuh'));
-      const F = S.stf, sf = (k, v) => set('stf', Object.assign({}, F, { [k]: v }));
+      const D = S.stDefs, dark = !!S.dark;
+      const sb = (k, v) => set('stb', Object.assign({}, S.stb, { [k]: v })), sf = (k, v) => set('stf', Object.assign({}, S.stf, { [k]: v }));
+      const px = (v) => v + ' px', pct = (v) => v + '%', autoPx = (v) => v ? v + ' px' : 'Otomatis';
+      const shadowOpts = [['auto', 'Otomatis (saat latar tipis)'], ['on', 'Selalu'], ['off', 'Mati']];
+      const B = S.stb;
+      A(grp('Kotak terjemahan suara (di luar layar penuh)'));
+      A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Berlaku untuk kotak popup yang tampil di atas video. Geser kotaknya lewat bilah atasnya. Perubahan terlihat langsung saat Terjemahan Suara sedang berjalan.</p>'));
       A(box([
-        select('Ukuran teks', '', [['sm', 'Kecil'], ['md', 'Sedang'], ['lg', 'Besar'], ['xl', 'Sangat besar']], F.size, v => sf('size', v)),
+        slider('Transparansi latar', '0 = tembus pandang penuh, 100 = pekat', 0, 100, 1, B.bgop, pct, v => sb('bgop', v)),
+        colorRow('Warna latar', 'Bawaan mengikuti tema terang/gelap', B.bgcol, dark ? (S.amoled ? '#000000' : '#0b0b0d') : '#ffffff', v => sb('bgcol', v), true),
+        colorRow('Warna teks', 'Bawaan mengikuti tema terang/gelap', B.color, dark ? '#f4f4f5' : '#111113', v => sb('color', v), true),
+        slider('Ukuran teks', '', 10, 72, 1, B.size, px, v => sb('size', v)),
+        slider('Lebar kotak', 'Dibatasi mengikuti lebar jendela', 260, 2000, 10, B.width, px, v => sb('width', v)),
+        slider('Tinggi kotak', '', 90, 800, 2, B.height, px, v => sb('height', v)),
+        slider('Sudut membulat', '', 0, 40, 1, B.radius, px, v => sb('radius', v)),
+        flag('Teks tebal', '', B.bold !== false, v => sb('bold', v)),
+        flag('Garis tepi', '', B.border !== false, v => sb('border', v)),
+        flag('Tampilkan kalimat sebelumnya', 'Baris kecil di atas terjemahan terbaru', B.prev !== false, v => sb('prev', v)),
+        select('Bayangan teks', 'Membantu keterbacaan bila latar tipis atau transparan', shadowOpts, B.shadow, v => sb('shadow', v)),
+        button('Atur ulang posisi', 'Kembalikan kotak ke tengah bawah setelah digeser', 'Atur ulang', () => api('stt.resetpos')),
+        button('Tampilan bawaan', 'Kembalikan semua pengaturan kotak ini', 'Setel ulang', () => set('stb', D.stb))]));
+
+      A(grp('Teks suara di layar penuh'));
+      const F = S.stf, NAMED = { white: '#ffffff', yellow: '#ffe14d', cyan: '#6fe3ff' }, SZ = { sm: 22, md: 30, lg: 40, xl: 52 };
+      const effOp = F.bgop >= 0 ? F.bgop : ({ dim: 62, solid: 100, none: 0 }[F.bg] != null ? { dim: 62, solid: 100, none: 0 }[F.bg] : 62);
+      A(box([
+        select('Ukuran teks (preset)', '', [['sm', 'Kecil'], ['md', 'Sedang'], ['lg', 'Besar'], ['xl', 'Sangat besar']], F.size, v => set('stf', Object.assign({}, S.stf, { size: v, sizepx: 0 }))),
+        slider('Ukuran teks (px)', 'Mengganti preset di atas', 10, 120, 1, F.sizepx > 0 ? F.sizepx : (SZ[F.size] || 30), px, v => sf('sizepx', v)),
         select('Posisi', '', [['bottom', 'Bawah'], ['top', 'Atas']], F.pos, v => sf('pos', v)),
-        select('Latar teks', '', [['dim', 'Gelap transparan'], ['solid', 'Hitam pekat'], ['none', 'Tanpa latar (bayangan)']], F.bg, v => sf('bg', v)),
-        select('Warna teks', '', [['white', 'Putih'], ['yellow', 'Kuning'], ['cyan', 'Biru muda']], F.color, v => sf('color', v)),
-        (() => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = F.orig !== false; c.firstChild.onchange = () => sf('orig', c.firstChild.checked); return row('Tampilkan teks asli', 'Ucapan asli di bawah terjemahan', c); })()]));
-      A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu ⋮ → Terjemahan Suara (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
+        slider('Jarak dari tepi', 'Makin besar makin menjauh dari tepi layar', -40, 300, 2, F.offy, px, v => sf('offy', v)),
+        slider('Transparansi latar', '0 = tanpa latar (pakai bayangan), 100 = pekat', 0, 100, 1, effOp, pct, v => sf('bgop', v)),
+        colorRow('Warna latar', '', F.bgcol, '#000000', v => sf('bgcol', v)),
+        colorRow('Warna teks', '', /^#[0-9a-f]{6}$/i.test(F.color) ? F.color : (NAMED[F.color] || '#ffffff'), '#ffffff', v => sf('color', v)),
+        slider('Lebar kotak', '0 = otomatis mengikuti teks', 0, 2000, 10, F.width, autoPx, v => sf('width', v)),
+        slider('Tinggi kotak', '0 = otomatis mengikuti teks', 0, 600, 5, F.height, autoPx, v => sf('height', v)),
+        slider('Sudut membulat', '', 0, 40, 1, F.radius, px, v => sf('radius', v)),
+        flag('Teks tebal', '', F.bold !== false, v => sf('bold', v)),
+        select('Bayangan teks', 'Membantu keterbacaan bila latar tipis atau transparan', shadowOpts, F.shadow, v => sf('shadow', v)),
+        flag('Tampilkan teks asli', 'Ucapan asli di bawah terjemahan (berlaku juga di kotak di luar layar penuh)', F.orig !== false, v => sf('orig', v)),
+        button('Tampilan bawaan', 'Kembalikan semua pengaturan layar penuh', 'Setel ulang', () => set('stf', D.stf))]));
+      A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu Tools → Terjemahan Suara (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
     }
     if (sec === 'mesinoff') {
       OE = await api('oe.list') || { stt: [], mt: [], jobs: {}, langs: {}, groups: [] };

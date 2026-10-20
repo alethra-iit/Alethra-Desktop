@@ -18,16 +18,16 @@ html,body{background:transparent!important;overflow:hidden;height:100%;user-sele
 #toast{position:fixed;left:50%;transform:translateX(-50%);width:min(440px,calc(100% - 16px));bottom:8px;height:40px;background:#222226;color:#fff;border-radius:20px;display:flex;align-items:center;justify-content:center;padding:0 18px;font-size:13.5px;box-shadow:var(--shadow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#toast[hidden]{display:none}
 
 #stt{position:fixed;box-sizing:border-box}#stt[hidden]{display:none}
-#stt.box{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
-#stt .sh{display:flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 12px;background:var(--surf);cursor:move;flex:none}
-#stt .sh .mic{display:flex;color:var(--acc)}#stt .ss{flex:1;min-width:0;font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#stt .sh button{width:26px;height:26px;border:0;border-radius:8px;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--fg)}#stt .sh button:hover{background:var(--surf2)}
+#stt.box{background:var(--sbg,var(--bg));color:var(--stc,var(--fg));border:var(--sbd,1px solid var(--line));border-radius:var(--srad,16px);box-shadow:var(--sbs,var(--shadow));text-shadow:var(--stsh,none);display:flex;flex-direction:column;overflow:hidden}
+#stt .sh{display:flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 12px;background:var(--shd,var(--surf));cursor:move;flex:none}
+#stt .sh .mic{display:flex;color:var(--acc)}#stt .ss{flex:1;min-width:0;font-size:12px;color:var(--ssub,var(--sub));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#stt .sh button{width:26px;height:26px;border:0;border-radius:8px;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--stc,var(--fg));text-shadow:none}#stt .sh button:hover{background:var(--surf2)}
 #stt .sb{flex:1;min-height:0;overflow:hidden;padding:8px 14px 10px;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;user-select:text}
-#stt .sp{font-size:12.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#stt .sc{font-size:20px;line-height:1.3;font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
-#stt .so{font-size:12.5px;color:var(--sub);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#stt .sp{font-size:var(--sfs2,12.5px);color:var(--ssub,var(--sub));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#stt .sc{font-size:var(--sfs,20px);line-height:1.3;font-weight:var(--sfw,600);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+#stt .so{font-size:var(--sfs2,12.5px);color:var(--ssub,var(--sub));overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 #stt .e{opacity:.5}
 #stt.fs{display:flex;flex-direction:column;align-items:center;text-align:center;pointer-events:none}
 #stt.fs .fsb{display:inline-block;max-width:100%;border-radius:12px;padding:8px 18px}
-#stt.fs .l1{font-weight:600;line-height:1.28;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+#stt.fs .l1{font-weight:inherit;line-height:1.28;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
 #stt.fs .l2{opacity:.8;line-height:1.28;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}

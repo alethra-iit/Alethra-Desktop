@@ -15,7 +15,12 @@ const DEFAULTS = {
   logo: true, grad: false, wall: 0, dim: 1,
   ptr: true, stt: true, stengine: 'cloud', stmodel: '', trmode: 'online', mtfb: true, ofthreads: 0, stprov: 'groq', stspeed: 'bal', stlang: '', stcurl: '', stcmodel: 'whisper-1',
   sta: { pg: 1, min: 0, max: 0, sens: 2.8, dur: 300, ns: 0, gate: 0, hp: 80, lp: 0, auto: 6, minlen: 2, filt: true, meter: false, legacy: false },
-  stf: { size: 'md', pos: 'bottom', bg: 'dim', color: 'white', orig: true },
+  // layar penuh. bgop -1 = ikut opsi lama `bg` (dim=62, solid=100, none=0). width/height/sizepx 0 = otomatis.
+  stf: { size: 'md', pos: 'bottom', bg: 'dim', color: 'white', orig: true, bgop: -1, bgcol: '#000000', sizepx: 0, width: 0, height: 0, radius: 12, offy: 0, bold: true, shadow: 'auto' },
+  // kotak terjemahan suara di luar layar penuh. Kosong ('') = ikut tema terang/gelap.
+  stb: { bgop: 100, bgcol: '', color: '', size: 20, bold: true, width: 720, height: 168, radius: 16, border: true, prev: true, shadow: 'auto' },
+  // item menu Tools yang ditampilkan
+  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, mobile: true, adsite: true },
   lock: { mode: 'off', parts: [], grace: 60000, hash: '', salt: '' }
 };
 const S = () => ctx.settings.data;

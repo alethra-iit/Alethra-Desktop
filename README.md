@@ -1,7 +1,7 @@
 # Alethra Browser — Versi PC (Windows)
 
 Port desktop dari **Alethra Browser v68 (Android)**, dibangun dengan Electron (Chromium) dan UI bergaya desktop:
-tab bar di atas, toolbar + omnibox, bilah bookmark, menu ⋮, dan pintasan keyboard lengkap.
+tab bar di atas, toolbar + omnibox, bilah bookmark, menu Tools (ikon kunci pas), menu ⋮, dan pintasan keyboard lengkap.
 GitHub Actions membuat **installer `.exe`** dan **versi portable `.exe`** otomatis.
 
 ## Cara build `.exe` di GitHub
@@ -32,9 +32,9 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | DNS aman (DoH) | Cloudflare, AdGuard, Quad9, Google, kustom |
 | Cookie pihak ketiga, HTTPS-only, DNT/GPC | Ada |
 | Penerjemah halaman + chat live | Ada (Ctrl+Alt+T); chat live juga bisa dinyalakan dari menu ⋮ |
-| **Terjemahan Suara** (terjemahan ucapan video) | Menu ⋮ → Terjemahan Suara (Ctrl+Alt+S), lihat bagian di bawah |
+| **Terjemahan Suara** (terjemahan ucapan video) | Menu Tools → Terjemahan Suara (Ctrl+Alt+S), lihat bagian di bawah |
 | Mode baca + TTS | Ada (Ctrl+Alt+R), memakai suara Windows |
-| Kualitas video | Menu ⋮ → Kualitas video… |
+| Kualitas video | Menu Tools → Kualitas video… |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
 | Izin situs | Bilah izin + manajer di Pengaturan |
 | Pengelola sandi | Terenkripsi (Windows DPAPI), isi otomatis saat kolom diklik |
@@ -48,7 +48,7 @@ Menerjemahkan ucapan di video secara hampir realtime, tanpa mikrofon (audio diam
 - **Pengaturan → Play → Terjemahan Suara**: pilih penyedia **Groq** (gratis, disarankan), **OpenAI**, atau **Kustom** (server Whisper kompatibel OpenAI, misalnya faster-whisper-server/LocalAI/whisper.cpp server di PC sendiri, sehingga bisa offline). Isi **Kunci API** (disimpan terenkripsi Windows DPAPI dan tidak ikut cadangan).
 - Pilih **Bahasa ucapan video**, **Bahasa tujuan**, dan **Kecepatan teks** (Cepat / Seimbang / Hemat).
 - **Pengaturan audio**: preset (Video bising, Suara pelan, Musik latar, …), penguat volume, volume minimum/maksimum, kepekaan, peredam derau, filter, penyaring halusinasi, level volume, dan Mode klasik. Perubahan langsung diterapkan.
-- Popup bisa digeser dan ditutup dengan X. Saat video layar penuh, terjemahan tampil sebagai subtitle (ukuran, posisi, latar, warna diatur di *Teks suara di layar penuh*) dan hilang 8 detik setelah ucapan berhenti.
+- Popup bisa digeser dan ditutup dengan X. Saat video layar penuh, terjemahan tampil sebagai subtitle (ukuran, posisi, transparansi, warna, lebar, tinggi diatur di *Teks suara di layar penuh*; kotak di luar layar penuh diatur di *Kotak terjemahan suara*) dan hilang 8 detik setelah ucapan berhenti.
 - Berhenti otomatis saat pindah tab atau halaman. Video di iframe lintas-situs dan video ber-DRM tidak bisa ditangkap.
 - Mesin offline tersedia di Pengaturan → Mesin offline (lihat bagian di bawah). Vosk, ML Kit, NLLB, dan Argos versi Android tidak dibawa.
 
@@ -74,3 +74,6 @@ Data pengguna: `%APPDATA%\Alethra\data`.
 2. Lihat log kesalahan: tekan Win+R, ketik `%APPDATA%\Alethra\alethra-log.txt`.
 3. Jalankan dari terminal untuk melihat pesan error:
    `"%LOCALAPPDATA%\Programs\Alethra\Alethra.exe"`
+
+## Menu Tools
+Ikon kunci pas di toolbar (antara Unduhan dan ⋮) berisi: cari di halaman, cetak, PDF, simpan offline, terjemahan, chat live, Terjemahan Suara, mode baca, kualitas video, PiP, situs seluler, blokir iklan situs. Item yang tampil diatur di **Pengaturan → Tools**.

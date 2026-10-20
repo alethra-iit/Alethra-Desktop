@@ -2,7 +2,7 @@
   let tabs = [], S = {}, bms = [], infos = [], dragId = null, selIdx = -1, sugCount = 0, typed = '', omniFocused = false;
   const url = $('#url');
   const set = (id, ic) => { $('#' + id).innerHTML = ICON(ic); };
-  set('newtab', 'plus'); set('back', 'back'); set('fwd', 'fwd'); set('home', 'home'); set('star', 'star'); set('trb', 'translate'); set('menub', 'more');
+  set('newtab', 'plus'); set('back', 'back'); set('fwd', 'fwd'); set('home', 'home'); set('star', 'star'); set('trb', 'translate'); set('menub', 'more'); set('toolsb', 'tools');
   $('#dlb').insertAdjacentHTML('afterbegin', ICON('download')); set('fp', 'up'); set('fn', 'down'); set('fx', 'close');
   $('#reload').innerHTML = ICON('reload');
   const cur = () => tabs.find(t => t.active);
@@ -81,6 +81,7 @@
   $('#reload').onclick = () => api(cur() && cur().loading ? 'nav.stop' : 'nav.reload');
   $('#home').onclick = () => api('nav.home'); $('#star').onclick = () => api('bookmark.toggle');
   $('#trb').onclick = () => api('ov.menu', 'translate'); $('#dlb').onclick = () => api('dl.open'); $('#menub').onclick = () => api('menu.open');
+  $('#toolsb').onclick = () => { const r = $('#toolsb').getBoundingClientRect(); api('tools.open', Math.round(window.innerWidth - r.right)); };
   document.addEventListener('mousedown', e => { if (!e.target.closest('#omni')) api('omni.hide'); }, true);
   $('#tabstrip').addEventListener('dblclick', e => { if (e.target.id === 'tabstrip') api('tab.new'); });
 

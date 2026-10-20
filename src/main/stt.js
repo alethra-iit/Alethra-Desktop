@@ -173,21 +173,49 @@ function place(seq, patch) {
 }
 
 /* ---------- untuk overlay ---------- */
-const FS = { size: { sm: 22, md: 30, lg: 40, xl: 52 } };
+const FS = { size: { sm: 22, md: 30, lg: 40, xl: 52 }, col: { white: '#ffffff', yellow: '#ffe14d', cyan: '#6fe3ff' } };
+const HEX = /^#[0-9a-f]{6}$/i;
+const clampN = (v, a, b, d) => { v = Number(v); return Number.isFinite(v) ? Math.max(a, Math.min(b, Math.round(v))) : d; };
+const SHADOWS = ['auto', 'on', 'off'];
+// Rentang nilai pengaturan kotak. 0 pada width/height layar penuh berarti otomatis.
+const LIM = {
+  stf: { bgop: [-1, 100], sizepx: [0, 120], width: [0, 3000], height: [0, 1200], radius: [0, 40], offy: [-40, 400] },
+  stb: { bgop: [0, 100], size: [10, 72], width: [260, 2400], height: [90, 1000], radius: [0, 40] }
+};
+function sanitize(k, o) {
+  for (const [f, [a, b]] of Object.entries(LIM[k] || {})) if (f in o) o[f] = clampN(o[f], a, b, SV.DEFAULTS[k][f]);
+  if ('bgcol' in o && o.bgcol !== '' && !HEX.test(o.bgcol)) o.bgcol = SV.DEFAULTS[k].bgcol;
+  if ('color' in o && o.color !== '' && !HEX.test(o.color) && !(k === 'stf' && FS.col[o.color])) o.color = SV.DEFAULTS[k].color;
+  if ('shadow' in o && !SHADOWS.includes(o.shadow)) o.shadow = 'auto';
+  return o;
+}
+function resetPos() { pos.x = 0; pos.y = 0; H.changed(); }
 function ui(win) {
   if (!S) return null;
-  const f = SV.setting('stf'), fs = fsMode;
+  const f = SV.setting('stf'), b = SV.setting('stb'), fs = fsMode;
   const [w, h] = win;
-  let rect;
+  let rect, cfg;
   if (fs) {
-    const px = FS.size[f.size] || 30, rh = Math.round(px * 4.2 + 24), rw = Math.min(w - 80, 1100);
-    rect = { x: Math.round((w - rw) / 2), y: f.pos === 'top' ? 50 : h - rh - 90, w: rw, h: rh };
+    const px = f.sizepx > 0 ? clampN(f.sizepx, 10, 120, 30) : (FS.size[f.size] || 30);
+    const fixW = f.width > 0, fixH = f.height > 0;
+    const rh = fixH ? Math.min(clampN(f.height, 40, 1200, 100), Math.max(40, h - 20)) : Math.round(px * 4.2 + 24);
+    const rw = fixW ? Math.min(clampN(f.width, 200, 3000, 1100), Math.max(200, w - 20)) : Math.min(w - 80, 1100);
+    const off = clampN(f.offy, -40, 400, 0);
+    let y = f.pos === 'top' ? 50 + off : h - rh - 90 - off;
+    y = Math.max(0, Math.min(Math.max(0, h - rh), y));
+    rect = { x: Math.round((w - rw) / 2), y, w: rw, h: rh };
+    const op = f.bgop >= 0 ? f.bgop : ({ dim: 62, solid: 100, none: 0 }[f.bg] != null ? { dim: 62, solid: 100, none: 0 }[f.bg] : 62);
+    cfg = { size: px, pos: f.pos, bgop: op, bgcol: HEX.test(f.bgcol) ? f.bgcol : '#000000', color: HEX.test(f.color) ? f.color : (FS.col[f.color] || '#ffffff'), orig: f.orig !== false,
+      radius: clampN(f.radius, 0, 40, 12), bold: f.bold !== false, shadow: f.shadow === 'on' || (f.shadow !== 'off' && op <= 20), fixW, fixH };
   } else {
-    const rw = Math.min(720, w - 40), rh = 168;
+    const rw = Math.min(clampN(b.width, 260, 2400, 720), w - 40), rh = Math.max(90, Math.min(clampN(b.height, 90, 1000, 168), h - 20));
     rect = { x: Math.round((w - rw) / 2) + pos.x, y: h - rh - 24 + pos.y, w: rw, h: rh };
     rect.x = Math.max(0, Math.min(w - rw, rect.x)); rect.y = Math.max(0, Math.min(h - rh, rect.y));
     pos.x = rect.x - Math.round((w - rw) / 2); pos.y = rect.y - (h - rh - 24);
+    const op = clampN(b.bgop, 0, 100, 100);
+    cfg = { size: clampN(b.size, 10, 72, 20), bgop: op, bgcol: HEX.test(b.bgcol) ? b.bgcol : '', color: HEX.test(b.color) ? b.color : '', radius: clampN(b.radius, 0, 40, 16),
+      bold: b.bold !== false, border: b.border !== false, prev: b.prev !== false, orig: f.orig !== false, shadow: b.shadow === 'on' || (b.shadow !== 'off' && op <= 20) };
   }
-  return { rect, fs, idle: !!S.idle, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg: { size: FS.size[f.size] || 30, pos: f.pos, bg: f.bg, color: f.color, orig: f.orig !== false } };
+  return { rect, fs, idle: !!S.idle, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg };
 }
-module.exports = { init, start, stop, toggle, refresh, active, activeTabId, setFs, drag, ui };
+module.exports = { init, start, stop, toggle, refresh, active, activeTabId, setFs, drag, ui, sanitize, resetPos };
