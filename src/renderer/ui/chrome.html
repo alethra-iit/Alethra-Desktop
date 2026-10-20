@@ -1,0 +1,21 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' alethra:; img-src * data: blob:; style-src 'self' alethra: 'unsafe-inline'">
+<link rel="stylesheet" href="alethra://app/shared.css"><link rel="stylesheet" href="alethra://app/ui/chrome.css">
+<title>Alethra</title></head><body>
+<div id="bars">
+  <div id="tabstrip"><div id="tabs"></div><button id="newtab" title="Tab baru (Ctrl+T)"></button></div>
+  <div id="toolbar">
+    <button class="tb" id="back" title="Kembali (Alt+←)"></button>
+    <button class="tb" id="fwd" title="Maju (Alt+→)"></button>
+    <button class="tb" id="reload" title="Muat ulang (Ctrl+R)"></button>
+    <button class="tb" id="home" title="Beranda"></button>
+    <div id="omni"><span id="sec"></span><input id="url" spellcheck="false" autocomplete="off" placeholder="Cari atau ketik alamat"><button class="tb sm" id="star" title="Bookmark (Ctrl+D)"></button></div>
+    <button class="tb" id="trb" title="Terjemahkan halaman (Ctrl+Alt+T)"></button>
+    <button class="tb" id="dlb" title="Unduhan (Ctrl+J)"><span id="badge"></span></button>
+    <button class="tb" id="menub" title="Menu"></button>
+  </div>
+  <div id="bmbar"></div>
+  <div id="infobars"></div>
+  <div id="findbar" hidden><input id="fi" placeholder="Cari di halaman" spellcheck="false"><span id="fc"></span><button class="tb sm" id="fp"></button><button class="tb sm" id="fn"></button><button class="tb sm" id="fx"></button></div>
+</div>
+<script src="alethra://app/shared.js"></script><script src="alethra://app/ui/chrome.js"></script></body></html>

@@ -1,0 +1,65 @@
+{
+  "name": "alethra-browser",
+  "productName": "Alethra",
+  "version": "1.0.0",
+  "description": "Alethra Browser untuk PC (Windows)",
+  "main": "src/main/main.js",
+  "author": "Alethra",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64 --publish never",
+    "dist:dir": "electron-builder --win --x64 --dir"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.alethra.browser.desktop",
+    "productName": "Alethra",
+    "copyright": "Alethra",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Alethra",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh",
+      "artifactName": "Alethra-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Alethra-Portable-${version}.${ext}"
+    }
+  }
+}
