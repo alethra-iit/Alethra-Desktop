@@ -68,7 +68,7 @@
     $$('[data-i]', d).forEach(b => b.onclick = () => { const p = PRESETS[+b.dataset.i]; d.remove(); set('sta', Object.assign({}, DEFSTA, p[2])); });
   }
 
-  let OE = null, mtS = '', mtT = '';
+  let OE = null, mtS = '', mtT = '', playSub = 'umum', mirCustom = false;
   // baris model (suara atau terjemahan): unduh / batal / pakai / hapus, dengan bilah kemajuan yang diperbarui langsung
   function oeRow(map) {
     return (m0) => {
@@ -76,6 +76,7 @@
       const r = el(`<div class="set"><div class="tx"><div>${esc(m.title)}${m.sel ? ' <span style="font-size:11px;padding:2px 8px;border-radius:9px;background:var(--acc);color:var(--onacc);margin-left:6px">Dipakai</span>' : ''}</div><div class="d">${esc(m.desc)} · ${m.installed ? fmtBytes(m.bytes) : '±' + m.mb + ' MB'}</div>${busy ? `<div class="prog"><i data-p="${m.id}" style="width:${pct}%"></i></div><div class="d" data-pt="${m.id}">${esc(job.phase || '')} ${job.total ? pct + '% (' + fmtBytes(job.done) + ' / ' + fmtBytes(job.total) + ')' : ''}</div>` : ''}${!busy && job && job.error ? `<div class="d" style="color:var(--danger)">${esc(job.error)}</div>` : ''}</div></div>`);
       const a = document.createElement('div'); a.style.cssText = 'display:flex;gap:6px;flex:none';
       const b = (t, fn, cls) => { const x = document.createElement('button'); x.className = 'btn sm ' + (cls || ''); x.textContent = t; x.onclick = fn; a.appendChild(x); };
+      if (!busy && job && job.error && job.detail) b('Salin detail error', async () => { await api('clip.write', job.detail); const x = a.firstChild; if (x) { x.textContent = 'Tersalin ✓'; setTimeout(() => { x.textContent = 'Salin detail error'; }, 1800); } });
       if (busy) b('Batal', async () => { await api('oe.cancel', m.id); renderSec(false); });
       else if (m.installed) { if (m.pick && !m.sel) b('Pakai', () => m.pick()); b('Hapus', async () => { if (await askConfirm('Hapus model?', m.title + ' akan dihapus dari PC ini.', 'Hapus', true)) { await api('oe.del', m.id); renderSec(false); } }, 'danger'); }
       else b(job && job.error ? 'Coba lagi' : 'Unduh', async () => { await api('oe.dl', m.id); renderSec(false); }, 'pri');
@@ -158,35 +159,68 @@
         toggle('dlAsk', 'Tanya lokasi simpan setiap unduhan')]));
     }
     if (sec === 'tools') {
-      A(el('<p class="sub">Menu Tools dibuka dari ikon kunci pas di toolbar (antara Unduhan dan ⋮). Pilih fitur yang ingin ditampilkan di sana. Pintasan keyboard tetap berfungsi walau itemnya disembunyikan.</p>'));
+      A(el('<p class="sub">Menu Tools dibuka dari tombol "Tools" di toolbar (antara Unduhan dan ⋮). Pilih fitur yang ingin ditampilkan di sana. Pintasan keyboard tetap berfungsi walau itemnya disembunyikan. Fitur yang dimatikan di Play tetap muncul di menu Tools dalam keadaan redup dengan keterangan, supaya jelas kenapa belum bisa dipakai.</p>'));
       const T = () => S.tools || {}, tt = (k) => (c) => set('tools', Object.assign({}, S.tools, { [k]: c }));
       const tg = (k, title, desc) => flag(title, desc, T()[k] !== false, tt(k));
+      // fitur yang juga bergantung pada Play: bila Play mematikannya, tampilkan peringatan + tombol untuk menyalakan
+      const tgp = (k, title, desc, pk, where) => {
+        const r = tg(k, title, desc);
+        if (S[pk] === false) {
+          const d = r.querySelector('.d') || r.querySelector('.tx').appendChild(el('<div class="d"></div>'));
+          d.style.color = 'var(--danger)'; d.textContent = 'Dimatikan di Play → ' + where + ', jadi di menu Tools tampil redup dan tidak bisa dipakai.';
+          const b = document.createElement('button'); b.className = 'btn sm pri'; b.textContent = 'Nyalakan di Play'; b.onclick = () => set(pk, true); r.appendChild(b);
+        }
+        return r;
+      };
       A(grp('Halaman')); A(box([
         tg('find', 'Cari di halaman', 'Ctrl+F'), tg('print', 'Cetak…', 'Ctrl+P'), tg('pdf', 'Simpan sebagai PDF'), tg('offline', 'Simpan halaman offline', 'Ctrl+S')]));
       A(grp('Terjemahan & baca')); A(box([
-        tg('translate', 'Terjemahkan halaman', 'Ctrl+Alt+T. Juga perlu dinyalakan di Play → Terjemahkan situs'),
+        tgp('translate', 'Terjemahkan halaman', 'Ctrl+Alt+T. Juga perlu dinyalakan di Play → Terjemahkan situs', 'ptr', 'Terjemahkan situs'),
         tg('chat', 'Terjemahkan chat live', 'YouTube dan Twitch'),
-        tg('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara'),
+        tgp('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara', 'stt', 'Terjemahan Suara'),
         tg('reader', 'Mode baca', 'Ctrl+Alt+R')]));
       A(grp('Video & situs')); A(box([
         tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('mobile', 'Tampilan situs seluler', 'Per situs'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs')]));
       A(box([button('Tampilkan semua', 'Kembalikan semua item ke menu Tools', 'Atur ulang', () => set('tools', S.stDefs.tools))]));
     }
     if (sec === 'play') {
+      const OEs = await api('oe.list') || { stt: [], mt: [], jobs: {} };
+      const SELK = { offline: 'stmodel', tjs: 'stwmodel', vosk: 'stvmodel' }, ENGN = { offline: 'sherpa-onnx', tjs: 'Whisper (Transformers.js)', vosk: 'Vosk' };
+      const isLocal = S.stengine in SELK;
+      const curM = isLocal && OEs.stt.find(m => m.id === S[SELK[S.stengine]] && m.installed);
+      const goOff = () => { sec = 'mesinoff'; history.replaceState(null, '', '#mesinoff'); renderSec(true); };
+      /* ringkasan di atas + sub-bagian, supaya halaman tidak panjang */
+      const trName = { online: 'Google Translate', offline: 'Opus-MT', nllb: 'NLLB' }[S.trmode] || S.trmode;
+      const engName = S.stengine === 'cloud' ? 'Whisper cloud' : ENGN[S.stengine];
+      const modelName = isLocal ? (curM ? curM.title : 'belum terpasang') : ({ groq: 'Groq', openai: 'OpenAI', custom: 'Server sendiri' }[S.stprov] || S.stprov);
+      let warn = '';
+      if (S.stt === false) warn = 'Terjemahan Suara dimatikan.';
+      else if (isLocal && !curM) warn = 'Model suara belum terpasang. Fitur belum bisa dijalankan.';
+      else if (!isLocal && S.stprov !== 'custom' && !S.stkeyMask) warn = 'Kunci API belum diisi. Fitur belum bisa dijalankan.';
+      else if (!isLocal && S.stprov === 'custom' && !S.stcurl) warn = 'Alamat server belum diisi. Fitur belum bisa dijalankan.';
+      else if (S.trmode === 'nllb' && !(OEs.nllb && OEs.nllb.installed)) warn = S.mtfb ? 'Model NLLB belum terpasang; sementara memakai terjemahan online.' : 'Model NLLB belum terpasang.';
+      const sumBox = el('<div class="list"></div>');
+      sumBox.appendChild(row('Mesin: ' + engName + ' · ' + (isLocal ? 'Model: ' : 'Penyedia: ') + modelName + ' · Terjemahan: ' + trName,
+        warn || ('Siap dipakai · Bahasa tujuan: ' + (S.trLangs[S.trLang] || S.trLang)),
+        warn && (isLocal || S.trmode === 'nllb') ? (() => { const b = document.createElement('button'); b.className = 'btn sm pri'; b.textContent = 'Kelola model…'; b.onclick = goOff; return b; })() : null));
+      const sd = sumBox.querySelector('.d'); if (sd) sd.style.color = warn ? 'var(--danger)' : 'var(--sub)';
+      A(sumBox);
+      const PS = [['umum', 'Umum'], ['suara', 'Mesin suara & terjemahan'], ['kotak', 'Kotak popup'], ['layar', 'Layar penuh']];
+      const pills = el('<div style="display:flex;gap:6px;flex-wrap:wrap;margin:14px 0"></div>');
+      PS.forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'btn sm' + (playSub === k ? ' pri' : ''); b.textContent = l; b.onclick = () => { playSub = k; renderSec(false); }; pills.appendChild(b); });
+      A(pills);
+      if (playSub === 'umum') {
       A(grp('Video')); A(box([
         toggle('adblock', 'Blokir iklan YouTube', 'Hilangkan iklan video dan banner di YouTube'),
         row('Perkecil video', 'Tools → Gambar dalam gambar (PiP bawaan Chromium), bisa dipakai di situs apa pun', null)]));
       A(grp('Terjemahan')); A(box([
-        toggle('ptr', 'Terjemahkan situs', 'Aktifkan "Terjemahkan halaman" di menu Tools (Ctrl+Alt+T)'),
+        toggle('ptr', 'Terjemahkan situs', 'Aktifkan "Terjemahkan halaman" di menu Tools (Ctrl+Alt+T). Bila mati, itemnya tampil redup di menu Tools dengan keterangan "Dimatikan di Play"'),
         toggle('tr', 'Terjemahan chat live', 'Terjemahkan chat live YouTube dan Twitch (juga tersedia di menu Tools)'),
         select('Bahasa tujuan', 'Dipakai untuk terjemahan situs, chat live, dan Terjemahan Suara', Object.entries(S.trLangs), S.trLang, v => set('trLang', v)),
         toggle('trhide', 'Sembunyikan teks asli', 'Hanya tampilkan hasil terjemahan')]));
+      }
+      if (playSub === 'suara') {
       A(grp('Terjemahan Suara'));
-      const OEs = await api('oe.list') || { stt: [], mt: [], jobs: {} };
-      const goOff = () => { sec = 'mesinoff'; history.replaceState(null, '', '#mesinoff'); renderSec(true); };
-      const SELK = { offline: 'stmodel', tjs: 'stwmodel', vosk: 'stvmodel' }, ENGN = { offline: 'sherpa-onnx', tjs: 'Whisper (Transformers.js)', vosk: 'Vosk' };
-      const isLocal = S.stengine in SELK;
-      const curM = isLocal && OEs.stt.find(m => m.id === S[SELK[S.stengine]] && m.installed);
       const sr = [
         toggle('stt', 'Terjemahan Suara', 'Aktifkan "Terjemahan Suara" di menu Tools (Ctrl+Alt+S). Audio video dikenali lalu diterjemahkan di kotak popup, tanpa mikrofon.'),
         select('Mesin suara ke teks', 'Cloud butuh internet dan kunci API. Tiga mesin offline berjalan di PC ini, tanpa internet dan tanpa kunci. Mesin suara dan mesin terjemahan bebas dikombinasikan.', [['cloud', 'Whisper cloud (Groq / OpenAI / server sendiri)'], ['offline', 'Offline · sherpa-onnx (ringan dan cepat)'], ['tjs', 'Offline · Whisper (Transformers.js)'], ['vosk', 'Offline · Vosk (sangat ringan)']], S.stengine, v => set('stengine', v))];
@@ -219,11 +253,15 @@
         select('Kecepatan teks', 'Makin cepat, makin banyak permintaan API per menit', [['fast', 'Cepat (potongan maks ±3,8 dtk)'], ['bal', 'Seimbang (±5,5 dtk, disarankan)'], ['eco', 'Hemat (±8,5 dtk, jatah gratis awet)']], S.stspeed, v => set('stspeed', v)),
         button('Pengaturan audio', audSummary(), 'Buka', () => { sec = 'audio'; history.replaceState(null, '', '#audio'); renderSec(true); }));
       A(box(sr));
+      A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu Tools → Terjemahan Suara (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
+      }
+
       const D = S.stDefs, dark = !!S.dark;
       const sb = (k, v) => set('stb', Object.assign({}, S.stb, { [k]: v })), sf = (k, v) => set('stf', Object.assign({}, S.stf, { [k]: v }));
       const px = (v) => v + ' px', pct = (v) => v + '%', autoPx = (v) => v ? v + ' px' : 'Otomatis';
       const shadowOpts = [['auto', 'Otomatis (saat latar tipis)'], ['on', 'Selalu'], ['off', 'Mati']];
       const B = S.stb;
+      if (playSub === 'kotak') {
       A(grp('Kotak terjemahan suara (di luar layar penuh)'));
       A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Berlaku untuk kotak popup yang tampil di atas video. Geser kotaknya lewat bilah atasnya. Perubahan terlihat langsung saat Terjemahan Suara sedang berjalan.</p>'));
       A(box([
@@ -241,6 +279,8 @@
         button('Atur ulang posisi', 'Kembalikan kotak ke tengah bawah setelah digeser', 'Atur ulang', () => api('stt.resetpos')),
         button('Tampilan bawaan', 'Kembalikan semua pengaturan kotak ini', 'Setel ulang', () => set('stb', D.stb))]));
 
+      }
+      if (playSub === 'layar') {
       A(grp('Teks suara di layar penuh'));
       const F = S.stf, NAMED = { white: '#ffffff', yellow: '#ffe14d', cyan: '#6fe3ff' }, SZ = { sm: 22, md: 30, lg: 40, xl: 52 };
       const effOp = F.bgop >= 0 ? F.bgop : ({ dim: 62, solid: 100, none: 0 }[F.bg] != null ? { dim: 62, solid: 100, none: 0 }[F.bg] : 62);
@@ -259,11 +299,29 @@
         select('Bayangan teks', 'Membantu keterbacaan bila latar tipis atau transparan', shadowOpts, F.shadow, v => sf('shadow', v)),
         flag('Tampilkan teks asli', 'Ucapan asli di bawah terjemahan (berlaku juga di kotak di luar layar penuh)', F.orig !== false, v => sf('orig', v)),
         button('Tampilan bawaan', 'Kembalikan semua pengaturan layar penuh', 'Setel ulang', () => set('stf', D.stf))]));
-      A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu Tools → Terjemahan Suara (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
+      }
     }
     if (sec === 'mesinoff') {
       OE = await api('oe.list') || { stt: [], mt: [], jobs: {}, langs: {}, groups: [] };
       A(el('<p class="sub">Alat offline untuk Terjemahan Suara. Suara ke teks: sherpa-onnx, Whisper (Transformers.js), atau Vosk. Terjemahan: Opus-MT atau NLLB-200 600M. Pilih satu mesin suara dan satu mesin terjemahan, bebas dikombinasikan (mis. sherpa-onnx + NLLB). Model hanya perlu diunduh sekali, lalu berjalan di PC ini tanpa internet. Mesin dimuat saat Terjemahan Suara dinyalakan dan dilepas dari memori beberapa detik setelah dimatikan.</p>'));
+      A(grp('Sumber unduhan model'));
+      {
+        const MIR = [['', 'Hugging Face (resmi)'], ['https://hf-mirror.com', 'hf-mirror.com (cermin)'], ['custom', 'Alamat lain…']];
+        const known = MIR.some(m => m[0] === (S.hfmirror || ''));
+        const cur = (mirCustom || (S.hfmirror && !known)) ? 'custom' : (S.hfmirror || '');
+        const rows = [select('Server model', 'Ganti bila Hugging Face lambat atau diblokir di jaringan Anda. Berlaku untuk unduhan berikutnya; tidak perlu variabel lingkungan.', MIR, cur, v => { if (v === 'custom') { mirCustom = true; renderSec(false); } else { mirCustom = false; set('hfmirror', v); } })];
+        if (cur === 'custom') {
+          const i = document.createElement('input'); i.className = 'inp'; i.style.width = '320px'; i.placeholder = 'https://cermin.contoh.com'; i.value = S.hfmirror || '';
+          i.onchange = async () => { const v = i.value.trim().replace(/\/+$/, ''); if (!(await set('hfmirror', v))) { alert('Alamat harus diawali https:// (atau http://localhost)'); i.value = S.hfmirror || ''; } };
+          rows.push(row('Alamat cermin', 'Susunan alamatnya harus sama dengan huggingface.co', i));
+        }
+        const pr = row('Uji koneksi', 'Periksa apakah server di atas bisa dijangkau dari PC ini. Model Vosk diunduh dari alphacephei.com dan tidak ikut cermin.', null);
+        const pb = document.createElement('button'); pb.className = 'btn sm'; pb.textContent = 'Uji';
+        pb.onclick = async () => { const d = pr.querySelector('.d'); pb.disabled = true; d.style.color = 'var(--sub)'; d.textContent = 'Menghubungi…'; const r = await api('oe.ping'); pb.disabled = false; d.style.color = r && r.ok ? 'var(--ok, var(--sub))' : 'var(--danger)'; d.textContent = r && r.ok ? 'Terhubung ke ' + r.base + ' (' + r.ms + ' ms)' : 'Gagal menghubungi ' + (r ? r.base : '') + ': ' + (r ? (r.err || 'HTTP ' + r.status) : 'tidak diketahui'); };
+        pr.appendChild(pb); rows.push(pr);
+        A(box(rows));
+      }
+      A(grp('Mesin'));
       A(box([
         select('Mesin suara ke teks', '', [['cloud', 'Whisper cloud'], ['offline', 'Offline · sherpa-onnx'], ['tjs', 'Offline · Whisper (Transformers.js)'], ['vosk', 'Offline · Vosk']], S.stengine, v => set('stengine', v)),
         select('Terjemahan hasil suara', '', [['online', 'Online (Google Translate)'], ['offline', 'Offline · Opus-MT'], ['nllb', 'Offline · NLLB-200 600M (Transformers.js)']], S.trmode, v => set('trmode', v))]));

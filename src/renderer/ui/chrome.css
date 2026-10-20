@@ -32,3 +32,7 @@ html,body{background:var(--strip);overflow:hidden;user-select:none}
 #fi{width:260px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:0 8px;outline:0;user-select:text}#fi:focus{border-color:var(--acc)}#fc{font-size:12px;color:var(--sub);min-width:60px;padding:0 6px}
 body.fs #bars{display:none}
 #menub svg{stroke-width:3.4}
+
+/* tombol Tools: ikon + teks supaya jelas bagi pengguna baru; teks disembunyikan bila jendela sempit */
+.tb.lbl{width:auto;padding:0 10px 0 8px;gap:6px}.tb.lbl .tl{font-size:13px;font-weight:500}
+@media (max-width:1000px){.tb.lbl .tl{display:none}.tb.lbl{width:34px;padding:0}}

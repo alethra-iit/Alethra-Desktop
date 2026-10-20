@@ -13,7 +13,10 @@ jobs:
   build-windows:
     runs-on: windows-latest
     env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # tanpa tanda tangan kode
+      # Tanda tangan kode aktif otomatis bila secret WIN_CSC_LINK (.pfx base64) dan WIN_CSC_KEY_PASSWORD diisi; bila kosong, build tidak ditandatangani.
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.WIN_CSC_LINK != '' && 'true' || 'false' }}
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +32,11 @@ jobs:
 
       - name: Cek sintaks
         run: node scripts/check.js
+
+      - name: Info penandatanganan
+        shell: bash
+        run: |
+          if [ -n "$WIN_CSC_LINK" ]; then echo "Build ditandatangani (sertifikat dari secret)."; else echo "::notice::Build TIDAK ditandatangani (secret WIN_CSC_LINK kosong). SmartScreen akan menampilkan peringatan."; fi
 
       - name: Build installer + portable
         run: npx electron-builder --win --x64 --publish never --config.extraMetadata.version=1.0.${{ github.run_number }}

@@ -1,7 +1,7 @@
 # Alethra Browser — Versi PC (Windows)
 
 Port desktop dari **Alethra Browser v68 (Android)**, dibangun dengan Electron (Chromium) dan UI bergaya desktop:
-tab bar di atas, toolbar + omnibox, bilah bookmark, menu Tools (ikon kunci pas), menu ⋮, dan pintasan keyboard lengkap.
+tab bar di atas, toolbar + omnibox, bilah bookmark, menu Tools (tombol "Tools"), menu ⋮, dan pintasan keyboard lengkap.
 GitHub Actions membuat **installer `.exe`** dan **versi portable `.exe`** otomatis.
 
 ## Cara build `.exe` di GitHub
@@ -9,7 +9,7 @@ GitHub Actions membuat **installer `.exe`** dan **versi portable `.exe`** otomat
 2. Buka tab **Actions** → workflow **Build EXE (Windows)** (jalan otomatis saat push ke `main`, atau klik *Run workflow*).
 3. Setelah selesai (± 3–5 menit), ambil hasilnya di **Artifacts** → `Alethra-Windows` (berisi `Alethra-Setup-x.y.z.exe` dan `Alethra-Portable-x.y.z.exe`) atau di tab **Releases**.
 
-> Belum ditandatangani kode (code signing), jadi Windows SmartScreen bisa menampilkan peringatan → klik *More info* → *Run anyway*.
+> Build tanpa sertifikat belum ditandatangani (code signing), jadi Windows SmartScreen bisa menampilkan peringatan → klik *More info* → *Run anyway*. Untuk rilis publik, tanda tangani build; lihat bagian *Penandatanganan kode* di bawah.
 
 ## Jalankan / build lokal
 ```bash
@@ -67,7 +67,7 @@ Terjemahan Suara (pengenalan ucapan dan penerjemahannya) bisa berjalan di PC tan
 - **NLLB-200 distilled 600M** (Transformers.js, ±900 MB unduhan, ±1,5 GB RAM): satu model untuk semua pasangan bahasa (±40 bahasa tujuan tersedia di Alethra), tanpa lewat Inggris.
 - Cadangan Google Translate bisa dimatikan.
 
-Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dari memori 45 detik setelah Terjemahan Suara dimatikan. Jumlah thread CPU bisa diatur. Unduhan memakai Hugging Face (bisa diganti cermin lewat variabel `ALETHRA_HF`) dan alphacephei.com untuk Vosk (`ALETHRA_VOSK`).
+Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dari memori 45 detik setelah Terjemahan Suara dimatikan. Jumlah thread CPU bisa diatur. Unduhan memakai Hugging Face (bisa diganti cermin di Pengaturan → Mesin offline → Sumber unduhan model; variabel `ALETHRA_HF` masih dikenali sebagai cadangan) dan alphacephei.com untuk Vosk (`ALETHRA_VOSK`).
 
 ## Pintasan keyboard
 Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+W tutup · Ctrl+Tab ganti tab · Ctrl+1…9 · Ctrl+L alamat · Ctrl+F cari ·
@@ -83,9 +83,24 @@ Data pengguna: `%APPDATA%\Alethra\data`.
    `"%LOCALAPPDATA%\Programs\Alethra\Alethra.exe"`
 
 ## Menu Tools
-Ikon kunci pas di toolbar (antara Unduhan dan ⋮) berisi: cari di halaman, cetak, PDF, simpan offline, terjemahan, chat live, Terjemahan Suara, mode baca, kualitas video, PiP, situs seluler, blokir iklan situs. Item yang tampil diatur di **Pengaturan → Tools**.
+Tombol "Tools" di toolbar (antara Unduhan dan ⋮) berisi: cari di halaman, cetak, PDF, simpan offline, terjemahan, chat live, Terjemahan Suara, mode baca, kualitas video, PiP, situs seluler, blokir iklan situs. Item yang tampil diatur di **Pengaturan → Tools**. Fitur yang dimatikan di **Pengaturan → Play** (Terjemahkan situs, Terjemahan Suara) tetap muncul di menu Tools dalam keadaan redup dengan keterangan (mis. "Dimatikan di Play", "Model suara belum terpasang"); klik item itu membuka pengaturan yang tepat. Saat menu Tools dibuka, model suara offline dimuat lebih dulu di latar belakang supaya Terjemahan Suara langsung siap.
 
 ### Catatan unduhan model
-Model sherpa-onnx diunduh dari Hugging Face dan tersebar di beberapa akun (`csukuangfj`, `csukuangfj2`, `k2-fsa`). Alethra mencoba semuanya berurutan. Hugging Face menjawab HTTP 401 untuk repo yang tidak ada, jadi 401 berarti nama repo tidak ditemukan, bukan butuh login. Bila Hugging Face diblokir, set variabel lingkungan `ALETHRA_HF` ke cermin, mis. `https://hf-mirror.com`.
+Model sherpa-onnx diunduh dari Hugging Face dan tersebar di beberapa akun (`csukuangfj`, `csukuangfj2`, `k2-fsa`). Alethra mencoba semuanya berurutan. Hugging Face menjawab HTTP 401 untuk repo yang tidak ada, jadi 401 berarti nama repo tidak ditemukan, bukan butuh login. Bila Hugging Face diblokir atau lambat, ganti **Sumber unduhan model** di Pengaturan → Mesin offline (pilih `hf-mirror.com` atau isi alamat sendiri, lalu tekan *Uji*). Bila unduhan gagal, tombol **Salin detail error** menyalin versi aplikasi, sumber, tahap, dan pesan galat untuk laporan.
 
 Daftar model di Pengaturan > Mesin offline hanya menampilkan mesin suara dan mode terjemahan yang sedang dipilih.
+
+## Penandatanganan kode (Windows)
+Workflow `build.yml` otomatis menandatangani installer dan portable **bila** dua secret berikut diisi di GitHub (Settings → Secrets and variables → Actions). Bila kosong, build tetap jalan tanpa tanda tangan seperti sebelumnya.
+
+| Secret | Isi |
+|---|---|
+| `WIN_CSC_LINK` | Sertifikat code signing `.pfx` dalam base64 (atau URL berkas) |
+| `WIN_CSC_KEY_PASSWORD` | Kata sandi `.pfx` |
+
+Pilihan sertifikat (cek syarat dan harga terbaru ke masing-masing penyedia):
+- **Sertifikat OV/EV dari CA** (DigiCert, Sectigo, SSL.com, dll.). Pastikan CA mengizinkan penyimpanan kunci yang bisa dipakai di CI; sebagian CA mewajibkan token fisik atau layanan tanda tangan awan.
+- **Azure Trusted Signing**: berlangganan bulanan, kunci tidak keluar dari Azure. electron-builder mendukungnya lewat `win.azureSignOptions`.
+- **SignPath Foundation**: gratis untuk proyek open source yang memenuhi syarat.
+
+Catatan: tanda tangan memastikan penerbit tercatat, tetapi reputasi SmartScreen untuk berkas baru tetap perlu waktu dan jumlah unduhan untuk naik, jadi peringatan bisa masih muncul di rilis-rilis awal.

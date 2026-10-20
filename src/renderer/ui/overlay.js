@@ -23,12 +23,15 @@
       const el = $('#menu'); el.hidden = false; el.innerHTML = ''; el.style.right = (s.menu.right != null ? s.menu.right : 8) + 'px';
       s.menu.items.forEach(it => {
         if (it.sep) { el.insertAdjacentHTML('beforeend', '<div class="msep"></div>'); return; }
+        if (it.head) { el.insertAdjacentHTML('beforeend', `<div class="mhd">${esc(it.head)}</div>`); return; }
         if (it.zoom) {
           const z = document.createElement('div'); z.className = 'zr'; z.innerHTML = `<span class="l">Zoom</span><button data-d="-1">−</button><span class="v">${it.zoom}%</span><button data-d="1">+</button><button data-d="0" title="Setel ulang">⟲</button>`;
           $$('button', z).forEach(b => b.onclick = () => api('ov.zoom', +b.dataset.d)); el.appendChild(z); return;
         }
-        const d = document.createElement('div'); d.className = 'mi' + (it.off ? ' off' : '');
-        d.innerHTML = `<span class="ck">${it.check ? ICON('check', 16) : ''}</span><span class="l">${esc(it.label)}</span><span class="k">${esc(it.key || '')}</span>`;
+        const d = document.createElement('div'); d.className = 'mi' + (it.off ? ' off' : '') + (it.dim ? ' dim' : '');
+        // dim = item tidak bisa dipakai sekarang, tapi tetap bisa diklik untuk membuka pengaturan yang menyebabkannya; note = alasannya
+        d.innerHTML = `<span class="ck">${it.check ? ICON('check', 16) : ''}</span><span class="l">${esc(it.label)}</span>${it.note ? `<span class="nt">${esc(it.note)}</span>` : `<span class="k">${esc(it.key || '')}</span>`}`;
+        if (it.note) d.title = it.note + ' — klik untuk membuka pengaturan';
         d.onclick = () => api('ov.menu', it.id); el.appendChild(d);
       });
     } else hide('menu', false);

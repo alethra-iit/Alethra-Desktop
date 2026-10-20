@@ -502,33 +502,34 @@ function pip() {
 function mainMenuSpec() {
   const t = curTab(), st = t ? tabState().find(x => x.id === t.id) : {};
   const I = (id, label, o = {}) => Object.assign({ id, label }, o);
+  // Kelompok: Tab | Pustaka | Tampilan halaman | Aplikasi. "Hapus data penjelajahan" ada di Pengaturan → Privasi & Keamanan (pintasan Ctrl+Shift+Del tetap jalan).
   return [
     I('tab.new', 'Tab baru', { key: 'Ctrl+T' }), I('tab.incog', 'Tab Incognito baru', { key: 'Ctrl+Shift+N' }), I('tab.reopen', 'Buka tab tertutup', { key: 'Ctrl+Shift+T', off: !closed.length }),
-    { sep: 1 },
+    { sep: 1 }, { head: 'Pustaka' },
     I('open.bookmarks', 'Bookmark', { key: 'Ctrl+Shift+O' }), I('open.history', 'Histori', { key: 'Ctrl+H' }), I('open.downloads', 'Unduhan', { key: 'Ctrl+J' }), I('open.offline', 'Halaman offline'), I('open.passwords', 'Kata sandi'),
-    { sep: 1 },
+    { sep: 1 }, { head: 'Tampilan halaman' },
     { zoom: st.zoom || 100 },
-    { sep: 1 },
-    I('clear', 'Hapus data penjelajahan', { key: 'Ctrl+Shift+Del' }), I('fullscreen', 'Layar penuh', { key: 'F11' }), I('devtools', 'Alat pengembang', { key: 'F12' }),
+    I('fullscreen', 'Layar penuh', { key: 'F11' }), I('devtools', 'Alat pengembang', { key: 'F12' }),
     { sep: 1 },
     I('open.settings', 'Pengaturan', { key: 'Ctrl+,' }), I('open.about', 'Tentang Alethra'), I('quit', 'Keluar')
   ];
 }
 /* ================= menu Tools (overlay) ================= */
-// Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play ikut disembunyikan.
+// Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play tetap ditampilkan (redup)
+// dengan keterangan, supaya pengguna tahu kenapa tidak bisa dipakai; klik membuka Pengaturan di tempat yang tepat.
 function toolsMenuSpec() {
   const t = curTab(), st = t ? tabState().find(x => x.id === t.id) : {}, web = t && /^https?:/.test(t.url);
   const I = (id, label, o = {}) => Object.assign({ id, label }, o);
-  const cfg = setting('tools');
+  const cfg = setting('tools'), rd = STT.readiness();
   const on = (k) => cfg[k] !== false;
   const groups = [
     [on('find') && I('find', 'Cari di halaman', { key: 'Ctrl+F', off: !web }),
      on('print') && I('print', 'Cetak…', { key: 'Ctrl+P', off: !web }),
      on('pdf') && I('pdf', 'Simpan sebagai PDF', { off: !web }),
      on('offline') && I('offline.save', 'Simpan halaman offline', { key: 'Ctrl+S', off: !web })],
-    [on('translate') && setting('ptr') !== false && I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }),
+    [on('translate') && (setting('ptr') !== false ? I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }) : I('goto.play', 'Terjemahkan halaman', { dim: true, note: 'Dimatikan di Play' })),
      on('chat') && I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
-     on('stt') && setting('stt') !== false && I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web }),
+     on('stt') && (rd.ok ? I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web }) : I('goto.' + rd.sec, 'Terjemahan Suara', { dim: true, note: rd.short })),
      on('reader') && I('reader', 'Mode baca', { key: 'Ctrl+Alt+R', off: !web })],
     [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
@@ -543,6 +544,7 @@ function toolsMenuSpec() {
 }
 function openMenu(kind, right) {
   OV.suggest = null;
+  if (kind === 'tools') STT.prewarm();   // muat model suara lebih dulu selagi menu terbuka, supaya Terjemahan Suara langsung siap
   OV.menu = kind === 'tools' ? { kind, items: toolsMenuSpec(), right: Math.max(8, right | 0) } : { kind: 'main', items: mainMenuSpec() };
   renderOverlay();
 }
@@ -553,6 +555,8 @@ function menuAction(id) {
     case 'tab.new': return createTab('alethra://home');
     case 'tab.incog': return newIncogTab();
     case 'tab.reopen': return reopenClosed();
+    case 'goto.play': return openSettingsAt('play');
+    case 'goto.mesinoff': return openSettingsAt('mesinoff');
     case 'tools.config': { const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog); if (ex) { go(ex, 'alethra://settings#tools'); return selectTab(ex.id); } return createTab('alethra://settings#tools'); }
     case 'find': chromeWC.focus(); return ctx.sendChrome('find', { open: true, focus: true });
     case 'print': return wc.print();
@@ -648,6 +652,7 @@ const API = {
     if (['stmodel', 'stwmodel', 'stvmodel'].includes(k) && !OFF.validModel(v, k)) return false;
     if (k === 'ofthreads' && !(Number.isInteger(v) && v >= 0 && v <= 16)) return false;
     if (k === 'stspeed' && !['fast', 'bal', 'eco'].includes(v)) return false;
+    if (k === 'hfmirror' && v && !/^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)[^\s]*$/i.test(v)) return false;
     if (k === 'stcurl' && v && !/^https?:\/\/[^\s]+$/.test(v)) return false;
     saveSetting(k, v);
     if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'stwmodel', 'stvmodel', 'trmode'].includes(k)) STT.refresh();
@@ -665,6 +670,8 @@ const API = {
   'oe.plan': (e, s, t) => OFF.plan(String(s), String(t)),
   'oe.test': async (e, text, s, t, mode) => { try { return { ok: true, text: (await OFF.translateBy(mode === 'nllb' ? 'nllb' : 'offline', String(text || '').slice(0, 300), String(s), String(t))) || String(text) }; } catch (err) { return { ok: false, err: err.message }; } },
   'oe.dir': () => OFF.openDir(),
+  'oe.ping': () => OFF.ping(),
+  'clip.write': (e, t) => { clipboard.writeText(String(t == null ? '' : t).slice(0, 20000)); return true; },
   'stt.stop': () => STT.stop(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
   'stt.resetpos': () => STT.resetPos(),

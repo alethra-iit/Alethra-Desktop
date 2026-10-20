@@ -66,6 +66,25 @@ function stop() {
   S = null; clearTimeout(idleT); OFF.sttStop(); H.changed();
 }
 function refresh() { if (S) { inject(); H.changed(); } }
+// Kesiapan Terjemahan Suara, dibaca sebelum fitur dijalankan (dipakai menu Tools): { ok, short, msg, sec }
+// short = keterangan pendek di menu; sec = bagian Pengaturan yang perlu dibuka.
+function readiness() {
+  if (SV.setting('stt') === false) return { ok: false, short: 'Dimatikan di Play', msg: 'Terjemahan Suara dimatikan di Pengaturan > Play', sec: 'play' };
+  if (offlineOn()) {
+    if (!OFF.sttReady()) return { ok: false, short: 'Model suara belum terpasang', msg: 'Pasang model suara ke teks offline dulu di Pengaturan > Mesin offline', sec: 'mesinoff' };
+    const tm = SV.setting('trmode');
+    if (tm === 'nllb' && !OFF.nllbReady() && !SV.setting('mtfb')) return { ok: false, short: 'Model NLLB belum terpasang', msg: 'Pasang model NLLB di Pengaturan > Mesin offline', sec: 'mesinoff' };
+  } else {
+    const prov = SV.setting('stprov');
+    if (prov === 'custom' ? !/^https?:\/\//.test(SV.setting('stcurl')) : !keyOf()) return { ok: false, short: prov === 'custom' ? 'Alamat server belum diisi' : 'Kunci API belum diisi', msg: 'Lengkapi pengaturan di Pengaturan > Play', sec: 'play' };
+  }
+  return { ok: true };
+}
+// Muat model lebih dulu (tanpa menjalankan fitur), lalu lepas lagi bila tidak jadi dipakai.
+function prewarm() {
+  if (S || !offlineOn() || !readiness().ok) return;
+  OFF.warm().then(() => { if (!S) OFF.sttStop(); }).catch(() => {});
+}
 function toggle(tab) { if (S && S.tab === tab) stop(); else start(tab); }
 
 function setStatus(msg) {
@@ -219,4 +238,4 @@ function ui(win) {
   }
   return { rect, fs, idle: !!S.idle, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg };
 }
-module.exports = { init, start, stop, toggle, refresh, active, activeTabId, setFs, drag, ui, sanitize, resetPos };
+module.exports = { init, start, stop, toggle, readiness, prewarm, refresh, active, activeTabId, setFs, drag, ui, sanitize, resetPos };

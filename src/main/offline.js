@@ -11,7 +11,8 @@ const SV = require('./services');
 const root = () => path.join(app.getPath('userData'), 'models');
 const sttDir = (id) => path.join(root(), 'stt', id);
 const mtDir = (id) => path.join(root(), 'mt', id);
-const HF = (process.env.ALETHRA_HF || 'https://huggingface.co').replace(/\/+$/, '');   // bisa diganti cermin (mis. https://hf-mirror.com)
+// Sumber unduhan: Pengaturan > Mesin offline > Sumber unduhan model (cermin Hugging Face), lalu variabel ALETHRA_HF, lalu huggingface.co
+const hfBase = () => String(SV.setting('hfmirror') || process.env.ALETHRA_HF || 'https://huggingface.co').replace(/\/+$/, '');
 
 /* ================= katalog ================= */
 const LANG = { en: 'Inggris', id: 'Indonesia', ja: 'Jepang', zh: 'Mandarin', ko: 'Korea', vi: 'Vietnam', th: 'Thai', ru: 'Rusia', ar: 'Arab', hi: 'Hindi', tr: 'Turki', es: 'Spanyol', fr: 'Prancis', de: 'Jerman', it: 'Italia', nl: 'Belanda' };
@@ -95,13 +96,26 @@ function push() {
   if (pushT) return;
   pushT = setTimeout(() => { pushT = null; ctx.broadcastPages && ctx.broadcastPages('oe', jobInfo()); }, 250);
 }
-function jobInfo() { const o = {}; for (const j of jobs.values()) o[j.id] = { done: j.done, total: j.total, error: j.error || '', busy: !j.finished, phase: j.phase }; return o; }
+function jobInfo() { const o = {}; for (const j of jobs.values()) o[j.id] = { done: j.done, total: j.total, error: j.error || '', detail: j.detail || '', busy: !j.finished, phase: j.phase }; return o; }
+// teks lengkap yang bisa disalin pengguna (untuk laporan atau pencarian solusi)
+function errDetail(job, e) {
+  return ['Alethra ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch,
+    'Waktu: ' + new Date().toISOString(), 'Model: ' + job.id + ' (' + job.kind + ')', 'Sumber unduhan: ' + hfBase() + (SV.setting('hfmirror') ? ' (cermin dari Pengaturan)' : process.env.ALETHRA_HF ? ' (variabel ALETHRA_HF)' : ''),
+    'Tahap: ' + (job.phase || '-') + ' · ' + job.done + ' / ' + job.total + ' byte', 'Galat: ' + String((e && e.message) || e), e && e.cause ? 'Penyebab: ' + String(e.cause.message || e.cause) : ''].filter(Boolean).join('\n');
+}
+// uji cepat apakah sumber unduhan bisa dijangkau
+async function ping() {
+  const base = hfBase(), t0 = Date.now(), ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+  try { const r = await net.fetch(base + '/api/models/csukuangfj/sherpa-onnx-whisper-tiny', { signal: ctl.signal }); return { ok: r.ok, base, status: r.status, ms: Date.now() - t0 }; }
+  catch (e) { return { ok: false, base, err: e && e.name === 'AbortError' ? 'Tidak ada jawaban dalam 10 detik' : String((e && e.message) || e) }; }
+  finally { clearTimeout(to); }
+}
 const httpErr = (st, name) => new Error(st === 404 ? `Berkas ${name} tidak ditemukan di Hugging Face` : st === 401 || st === 403 ? `Berkas ${name} tidak bisa diakses di Hugging Face (HTTP ${st})` : `Unduhan gagal (HTTP ${st})`);
 
 // Hugging Face menjawab 401 (bukan 404) untuk repo yang tidak ada atau salah akun, jadi 401/403/404 dianggap "repo tidak ketemu"
 class RepoMiss extends Error { constructor(m, st) { super(m); this.status = st; this.miss = true; } }
 async function hfList(repo, sub, signal) {
-  const r = await net.fetch(`${HF}/api/models/${repo}/tree/main${sub ? '/' + sub : ''}`, { signal });
+  const r = await net.fetch(`${hfBase()}/api/models/${repo}/tree/main${sub ? '/' + sub : ''}`, { signal });
   if (!r.ok) {
     if (r.status === 401 || r.status === 403 || r.status === 404) throw new RepoMiss(`Repo ${repo} tidak ditemukan atau tidak bisa diakses di Hugging Face (HTTP ${r.status})`, r.status);
     throw new Error(`Gagal membaca daftar berkas (HTTP ${r.status})`);
@@ -125,7 +139,7 @@ async function hfFind(m, signal) {
     try { return { repo, files: await hfList(repo, '', signal) }; }
     catch (e) { if (!(e && e.miss)) throw e; tried.push(repo); last = e; }
   }
-  throw new Error(`Model ${m.title} tidak ditemukan di Hugging Face (dicoba: ${tried.join(', ')}). ${last ? 'Kode terakhir HTTP ' + last.status + '. ' : ''}Bila Hugging Face diblokir di jaringan Anda, atur ALETHRA_HF ke cermin (mis. https://hf-mirror.com).`);
+  throw new Error(`Model ${m.title} tidak ditemukan di Hugging Face (dicoba: ${tried.join(', ')}). ${last ? 'Kode terakhir HTTP ' + last.status + '. ' : ''}Bila Hugging Face diblokir di jaringan Anda, ganti Sumber unduhan model di Pengaturan > Mesin offline (mis. hf-mirror.com).`);
 }
 
 // pilih berkas yang perlu diunduh dari daftar isi repo (tingkat teratas saja); mengembalikan { files, roles }
@@ -215,7 +229,7 @@ async function runJob(job, plan) {
   } catch (e) {
     job.finished = true;
     if (job.cancelled) { job.error = ''; jobs.delete(job.id); }
-    else job.error = (e && e.name === 'AbortError') ? 'Dibatalkan' : String((e && e.message) || e);
+    else { job.error = (e && e.name === 'AbortError') ? 'Dibatalkan' : String((e && e.message) || e); job.detail = errDetail(job, e); }
   } finally { push(); }
 }
 function onInstalled(job) {
@@ -238,7 +252,7 @@ function download(id) {
       if (!root.some(f => f.name === 'config.json') || !root.some(f => f.name === 'tokenizer.json')) throw new Error('Berkas model tidak lengkap di repo');
       const ox = (await hfList(m.repo, 'onnx', signal)).filter(f => TJS_ONNX.includes(f.name));
       if (ox.length !== TJS_ONNX.length) throw new Error('Versi ringan (quantized) model ini tidak tersedia');
-      return { dir: sttDir(id), meta: { id, engine: 'tjs', dtype: 'q8' }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${HF}/${m.repo}/resolve/main/${f.name}` })) };
+      return { dir: sttDir(id), meta: { id, engine: 'tjs', dtype: 'q8' }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${hfBase()}/${m.repo}/resolve/main/${f.name}` })) };
     });
     if (m.engine === 'vosk') return startJob('stt', id, m.mb * 1.05, async (signal) => {
       const url = `${VOSK_URL}/${m.zip}.zip`;
@@ -248,7 +262,7 @@ function download(id) {
     return startJob('stt', id, m.mb, async (signal) => {
       const { repo, files: all } = await hfFind(m, signal);
       const { files, roles } = pick(m, all);
-      return { dir: sttDir(id), meta: { id, engine: 'sherpa', kind: m.kind, roles, repo }, files: files.map(f => ({ name: f.name, size: f.size, url: `${HF}/${repo}/resolve/main/${f.name}` })) };
+      return { dir: sttDir(id), meta: { id, engine: 'sherpa', kind: m.kind, roles, repo }, files: files.map(f => ({ name: f.name, size: f.size, url: `${hfBase()}/${repo}/resolve/main/${f.name}` })) };
     });
   }
   if (id === NLLB.id) {
@@ -258,7 +272,7 @@ function download(id) {
       if (!root.some(f => f.name === 'tokenizer.json') || !root.some(f => f.name === 'config.json')) throw new Error('Berkas model tidak lengkap di repo');
       const ox = (await hfList(NLLB.repo, 'onnx', signal)).filter(f => MT_ONNX.includes(f.name));
       if (ox.length !== MT_ONNX.length) throw new Error('Versi ringan (quantized) model ini tidak tersedia');
-      return { dir: mtDir(id), meta: { id, engine: 'nllb' }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${HF}/${NLLB.repo}/resolve/main/${f.name}` })) };
+      return { dir: mtDir(id), meta: { id, engine: 'nllb' }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${hfBase()}/${NLLB.repo}/resolve/main/${f.name}` })) };
     });
   }
   const p = mtFind(id);
@@ -269,7 +283,7 @@ function download(id) {
       if (!root.some(f => f.name === 'tokenizer.json') || !root.some(f => f.name === 'config.json')) throw new Error('Berkas model tidak lengkap di repo');
       const ox = (await hfList(p.repo, 'onnx', signal)).filter(f => MT_ONNX.includes(f.name));
       if (ox.length !== MT_ONNX.length) throw new Error('Versi ringan (quantized) model ini tidak tersedia');
-      return { dir: mtDir(id), meta: { id, src: p.src, tgt: p.tgt }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${HF}/${p.repo}/resolve/main/${f.name}` })) };
+      return { dir: mtDir(id), meta: { id, src: p.src, tgt: p.tgt }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${hfBase()}/${p.repo}/resolve/main/${f.name}` })) };
     });
   }
   return false;
@@ -459,4 +473,4 @@ function list() {
 const openDir = () => { fs.mkdirSync(root(), { recursive: true }); shell.openPath(root()); };
 const validModel = (id, key) => !id || (() => { const m = sttFind(id); return !!m && (!key || KEY[m.engine] === key); })();
 
-module.exports = { list, download, cancel, remove, plan, translate, translateNllb, translateBy, transcribe, warm, sttReady, mtReady, sttStop, shutdown, openDir, validModel, selected, norm, langFromName, Missing, LANG, jobInfo };
+module.exports = { list, download, cancel, remove, plan, translate, translateNllb, translateBy, transcribe, warm, sttReady, nllbReady: nllbInstalled, ping, mtReady, sttStop, shutdown, openDir, validModel, selected, norm, langFromName, Missing, LANG, jobInfo };

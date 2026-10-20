@@ -2,10 +2,13 @@
   let tabs = [], S = {}, bms = [], infos = [], dragId = null, selIdx = -1, sugCount = 0, typed = '', omniFocused = false;
   const url = $('#url');
   const set = (id, ic) => { $('#' + id).innerHTML = ICON(ic); };
-  set('newtab', 'plus'); set('back', 'back'); set('fwd', 'fwd'); set('home', 'home'); set('star', 'star'); set('trb', 'translate'); set('menub', 'more'); set('toolsb', 'tools');
+  set('newtab', 'plus'); set('back', 'back'); set('fwd', 'fwd'); set('home', 'home'); set('star', 'star'); set('trb', 'translate'); set('menub', 'more'); set('toolsb', 'tools'); $('#toolsb').insertAdjacentHTML('beforeend', '<span class="tl">Tools</span>');
   $('#dlb').insertAdjacentHTML('afterbegin', ICON('download')); set('fp', 'up'); set('fn', 'down'); set('fx', 'close');
   $('#reload').innerHTML = ICON('reload');
   const cur = () => tabs.find(t => t.active);
+  // pembaca layar dan pengguna baru: setiap tombol ikon punya nama yang sama dengan tooltip-nya
+  const syncAria = () => $$('.tb[title]').forEach(b => b.setAttribute('aria-label', b.title));
+  syncAria(); new MutationObserver(syncAria).observe($('#toolbar'), { subtree: true, attributes: true, attributeFilter: ['title'] });
 
   /* ---------- tab ---------- */
   function renderTabs() {
