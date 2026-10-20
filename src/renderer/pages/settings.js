@@ -276,7 +276,13 @@
         tjs: 'Whisper yang dijalankan lewat Transformers.js (ONNX int8). Semua bahasa, bahasa dideteksi otomatis bila Bahasa ucapan video di Play diset Otomatis. Pakai tiny/base untuk PC biasa; small hanya untuk CPU kuat.',
         vosk: 'Vosk (Kaldi): satu model per bahasa, sangat ringan dan cepat, tanpa tanda baca dan kurang akurat pada ucapan bising. Tidak ada model Indonesia resmi; untuk ucapan Indonesia pakai Whisper.'
       };
-      ['sherpa', 'tjs', 'vosk'].forEach(eg => {
+      // hanya tampilkan model untuk mesin yang sedang dipilih di atas (cloud = tidak ada yang perlu diunduh)
+      const ENGOF = { offline: 'sherpa', tjs: 'tjs', vosk: 'vosk' };
+      const eg = ENGOF[S.stengine];
+      if (!eg) {
+        A(grp('Suara ke teks'));
+        A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Mesin suara memakai Whisper cloud, jadi tidak ada model yang perlu diunduh. Pilih mesin offline (sherpa-onnx, Whisper Transformers.js, atau Vosk) di atas untuk melihat daftar model dan bahasanya.</p>'));
+      } else {
         A(grp('Suara ke teks · ' + (OE.engines[eg] || eg)));
         A(el(`<p class="sub" style="font-size:12.5px;margin:0 0 8px">${esc(ENGHELP[eg])}</p>`));
         if (eg === 'sherpa') {
@@ -285,47 +291,59 @@
             A(el(`<div class="group" style="margin-top:14px">${esc(gname)}</div>`)); A(sttRows(ms));
           });
         } else A(sttRows(OE.stt.filter(m => m.engine === eg)));
-      });
+        const other = OE.stt.filter(m => m.engine !== eg && m.installed);
+        if (other.length) A(el(`<p class="sub" style="font-size:12.5px;margin:10px 0 0">${other.length} model mesin lain masih terpasang (${esc(fmtBytes(other.reduce((a, m) => a + m.bytes, 0)))}). Ganti mesin di atas untuk mengelolanya.</p>`));
+      }
 
+      if (S.trmode !== 'offline' && S.trmode !== 'nllb') {
+        A(grp('Terjemahan offline'));
+        A(el('<p class=\"sub\" style=\"font-size:12.5px;margin:0 0 8px\">Terjemahan hasil suara memakai Google Translate (online), jadi tidak ada model yang perlu diunduh. Pilih Opus-MT atau NLLB-200 di atas untuk melihat daftar bahasa dan model yang bisa diunduh.</p>'));
+      }
       /* ----- terjemahan offline ----- */
-      A(grp('Terjemahan offline'));
-      A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Model Opus-MT (±85 MB per arah). Kebanyakan bahasa lewat Inggris, jadi Jepang → Indonesia memakai dua model (Jepang → Inggris dan Inggris → Indonesia). Pilih pasangan lalu unduh yang diperlukan.</p>'));
       const LN = OE.langs; const base = (v) => String(v || '').split('-')[0].toLowerCase();
       if (!mtS) mtS = base(S.stlang) && LN[base(S.stlang)] ? base(S.stlang) : 'ja';
       if (!mtT) mtT = LN[base(S.trLang)] ? base(S.trLang) : 'id';
       const opts = Object.entries(LN);
-      const planRow = row('Status', 'Memeriksa…', null);
-      const showPlan = async () => {
-        const p = await api('oe.plan', mtS, mtT); const d = planRow.querySelector('.d');
-        if (p === null) d.textContent = 'Pasangan bahasa ini belum didukung.';
-        else if (!p.length) d.textContent = mtS === mtT ? 'Bahasa sumber dan tujuan sama.' : 'Siap dipakai.';
-        else d.textContent = 'Perlu diunduh: ' + p.map(id => { const q = OE.mt.find(x => x.id === id); return LN[q.src] + ' → ' + LN[q.tgt]; }).join(', ') + ' (±' + p.length * 85 + ' MB).';
-        return p;
-      };
-      const goBtn = document.createElement('button'); goBtn.className = 'btn sm pri'; goBtn.textContent = 'Unduh yang diperlukan';
-      goBtn.onclick = async () => { const p = await showPlan(); if (p === null) return alert('Pasangan bahasa ini belum didukung.'); if (!p.length) return; for (const id of p) await api('oe.dl', id); renderSec(false); };
-      planRow.appendChild(goBtn);
-      A(box([select('Dari bahasa', 'Bahasa ucapan di video', opts, mtS, v => { mtS = v; showPlan(); }), select('Ke bahasa', 'Bahasa terjemahan', opts, mtT, v => { mtT = v; showPlan(); }), planRow,
-        button('Coba terjemahan', 'Uji model yang terpasang dengan satu kalimat', 'Coba…', async () => {
-          const r = await askText('Coba terjemahan offline', [{ l: LN[mtS] + ' → ' + LN[mtT], v: '', p: 'Ketik kalimat dalam ' + LN[mtS] }], 'Terjemahkan'); if (!r || !r[0].trim()) return;
-          const o = await api('oe.test', r[0], mtS, mtT); alert(o && o.ok ? o.text : 'Gagal: ' + (o ? o.err : 'tidak diketahui'));
-        }),
-        toggle('mtfb', 'Cadangan terjemahan online', 'Bila model offline belum terpasang atau gagal, pakai Google Translate')]));
-      showPlan();
-      const pairs = OE.mt.filter(p => p.installed || (OE.jobs[p.id] && (OE.jobs[p.id].busy || OE.jobs[p.id].error)));
-      A(el('<div class="group" style="margin-top:14px">Model terjemahan terpasang</div>'));
-      if (!pairs.length) A(el('<div class="list"><div class="empty" style="padding:22px">Belum ada model terjemahan.</div></div>'));
-      else A(box(pairs.map(oeRow(p => ({ id: p.id, title: LN[p.src] + ' → ' + LN[p.tgt], desc: 'Opus-MT, int8', mb: p.mb, installed: p.installed, bytes: p.bytes, sel: false })))));
+      if (S.trmode === 'offline') {
+        A(grp('Terjemahan offline'));
+        A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Model Opus-MT (±85 MB per arah). Kebanyakan bahasa lewat Inggris, jadi Jepang → Indonesia memakai dua model (Jepang → Inggris dan Inggris → Indonesia). Pilih pasangan lalu unduh yang diperlukan.</p>'));
+        const planRow = row('Status', 'Memeriksa…', null);
+        const showPlan = async () => {
+          const p = await api('oe.plan', mtS, mtT); const d = planRow.querySelector('.d');
+          if (p === null) d.textContent = 'Pasangan bahasa ini belum didukung.';
+          else if (!p.length) d.textContent = mtS === mtT ? 'Bahasa sumber dan tujuan sama.' : 'Siap dipakai.';
+          else d.textContent = 'Perlu diunduh: ' + p.map(id => { const q = OE.mt.find(x => x.id === id); return LN[q.src] + ' → ' + LN[q.tgt]; }).join(', ') + ' (±' + p.length * 85 + ' MB).';
+          return p;
+        };
+        const goBtn = document.createElement('button'); goBtn.className = 'btn sm pri'; goBtn.textContent = 'Unduh yang diperlukan';
+        goBtn.onclick = async () => { const p = await showPlan(); if (p === null) return alert('Pasangan bahasa ini belum didukung.'); if (!p.length) return; for (const id of p) await api('oe.dl', id); renderSec(false); };
+        planRow.appendChild(goBtn);
+        A(box([select('Dari bahasa', 'Bahasa ucapan di video', opts, mtS, v => { mtS = v; showPlan(); }), select('Ke bahasa', 'Bahasa terjemahan', opts, mtT, v => { mtT = v; showPlan(); }), planRow,
+          button('Coba terjemahan', 'Uji model yang terpasang dengan satu kalimat', 'Coba…', async () => {
+            const r = await askText('Coba terjemahan offline', [{ l: LN[mtS] + ' → ' + LN[mtT], v: '', p: 'Ketik kalimat dalam ' + LN[mtS] }], 'Terjemahkan'); if (!r || !r[0].trim()) return;
+            const o = await api('oe.test', r[0], mtS, mtT); alert(o && o.ok ? o.text : 'Gagal: ' + (o ? o.err : 'tidak diketahui'));
+          }),
+          toggle('mtfb', 'Cadangan terjemahan online', 'Bila model offline belum terpasang atau gagal, pakai Google Translate')]));
+        showPlan();
+        const pairs = OE.mt.filter(p => p.installed || (OE.jobs[p.id] && (OE.jobs[p.id].busy || OE.jobs[p.id].error)));
+        A(el('<div class="group" style="margin-top:14px">Model terjemahan terpasang</div>'));
+        if (!pairs.length) A(el('<div class="list"><div class="empty" style="padding:22px">Belum ada model terjemahan.</div></div>'));
+        else A(box(pairs.map(oeRow(p => ({ id: p.id, title: LN[p.src] + ' → ' + LN[p.tgt], desc: 'Opus-MT, int8', mb: p.mb, installed: p.installed, bytes: p.bytes, sel: false })))));
 
+      }
       /* ----- NLLB ----- */
-      A(grp('Terjemahan offline · NLLB-200 600M (Transformers.js)'));
-      A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Satu model untuk semua pasangan bahasa (±200 bahasa), tanpa lewat Inggris, jadi lebih akurat daripada Opus-MT untuk pasangan seperti Jepang → Indonesia. Lebih besar dan lebih lambat: ±900 MB unduhan, ±1,5 GB RAM saat dipakai. Cocok dipasangkan dengan sherpa-onnx atau Whisper.</p>'));
-      const NL = OE.nllb || { id: 'nllb-600m', title: 'NLLB-200 600M', mb: 900, installed: false, bytes: 0 };
-      A(box([oeRow(m => m)({ id: NL.id, title: NL.title, desc: 'Transformers.js, int8', mb: NL.mb, installed: NL.installed, bytes: NL.bytes, sel: S.trmode === 'nllb', pick: () => set('trmode', 'nllb') }),
-        button('Coba NLLB', 'Uji dengan satu kalimat memakai pasangan bahasa yang dipilih di atas', 'Coba…', async () => {
-          const r = await askText('Coba terjemahan NLLB', [{ l: LN[mtS] + ' → ' + LN[mtT], v: '', p: 'Ketik kalimat dalam ' + LN[mtS] }], 'Terjemahkan'); if (!r || !r[0].trim()) return;
-          const o = await api('oe.test', r[0], mtS, mtT, 'nllb'); alert(o && o.ok ? o.text : 'Gagal: ' + (o ? o.err : 'tidak diketahui'));
-        })]));
+      if (S.trmode === 'nllb') {
+        A(grp('Terjemahan offline · NLLB-200 600M (Transformers.js)'));
+        A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Satu model untuk semua pasangan bahasa (±200 bahasa), tanpa lewat Inggris, jadi lebih akurat daripada Opus-MT untuk pasangan seperti Jepang → Indonesia. Lebih besar dan lebih lambat: ±900 MB unduhan, ±1,5 GB RAM saat dipakai. Cocok dipasangkan dengan sherpa-onnx atau Whisper.</p>'));
+        const NL = OE.nllb || { id: 'nllb-600m', title: 'NLLB-200 600M', mb: 900, installed: false, bytes: 0 };
+        A(box([select('Dari bahasa', 'Untuk uji coba terjemahan', opts, mtS, v => { mtS = v; }), select('Ke bahasa', 'Untuk uji coba terjemahan', opts, mtT, v => { mtT = v; }),
+          oeRow(m => m)({ id: NL.id, title: NL.title, desc: 'Transformers.js, int8', mb: NL.mb, installed: NL.installed, bytes: NL.bytes, sel: S.trmode === 'nllb', pick: () => set('trmode', 'nllb') }),
+          button('Coba NLLB', 'Uji dengan satu kalimat memakai pasangan bahasa di atas', 'Coba…', async () => {
+            const r = await askText('Coba terjemahan NLLB', [{ l: LN[mtS] + ' → ' + LN[mtT], v: '', p: 'Ketik kalimat dalam ' + LN[mtS] }], 'Terjemahkan'); if (!r || !r[0].trim()) return;
+            const o = await api('oe.test', r[0], mtS, mtT, 'nllb'); alert(o && o.ok ? o.text : 'Gagal: ' + (o ? o.err : 'tidak diketahui'));
+          })]));
+
+      }
 
       /* ----- kinerja & penyimpanan ----- */
       A(grp('Kinerja dan penyimpanan'));

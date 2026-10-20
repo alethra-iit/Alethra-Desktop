@@ -58,7 +58,7 @@ Terjemahan Suara (pengenalan ucapan dan penerjemahannya) bisa berjalan di PC tan
 **Suara ke teks** (Pengaturan → Play → *Mesin suara ke teks*):
 | Mesin | Model | Catatan |
 |---|---|---|
-| **sherpa-onnx** | Whisper tiny/base (semua bahasa & Inggris), Moonshine tiny/base Jepang, Zipformer (Jepang, Inggris, Korea, Rusia, Vietnam) · ±40–170 MB | Ringan dan cepat |
+| **sherpa-onnx** | Whisper tiny/base (semua bahasa & Inggris), Moonshine tiny/base Jepang, Zipformer (Jepang, Inggris, Korea, Rusia, Thai, Kanton, Vietnam) · ±40–260 MB | Ringan dan cepat |
 | **Whisper (Transformers.js)** | Whisper tiny/base/small, multibahasa dan varian `.en` (ONNX int8 dari Xenova) · ±45–270 MB | Semua bahasa; bahasa ditebak otomatis bila *Bahasa ucapan video* = Otomatis |
 | **Vosk** | Satu model kecil per bahasa: Inggris, Jepang, Mandarin, Korea, Rusia, Vietnam, Turki, Hindi, Spanyol, Prancis, Jerman, Italia, Belanda, Portugis, Arab, Polandia, Ukraina · ±30–105 MB | Sangat ringan, tanpa tanda baca. Tidak ada model Indonesia resmi |
 
@@ -84,3 +84,8 @@ Data pengguna: `%APPDATA%\Alethra\data`.
 
 ## Menu Tools
 Ikon kunci pas di toolbar (antara Unduhan dan ⋮) berisi: cari di halaman, cetak, PDF, simpan offline, terjemahan, chat live, Terjemahan Suara, mode baca, kualitas video, PiP, situs seluler, blokir iklan situs. Item yang tampil diatur di **Pengaturan → Tools**.
+
+### Catatan unduhan model
+Model sherpa-onnx diunduh dari Hugging Face dan tersebar di beberapa akun (`csukuangfj`, `csukuangfj2`, `k2-fsa`). Alethra mencoba semuanya berurutan. Hugging Face menjawab HTTP 401 untuk repo yang tidak ada, jadi 401 berarti nama repo tidak ditemukan, bukan butuh login. Bila Hugging Face diblokir, set variabel lingkungan `ALETHRA_HF` ke cermin, mis. `https://hf-mirror.com`.
+
+Daftar model di Pengaturan > Mesin offline hanya menampilkan mesin suara dan mode terjemahan yang sedang dipilih.

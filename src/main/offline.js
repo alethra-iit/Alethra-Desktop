@@ -15,22 +15,27 @@ const HF = (process.env.ALETHRA_HF || 'https://huggingface.co').replace(/\/+$/, 
 
 /* ================= katalog ================= */
 const LANG = { en: 'Inggris', id: 'Indonesia', ja: 'Jepang', zh: 'Mandarin', ko: 'Korea', vi: 'Vietnam', th: 'Thai', ru: 'Rusia', ar: 'Arab', hi: 'Hindi', tr: 'Turki', es: 'Spanyol', fr: 'Prancis', de: 'Jerman', it: 'Italia', nl: 'Belanda' };
-const GROUPS = ['ja', 'multi', 'en', 'ko', 'ru', 'vi'];
-const GROUP_NAME = { ja: 'Jepang', multi: 'Semua bahasa (Whisper)', en: 'Inggris', ko: 'Korea', ru: 'Rusia', vi: 'Vietnam' };
+const GROUPS = ['ja', 'multi', 'en', 'zh', 'ko', 'th', 'ru', 'vi'];
+const GROUP_NAME = { ja: 'Jepang', multi: 'Semua bahasa (Whisper)', en: 'Inggris', zh: 'Mandarin / Kanton', ko: 'Korea', th: 'Thai', ru: 'Rusia', vi: 'Vietnam' };
 
 // Hanya model kecil dan cepat di CPU biasa (±40-170 MB). kind: whisper | moonshine | transducer
 const STT_MODELS = [
   { id: 'whisper-tiny', title: 'Whisper tiny', kind: 'whisper', repo: 'csukuangfj/sherpa-onnx-whisper-tiny', prefix: 'tiny', lang: 'multi', mb: 103, note: 'Semua bahasa (±99). Paling ringan dan cepat, akurasi dasar. Pilihan aman untuk PC biasa.' },
   { id: 'whisper-base', title: 'Whisper base', kind: 'whisper', repo: 'csukuangfj/sherpa-onnx-whisper-base', prefix: 'base', lang: 'multi', mb: 160, note: 'Semua bahasa (±99). Seimbang antara kecepatan dan akurasi.' },
-  { id: 'moonshine-ja-tiny', title: 'Moonshine tiny Jepang', kind: 'moonshine', repo: 'csukuangfj/sherpa-onnx-moonshine-tiny-ja-quantized-2026-02-27', lang: 'ja', mb: 40, note: 'Khusus Jepang. Sangat ringan dan cepat.' },
-  { id: 'moonshine-ja-base', title: 'Moonshine base Jepang', kind: 'moonshine', repo: 'csukuangfj/sherpa-onnx-moonshine-base-ja-quantized-2026-02-27', lang: 'ja', mb: 130, note: 'Khusus Jepang. Lebih akurat dari tiny, masih ringan.' },
+  { id: 'moonshine-ja-tiny', title: 'Moonshine tiny Jepang', kind: 'moonshine', repo: 'csukuangfj2/sherpa-onnx-moonshine-tiny-ja-quantized-2026-02-27', lang: 'ja', mb: 40, note: 'Khusus Jepang. Sangat ringan dan cepat.' },
+  { id: 'moonshine-ja-base', title: 'Moonshine base Jepang', kind: 'moonshine', repo: 'csukuangfj2/sherpa-onnx-moonshine-base-ja-quantized-2026-02-27', lang: 'ja', mb: 130, note: 'Khusus Jepang. Lebih akurat dari tiny, masih ringan.' },
   { id: 'zipformer-ja', title: 'Zipformer Jepang (ReazonSpeech)', kind: 'transducer', repo: 'reazon-research/reazonspeech-k2-v2', lang: 'ja', mb: 170, note: 'Khusus Jepang. Akurat untuk ucapan sehari-hari dan tetap cepat di CPU.' },
   { id: 'whisper-tiny-en', title: 'Whisper tiny · Inggris', kind: 'whisper', repo: 'csukuangfj/sherpa-onnx-whisper-tiny.en', prefix: 'tiny.en', lang: 'en', fixed: 'en', mb: 100, note: 'Khusus Inggris. Paling ringan.' },
   { id: 'whisper-base-en', title: 'Whisper base · Inggris', kind: 'whisper', repo: 'csukuangfj/sherpa-onnx-whisper-base.en', prefix: 'base.en', lang: 'en', fixed: 'en', mb: 160, note: 'Khusus Inggris. Lebih akurat dari tiny.' },
-  { id: 'zipformer-en', title: 'Zipformer Inggris', kind: 'transducer', repo: 'k2-fsa/sherpa-onnx-zipformer-en-2023-06-26', lang: 'en', mb: 90, note: 'Khusus Inggris. Cepat.' },
-  { id: 'zipformer-ko', title: 'Zipformer Korea', kind: 'transducer', repo: 'k2-fsa/sherpa-onnx-zipformer-korean-2024-06-24', lang: 'ko', mb: 85, note: 'Khusus Korea. Ringan dan cepat.' },
-  { id: 'zipformer-ru-small', title: 'Zipformer Rusia (kecil)', kind: 'transducer', repo: 'k2-fsa/sherpa-onnx-small-zipformer-ru-2024-09-18', lang: 'ru', mb: 40, note: 'Khusus Rusia. Sangat ringan.' },
-  { id: 'zipformer-vi-30m', title: 'Zipformer Vietnam (kecil)', kind: 'transducer', repo: 'k2-fsa/sherpa-onnx-zipformer-vi-30M-int8-2026-02-09', lang: 'vi', mb: 40, note: 'Khusus Vietnam. Sangat ringan.' }
+  { id: 'zipformer-en', title: 'Zipformer Inggris', kind: 'transducer', repo: 'csukuangfj/sherpa-onnx-zipformer-en-2023-06-26', repos: ['csukuangfj/sherpa-onnx-zipformer-en-2023-06-26', 'csukuangfj/sherpa-onnx-zipformer-gigaspeech-2023-12-12'], lang: 'en', mb: 90, note: 'Khusus Inggris. Cepat.' },
+  { id: 'zipformer-ko', title: 'Zipformer Korea', kind: 'transducer', repo: 'csukuangfj/sherpa-onnx-zipformer-korean-2024-06-24', lang: 'ko', mb: 85, note: 'Khusus Korea. Ringan dan cepat.' },
+  { id: 'zipformer-ru-small', title: 'Zipformer Rusia (kecil)', kind: 'transducer', repo: 'csukuangfj/sherpa-onnx-small-zipformer-ru-2024-09-18', lang: 'ru', mb: 40, note: 'Khusus Rusia. Sangat ringan.' },
+  { id: 'zipformer-en-giga', title: 'Zipformer Inggris (GigaSpeech)', kind: 'transducer', repo: 'csukuangfj/sherpa-onnx-zipformer-gigaspeech-2023-12-12', lang: 'en', mb: 130, note: 'Khusus Inggris. Dilatih dari GigaSpeech (podcast, video, audiobook), cocok untuk ucapan bebas.' },
+  { id: 'zipformer-ru', title: 'Zipformer Rusia', kind: 'transducer', repo: 'csukuangfj/sherpa-onnx-zipformer-ru-2024-09-18', lang: 'ru', mb: 260, note: 'Khusus Rusia. Lebih akurat dari versi kecil, tetap berjalan di CPU biasa.' },
+  { id: 'zipformer-th', title: 'Zipformer Thai', kind: 'transducer', repo: 'csukuangfj/sherpa-onnx-zipformer-thai-2024-06-20', lang: 'th', mb: 130, note: 'Khusus Thai. Dilatih dari GigaSpeech2.' },
+  { id: 'zipformer-yue', title: 'Zipformer Kanton', kind: 'transducer', repo: 'csukuangfj/sherpa-onnx-zipformer-cantonese-2024-03-13', lang: 'zh', mb: 130, note: 'Khusus Kanton (Yue). Hasil dilabeli bahasa Mandarin/Tionghoa.' },
+  { id: 'zipformer-vi', title: 'Zipformer Vietnam', kind: 'transducer', repo: 'csukuangfj/sherpa-onnx-zipformer-vi-int8-2025-04-20', repos: ['csukuangfj/sherpa-onnx-zipformer-vi-int8-2025-04-20', 'csukuangfj2/sherpa-onnx-zipformer-vi-int8-2025-04-20'], lang: 'vi', mb: 80, note: 'Khusus Vietnam. Lebih akurat dari versi 30M.' },
+  { id: 'zipformer-vi-30m', title: 'Zipformer Vietnam (kecil)', kind: 'transducer', repo: 'csukuangfj2/sherpa-onnx-zipformer-vi-30M-int8-2026-02-09', lang: 'vi', mb: 40, note: 'Khusus Vietnam. Sangat ringan.' }
 ];
 STT_MODELS.forEach(m => { m.engine = 'sherpa'; if (!m.fixed && m.lang !== 'multi') m.fixed = m.lang; });
 
@@ -91,12 +96,36 @@ function push() {
   pushT = setTimeout(() => { pushT = null; ctx.broadcastPages && ctx.broadcastPages('oe', jobInfo()); }, 250);
 }
 function jobInfo() { const o = {}; for (const j of jobs.values()) o[j.id] = { done: j.done, total: j.total, error: j.error || '', busy: !j.finished, phase: j.phase }; return o; }
-const httpErr = (st, name) => new Error(st === 404 ? `Berkas ${name} tidak ditemukan di Hugging Face` : st === 401 || st === 403 ? 'Akses ke Hugging Face ditolak' : `Unduhan gagal (HTTP ${st})`);
+const httpErr = (st, name) => new Error(st === 404 ? `Berkas ${name} tidak ditemukan di Hugging Face` : st === 401 || st === 403 ? `Berkas ${name} tidak bisa diakses di Hugging Face (HTTP ${st})` : `Unduhan gagal (HTTP ${st})`);
 
+// Hugging Face menjawab 401 (bukan 404) untuk repo yang tidak ada atau salah akun, jadi 401/403/404 dianggap "repo tidak ketemu"
+class RepoMiss extends Error { constructor(m, st) { super(m); this.status = st; this.miss = true; } }
 async function hfList(repo, sub, signal) {
   const r = await net.fetch(`${HF}/api/models/${repo}/tree/main${sub ? '/' + sub : ''}`, { signal });
-  if (!r.ok) throw new Error(r.status === 404 ? 'Model tidak ditemukan di Hugging Face' : `Gagal membaca daftar berkas (HTTP ${r.status})`);
+  if (!r.ok) {
+    if (r.status === 401 || r.status === 403 || r.status === 404) throw new RepoMiss(`Repo ${repo} tidak ditemukan atau tidak bisa diakses di Hugging Face (HTTP ${r.status})`, r.status);
+    throw new Error(`Gagal membaca daftar berkas (HTTP ${r.status})`);
+  }
   return (await r.json()).filter(x => x.type === 'file').map(x => ({ name: x.path, size: x.size || (x.lfs && x.lfs.size) || 0 }));
+}
+// Model sherpa-onnx diunggah di beberapa akun (csukuangfj, csukuangfj2, k2-fsa). Coba repo utama, lalu akun lain dengan nama yang sama.
+const HF_OWNERS = ['csukuangfj', 'csukuangfj2', 'k2-fsa'];
+function repoCandidates(m) {
+  const out = [], add = (r) => { if (r && !out.includes(r)) out.push(r); };
+  for (const r of (m.repos || [m.repo])) {
+    add(r);
+    const [o, n] = r.split('/');
+    if (n && HF_OWNERS.includes(o)) HF_OWNERS.forEach(x => add(x + '/' + n));
+  }
+  return out;
+}
+async function hfFind(m, signal) {
+  const tried = []; let last = null;
+  for (const repo of repoCandidates(m)) {
+    try { return { repo, files: await hfList(repo, '', signal) }; }
+    catch (e) { if (!(e && e.miss)) throw e; tried.push(repo); last = e; }
+  }
+  throw new Error(`Model ${m.title} tidak ditemukan di Hugging Face (dicoba: ${tried.join(', ')}). ${last ? 'Kode terakhir HTTP ' + last.status + '. ' : ''}Bila Hugging Face diblokir di jaringan Anda, atur ALETHRA_HF ke cermin (mis. https://hf-mirror.com).`);
 }
 
 // pilih berkas yang perlu diunduh dari daftar isi repo (tingkat teratas saja); mengembalikan { files, roles }
@@ -217,8 +246,9 @@ function download(id) {
       return { dir: sttDir(id), meta: { id, engine: 'vosk' }, files: [{ name: 'model.zip', size, url }], after: async (dir) => { await unzipModel(path.join(dir, 'model.zip'), dir); try { fs.unlinkSync(path.join(dir, 'model.zip')); } catch {} } };
     });
     return startJob('stt', id, m.mb, async (signal) => {
-      const { files, roles } = pick(m, await hfList(m.repo, '', signal));
-      return { dir: sttDir(id), meta: { id, engine: 'sherpa', kind: m.kind, roles }, files: files.map(f => ({ name: f.name, size: f.size, url: `${HF}/${m.repo}/resolve/main/${f.name}` })) };
+      const { repo, files: all } = await hfFind(m, signal);
+      const { files, roles } = pick(m, all);
+      return { dir: sttDir(id), meta: { id, engine: 'sherpa', kind: m.kind, roles, repo }, files: files.map(f => ({ name: f.name, size: f.size, url: `${HF}/${repo}/resolve/main/${f.name}` })) };
     });
   }
   if (id === NLLB.id) {
