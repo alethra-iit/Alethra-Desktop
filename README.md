@@ -31,7 +31,8 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Blokir iklan YouTube, iklan situs, jaringan iklan | Skrip asli dipakai ulang; bisa dimatikan per situs |
 | DNS aman (DoH) | Cloudflare, AdGuard, Quad9, Google, kustom |
 | Cookie pihak ketiga, HTTPS-only, DNT/GPC | Ada |
-| Penerjemah halaman + chat live | Ada (Ctrl+Alt+T) |
+| Penerjemah halaman + chat live | Ada (Ctrl+Alt+T); chat live juga bisa dinyalakan dari menu ⋮ |
+| **Suara ke teks** (terjemahan ucapan video) | Menu ⋮ → Suara ke teks (Ctrl+Alt+S), lihat bagian di bawah |
 | Mode baca + TTS | Ada (Ctrl+Alt+R), memakai suara Windows |
 | Kualitas video | Menu ⋮ → Kualitas video… |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
@@ -41,6 +42,15 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Mode desktop/seluler | Dibalik: *Tampilan situs seluler* per situs |
 | Cadangan | Ekspor/impor JSON |
 | Browser default | Installer mendaftarkan Alethra ke Windows (*Aplikasi default*) |
+
+## Suara ke teks (dari Android v90)
+Menerjemahkan ucapan di video secara hampir realtime, tanpa mikrofon (audio diambil langsung dari elemen video/audio halaman).
+- **Pengaturan → Play → Suara ke teks**: pilih penyedia **Groq** (gratis, disarankan), **OpenAI**, atau **Kustom** (server Whisper kompatibel OpenAI, misalnya faster-whisper-server/LocalAI/whisper.cpp server di PC sendiri, sehingga bisa offline). Isi **Kunci API** (disimpan terenkripsi Windows DPAPI dan tidak ikut cadangan).
+- Pilih **Bahasa ucapan video**, **Bahasa tujuan**, dan **Kecepatan teks** (Cepat / Seimbang / Hemat).
+- **Pengaturan audio**: preset (Video bising, Suara pelan, Musik latar, …), penguat volume, volume minimum/maksimum, kepekaan, peredam derau, filter, penyaring halusinasi, level volume, dan Mode klasik. Perubahan langsung diterapkan.
+- Popup bisa digeser dan ditutup dengan X. Saat video layar penuh, terjemahan tampil sebagai subtitle (ukuran, posisi, latar, warna diatur di *Teks suara di layar penuh*) dan hilang 8 detik setelah ucapan berhenti.
+- Berhenti otomatis saat pindah tab atau halaman. Video di iframe lintas-situs dan video ber-DRM tidak bisa ditangkap.
+- Mesin offline versi Android (Sherpa-onnx, Vosk, ML Kit/NLLB) tidak ikut karena berupa pustaka native Android; gantinya pakai penyedia **Kustom** dengan server Whisper lokal.
 
 Tidak dibawa karena khusus Android: biometrik, pintasan layar utama, intent berbagi, notifikasi bar status.
 

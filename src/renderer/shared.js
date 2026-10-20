@@ -12,7 +12,7 @@
     file: 'M6 3h8l4 4v14H6zM14 3v4h4', pause: 'M8 5v14M16 5v14', play: 'M7 4l13 8-13 8z', open: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
     check: 'M5 12l5 5 9-10', key: 'M15 8a4 4 0 1 1-3 6.5L4 21v-3h3v-3h3', shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', settings: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM19 12l2-1-1-3-2 .5-1.5-1.5L17 5l-3-1-1 2h-2L10 4 7 5l.5 2L6 8.5 4 8l-1 3 2 1v2l-2 1 1 3 2-.5L8 19l-.5 2 3 1 1-2h2l1 2 3-1-.5-2 1.5-1.5 2 .5 1-3-2-1z',
     eraser: 'M20 20H9L4 15l10-10 6 6-7 9M9 20l-3-3', print: 'M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z', offline: 'M4 4l16 16M8.5 8.5A8 8 0 0 0 4 12M20 12a8 8 0 0 0-4-3.5M9 16a4 4 0 0 1 6 0M12 20h.01',
-    reader: 'M4 5h16M4 10h10M4 15h16M4 20h10', pip: 'M3 5h18v14H3zM12 12h8v6h-8z', image: 'M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M9 9h.01', desktop: 'M3 4h18v12H3zM8 20h8M12 16v4'
+    reader: 'M4 5h16M4 10h10M4 15h16M4 20h10', pip: 'M3 5h18v14H3zM12 12h8v6h-8z', image: 'M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M9 9h.01', desktop: 'M3 4h18v12H3zM8 20h8M12 16v4', mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3', sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4'
   };
   window.ICON = (n, s) => `<svg class="i" viewBox="0 0 24 24"${s ? ` style="width:${s}px;height:${s}px"` : ''}><path d="${P[n] || ''}"/></svg>`;
   window.LOGO = (s) => `<svg viewBox="0 0 24 24" class="i" style="width:${s}px;height:${s}px;stroke-width:2.4"><path d="M4 21L12 3l8 18"/><path d="M8.2 15h7.6"/></svg>`;

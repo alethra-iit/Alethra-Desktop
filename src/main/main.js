@@ -5,6 +5,7 @@ const U = require('./util');
 const Store = require('./store');
 const SV = require('./services');
 const { setting, saveSetting } = SV;
+const STT = require('./stt');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'alethra', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName('Alethra');
@@ -47,10 +48,13 @@ function applyTheme() {
   if (win) { const c = barColors(); try { win.setTitleBarOverlay({ color: c.color, symbolColor: c.symbolColor, height: 40 }); } catch {} win.setBackgroundColor(c.color); }
   const st = publicSettings();
   ctx.sendChrome('settings', st); sendOv('settings', st); ctx.broadcastPages('settings', st);
+  try { renderOverlay(); } catch {}
 }
 function publicSettings() {
   const s = Object.assign({}, ctx.settings.data);
   const l = s.lock || {}; s.lock = { mode: l.mode || 'off', parts: l.parts || [], grace: l.grace == null ? 60000 : l.grace, hasPin: !!l.hash };
+  delete s.stkeyEnc; { const e = ctx.settings.data.stkeyEnc; const k = e ? SV.dec(e) : ''; s.stkeyMask = k ? '••••' + k.slice(-4) : ''; }
+  for (const k of ['sta', 'stf']) s[k] = SV.setting(k);
   s.dark = isDark(); s.engines = U.ENGINES; s.doh_list = U.DOH; s.trLangs = U.TR_LANGS; s.dlDirShown = SV.dlDir(); s.version = app.getVersion();
   for (const k of Object.keys(SV.DEFAULTS)) if (s[k] === undefined && k !== 'lock') s[k] = SV.DEFAULTS[k];
   return s;
@@ -79,15 +83,23 @@ function layout() {
 function renderOverlay() {
   if (!overlay || !win) return;
   const [w, h] = win.getContentSize();
-  const any = OV.suggest || OV.menu || OV.modal || OV.toast;
+  const stt = STT.ui([w, h]);
+  const sttShow = stt && !(stt.fs && stt.idle);
+  const any = OV.suggest || OV.menu || OV.modal || OV.toast || sttShow;
   if (!any) { overlay.setVisible(false); sendOv('state', {}); return; }
   let b;
   if (OV.modal) b = { x: 0, y: 0, width: w, height: h };
   else if (OV.suggest || OV.menu) b = { x: 0, y: chromeH, width: w, height: Math.max(0, h - chromeH) };
-  else b = { x: Math.floor(w / 2 - 230), y: h - 70, width: 460, height: 56 };
+  else {
+    const rs = [];
+    if (OV.toast) rs.push({ x: Math.floor(w / 2 - 230), y: h - 70, width: 460, height: 56 });
+    if (sttShow) rs.push({ x: stt.rect.x, y: stt.rect.y, width: stt.rect.w, height: stt.rect.h });
+    const x1 = Math.min(...rs.map(r => r.x)), y1 = Math.min(...rs.map(r => r.y)), x2 = Math.max(...rs.map(r => r.x + r.width)), y2 = Math.max(...rs.map(r => r.y + r.height));
+    b = { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
+  }
   overlay.setBounds(b); overlay.setVisible(true);
   win.contentView.addChildView(overlay);
-  sendOv('state', { suggest: OV.suggest, menu: OV.menu, modal: OV.modal && { type: OV.modal.type, data: OV.modal.data }, toast: OV.toast, dark: isDark() });
+  sendOv('state', { suggest: OV.suggest, menu: OV.menu, modal: OV.modal && { type: OV.modal.type, data: OV.modal.data }, toast: OV.toast, dark: isDark(), stt: sttShow ? stt : null, ox: b.x, oy: b.y, tw: b.width });
 }
 let toastT = null;
 ctx.toast = (msg) => { OV.toast = msg; renderOverlay(); clearTimeout(toastT); toastT = setTimeout(() => { OV.toast = null; renderOverlay(); }, 2600); };
@@ -151,6 +163,7 @@ function go(t, url) {
 function selectTab(id) {
   const t = ctx.tabs.find(x => x.id === id); if (!t) return;
   if (t.incog && !t.authed && !ctx.tabs.some(x => x.incog && x.authed)) { /* PIN bagian incognito ditangani saat dibuat */ }
+  if (STT.active() && STT.activeTabId() !== id) STT.stop();
   activeId = id; layout(); pushInfobars(); pushTabs();
   const wc = t.view.webContents;
   if (t.url.startsWith('alethra://home') && !t.loading) setTimeout(() => focusOmni(), 50); else wc.focus();
@@ -159,6 +172,7 @@ function selectTab(id) {
 function closeTab(id) {
   const i = ctx.tabs.findIndex(x => x.id === id); if (i < 0) return;
   const t = ctx.tabs[i];
+  if (STT.activeTabId() === id) STT.stop();
   dropInfobars(id, 'dismiss');
   if (!t.incog && t.url && !t.url.startsWith('alethra://')) { closed.push({ title: t.title, url: t.url }); if (closed.length > 25) closed.shift(); }
   ctx.tabs.splice(i, 1);
@@ -213,6 +227,7 @@ function wire(t) {
   wc.on('did-start-navigation', (d) => {
     const e = d.isMainFrame !== undefined ? d : {}; if (!e.isMainFrame || e.isSameDocument) return;
     dropInfobars(t.id, 'dismiss');
+    if (STT.activeTabId() === t.id) STT.stop();
   });
   const onNav = (_e, url) => {
     t.url = url;
@@ -238,8 +253,8 @@ function wire(t) {
   });
   wc.on('render-process-gone', () => { ctx.toast('Tab berhenti bekerja, memuat ulang…'); setTimeout(() => { try { wc.reload(); } catch {} }, 600); });
   wc.on('audio-state-changed', (e) => { t.audible = e.audible; pushTabs(); });
-  wc.on('enter-html-full-screen', () => { htmlFs = true; win.setFullScreen(true); ctx.sendChrome('fullscreen', true); layout(); });
-  wc.on('leave-html-full-screen', () => { htmlFs = false; if (!userFs) win.setFullScreen(false); ctx.sendChrome('fullscreen', false); layout(); });
+  wc.on('enter-html-full-screen', () => { if (STT.activeTabId() === t.id) STT.setFs(true); htmlFs = true; win.setFullScreen(true); ctx.sendChrome('fullscreen', true); layout(); });
+  wc.on('leave-html-full-screen', () => { if (STT.activeTabId() === t.id) STT.setFs(false); htmlFs = false; if (!userFs) win.setFullScreen(false); ctx.sendChrome('fullscreen', false); layout(); });
   wc.on('found-in-page', (_e, r) => ctx.sendChrome('find', { open: true, ordinal: r.activeMatchOrdinal, total: r.matches }));
   wc.on('certificate-error', async (event, url, error, cert, cb) => {
     event.preventDefault();
@@ -261,6 +276,20 @@ function wire(t) {
 const injects = {};
 function injectScript(name) { return injects[name] || (injects[name] = fs.readFileSync(path.join(__dirname, '..', 'inject', name), 'utf8')); }
 function startPageTr(t) { t.view.webContents.executeJavaScript(injectScript('pagetr.js') + `;window.__alPT&&window.__alPT.start(${JSON.stringify(setting('trLang'))})`).catch(() => {}); }
+function injectTrAll() {
+  const on = !!setting('tr');
+  ctx.tabs.forEach(t => { if (!/^https?:/.test(t.url)) return; t.view.webContents.executeJavaScript(`window.__alCfg={on:${on},lang:${JSON.stringify(setting('trLang'))},hide:${!!setting('trhide')}};` + (on ? injectScript('translate.js') : '')).catch(() => {}); });
+}
+function sttToggle() {
+  const t = curTab(); if (!t) return;
+  if (setting('stt') === false) { ctx.toast('Suara ke teks dimatikan di Pengaturan > Play'); return; }
+  STT.toggle(t);
+}
+function openSettingsAt(sec) {
+  const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog);
+  if (ex) { selectTab(ex.id); ex.view.webContents.executeJavaScript(`location.hash=${JSON.stringify('#' + sec)}`).catch(() => {}); }
+  else createTab('alethra://settings#' + sec);
+}
 function togglePageTr() {
   const t = curTab(); if (!t || !/^https?:/.test(t.url)) return ctx.toast('Buka sebuah situs dulu untuk menerjemahkan');
   t.trOn = !t.trOn;
@@ -418,6 +447,7 @@ function shortcut(e, i) {
   if (k === ',') return run(() => openInternal('settings'));
   if (k === 'f' && !s) return run(() => { chromeWC.focus(); ctx.sendChrome('find', { open: true, focus: true }); });
   if (k === 'p') return run(() => curWC().print());
+  if (a && k === 's') return run(sttToggle);
   if (k === 's') return run(() => SV.saveOffline(curTab()));
   if (k === 'u') return run(() => { const t = curTab(); /^https?:/.test(t.url) && createTab('view-source:' + t.url, { incog: t.incog }); });
   if (k === '=' || k === '+') return run(() => zoomBy(1));
@@ -478,7 +508,10 @@ function mainMenuSpec() {
     { zoom: st.zoom || 100 },
     { sep: 1 },
     I('find', 'Cari di halaman', { key: 'Ctrl+F', off: !web }), I('print', 'Cetak…', { key: 'Ctrl+P', off: !web }), I('pdf', 'Simpan sebagai PDF', { off: !web }), I('offline.save', 'Simpan halaman offline', { key: 'Ctrl+S', off: !web }),
-    I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }), I('reader', 'Mode baca', { key: 'Ctrl+Alt+R', off: !web }),
+    ...(setting('ptr') !== false ? [I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web })] : []),
+    I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
+    ...(setting('stt') !== false ? [I('stt', 'Suara ke teks', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web })] : []),
+    I('reader', 'Mode baca', { key: 'Ctrl+Alt+R', off: !web }),
     I('vq', 'Kualitas video…', { off: !web }), I('pip', 'Gambar dalam gambar', { off: !web }),
     I('mobile', 'Tampilan situs seluler', { check: !!st.mobile, off: !web }), I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web }),
     { sep: 1 },
@@ -499,6 +532,8 @@ function menuAction(id) {
     case 'pdf': return wc.printToPDF({ printBackground: true }).then(async b => { const r = await dialog.showSaveDialog(win, { defaultPath: path.join(SV.dlDir(), (t.title || 'halaman').replace(/[<>:"/\\|?*]/g, '_') + '.pdf') }); if (!r.canceled) { fs.writeFileSync(r.filePath, b); ctx.toast('PDF disimpan'); } });
     case 'offline.save': return SV.saveOffline(t);
     case 'translate': return togglePageTr();
+    case 'chat': { saveSetting('tr', !setting('tr')); injectTrAll(); applyTheme(); return ctx.toast(setting('tr') ? 'Terjemahan chat live aktif (YouTube, Twitch)' : 'Terjemahan chat live dimatikan'); }
+    case 'stt': return sttToggle();
     case 'reader': return readerMode();
     case 'vq': return videoQuality();
     case 'pip': return pip();
@@ -520,7 +555,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -578,11 +613,24 @@ const API = {
     if (k === 'dlDir' && v && !fs.existsSync(v)) return false;
     if (k === 'trLang' && !U.TR_LANGS[v]) return false;
     if (k === 'doh' && !U.DOH[v]) return false;
-    if (k === 'zoomMap' || k === 'mobileSites') { /* dikelola sendiri */ }
+    if (k === 'clock' || k === 'sta' || k === 'stf') { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = o; }
+    if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;
+    if (k === 'stspeed' && !['fast', 'bal', 'eco'].includes(v)) return false;
+    if (k === 'stcurl' && v && !/^https?:\/\/[^\s]+$/.test(v)) return false;
     saveSetting(k, v);
+    if (['sta', 'stspeed', 'stlang'].includes(k)) STT.refresh();
+    if (k === 'stt' && !v) STT.stop();
+    if (['tr', 'trhide', 'trLang'].includes(k)) injectTrAll();
     if (k === 'doh' || k === 'dohcustom') SV.applyDoh();
     if (k === 'tr' || k === 'adblock' || k === 'sadblock') { /* berlaku di muat berikutnya */ }
     applyTheme(); return true;
+  },
+  'stt.stop': () => STT.stop(),
+  'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
+  'stt.key': (e, key) => {
+    key = String(key || '').trim();
+    if (!key) { delete ctx.settings.data.stkeyEnc; } else { ctx.settings.data.stkeyEnc = SV.enc(key); }
+    ctx.settings.save(); applyTheme(); return true;
   },
   'shortcut.add': (e, n, u) => { u = U.toUrl(u, engineUrl(), true); if (!/^https?:/.test(u)) return false; const l = setting('shortcuts').slice(); l.push({ n: String(n || '').slice(0, 40), u }); saveSetting('shortcuts', l); applyTheme(); return true; },
   'shortcut.remove': (e, i) => { const l = setting('shortcuts').slice(); l.splice(i, 1); saveSetting('shortcuts', l); applyTheme(); },
@@ -640,7 +688,7 @@ const API = {
   'data.clear': async (e, o) => { await SV.clearData(o || {}); ctx.toast('Data dihapus'); return true; },
   'backup.export': async () => {
     const r = await dialog.showSaveDialog(win, { defaultPath: 'cadangan-alethra.json', filters: [{ name: 'JSON', extensions: ['json'] }] }); if (r.canceled) return false;
-    const s = Object.assign({}, ctx.settings.data); delete s.lock; delete s.zoomMap;
+    const s = Object.assign({}, ctx.settings.data); delete s.lock; delete s.zoomMap; delete s.stkeyEnc;
     fs.writeFileSync(r.filePath, JSON.stringify({ alethra: 1, settings: s, bookmarks: ctx.bm.data }, null, 1)); ctx.toast('Cadangan dibuat'); return true;
   },
   'backup.import': async () => {
@@ -747,6 +795,7 @@ app.whenReady().then(() => {
   ctx.dlList = (ctx.dlStore.data || []).map(d => d.state === 'progressing' || d.state === 'paused' ? Object.assign(d, { state: 'interrupted' }) : d);
   SV.setupSession(session.defaultSession, false);
   SV.initTranslate(); SV.applyDoh();
+  STT.init({ toast: (m) => ctx.toast(m), changed: () => renderOverlay(), script: injectScript, openSettings: openSettingsAt });
   nativeTheme.themeSource = setting('theme');
   nativeTheme.on('updated', () => applyTheme());
   createWindow();

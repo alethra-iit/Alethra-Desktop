@@ -39,8 +39,41 @@
       if (key !== lastModal) { lastModal = key; buildModal(m); }
       md.hidden = false; md.classList.toggle('opaque', m.type === 'pin' && m.data.dismissable === false);
     } else { md.hidden = true; lastModal = null; md.innerHTML = ''; }
+    // suara ke teks
+    renderStt(s);
     // toast
     const t = $('#toast'); if (s.toast) { t.hidden = false; t.textContent = s.toast; } else t.hidden = true;
+  }
+  function renderStt(s) {
+    const el = $('#stt'), t = s.stt;
+    if (!t) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    el.style.left = (t.rect.x - s.ox) + 'px'; el.style.top = (t.rect.y - s.oy) + 'px'; el.style.width = t.rect.w + 'px'; el.style.height = t.rect.h + 'px';
+    const cur = t.cur || {}, main = cur.tr || cur.orig || '', sub = (cur.tr && t.cfg.orig) ? cur.orig : '';
+    if (t.fs) {
+      const col = { white: '#fff', yellow: '#ffe14d', cyan: '#6fe3ff' }[t.cfg.color] || '#fff';
+      el.className = 'fs'; el.removeAttribute('style');
+      el.style.left = (t.rect.x - s.ox) + 'px'; el.style.top = (t.rect.y - s.oy) + 'px'; el.style.width = t.rect.w + 'px'; el.style.height = t.rect.h + 'px';
+      el.style.justifyContent = t.cfg.pos === 'top' ? 'flex-start' : 'flex-end';
+      const bg = t.cfg.bg === 'solid' ? '#000' : t.cfg.bg === 'none' ? 'transparent' : 'rgba(0,0,0,.62)';
+      const sh = t.cfg.bg === 'none' ? '0 0 4px #000,0 0 8px #000,1px 1px 2px #000' : 'none';
+      el.innerHTML = main ? `<div class="fsb" style="font-size:${t.cfg.size}px;color:${col};background:${bg};text-shadow:${sh}"><div class="l1">${esc(main)}</div>${sub ? `<div class="l2" style="font-size:${Math.round(t.cfg.size * 0.58)}px">${esc(sub)}</div>` : ''}</div>` : '';
+      return;
+    }
+    el.className = 'box'; el.removeAttribute('style');
+    el.style.left = (t.rect.x - s.ox) + 'px'; el.style.top = (t.rect.y - s.oy) + 'px'; el.style.width = t.rect.w + 'px'; el.style.height = t.rect.h + 'px';
+    const pv = t.prev ? (t.prev.tr || t.prev.orig) : '';
+    el.innerHTML = `<div class="sh"><span class="mic">${ICON('mic', 16)}</span><span class="ss">${esc(t.status || '')}</span><button title="Berhenti">${ICON('close', 15)}</button></div>
+      <div class="sb">${pv ? `<div class="sp">${esc(pv)}</div>` : ''}<div class="sc${main ? '' : ' e'}">${main ? esc(main) : 'Memutar video lalu menunggu ucapan…'}</div>${sub ? `<div class="so">${esc(sub)}</div>` : ''}</div>`;
+    $('button', el).onclick = () => api('stt.stop');
+    const h = $('.sh', el);
+    h.onmousedown = e => {
+      if (e.target.closest('button')) return;
+      let lx = e.screenX, ly = e.screenY;
+      const mv = ev => { api('stt.drag', ev.screenX - lx, ev.screenY - ly); lx = ev.screenX; ly = ev.screenY; };
+      const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+      document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up); e.preventDefault();
+    };
   }
   function buildModal(m) {
     const md = $('#modal'), d = m.data || {};

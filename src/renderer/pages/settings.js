@@ -1,8 +1,8 @@
 (async function () {
   let built = false, sec = (location.hash || '#umum').slice(1), S = {};
   S = await pageInit(s => { S = s; if (built) renderSec(false); });
-  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['unduhan', 'Unduhan', 'download'], ['terjemah', 'Penerjemah', 'translate'], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
-  $('#side').innerHTML = '<h2>Pengaturan</h2>'; SECS.forEach(([k, l, ic]) => { const b = document.createElement('button'); b.dataset.k = k; b.innerHTML = ICON(ic, 18) + esc(l); b.onclick = () => { sec = k; history.replaceState(null, '', '#' + k); renderSec(true); }; $('#side').appendChild(b); });
+  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['unduhan', 'Unduhan', 'download'], ['play', 'Play', 'play'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
+  $('#side').innerHTML = '<h2>Pengaturan</h2>'; SECS.forEach(([k, l, ic, hid]) => { if (hid) return; const b = document.createElement('button'); b.dataset.k = k; b.innerHTML = ICON(ic, 18) + esc(l); b.onclick = () => { sec = k; history.replaceState(null, '', '#' + k); renderSec(true); }; $('#side').appendChild(b); });
   const set = (k, v) => api('settings.set', k, v);
   const el = (h) => { const t = document.createElement('div'); t.innerHTML = h.trim(); return t.firstChild; };
   const box = (rows) => { const l = document.createElement('div'); l.className = 'list'; rows.forEach(r => l.appendChild(r)); return l; };
@@ -12,6 +12,34 @@
   const button = (title, desc, label, fn, cls) => { const b = document.createElement('button'); b.className = 'btn sm ' + (cls || ''); b.textContent = label; b.onclick = fn; return row(title, desc, b); };
   const grp = (t) => el(`<div class="group">${esc(t)}</div>`);
   const main = $('#main');
+
+  const DEFSTA = { pg: 1, min: 0, max: 0, sens: 2.8, dur: 300, ns: 0, gate: 0, hp: 80, lp: 0, auto: 6, minlen: 2, filt: true, meter: false, legacy: false };
+  const STA = [
+    { key: 'pg', title: 'Penguat volume awal', def: 1, vals: [1, 1.5, 2, 3, 4], names: ['1×', '1,5×', '2×', '3×', '4×'], help: 'Menaikkan volume audio video sebelum diproses. Berguna bila video terlalu pelan.' },
+    { key: 'min', title: 'Volume minimum', def: 0, vals: [0, 0.016, 0.025, 0.04, 0.063, 0.1], names: ['Otomatis', 'Rendah (−36 dB)', 'Sedang (−32 dB)', 'Tinggi (−28 dB)', 'Sangat tinggi (−24 dB)', 'Ekstrem (−20 dB)'], help: 'Suara di bawah volume ini dibisukan (bisikan, percakapan latar, derau pelan).' },
+    { key: 'max', title: 'Volume maksimum', def: 0, vals: [0, 0.5, 0.316, 0.2, 0.1], names: ['Mati', 'Sangat keras (−6 dB)', 'Keras (−10 dB)', 'Sedang (−14 dB)', 'Pelan (−20 dB)'], help: 'Suara di atas volume ini dibisukan (musik keras, efek). Terlalu rendah membuat ucapan keras ikut hilang.' },
+    { key: 'sens', title: 'Kepekaan deteksi ucapan', def: 2.8, vals: [2, 2.4, 2.8, 3.6, 5], names: ['Sangat peka', 'Peka', 'Normal', 'Ketat', 'Sangat ketat'], help: 'Ketat: derau dan musik pelan tidak memicu. Peka: ucapan pelan tertangkap.' },
+    { key: 'dur', title: 'Ucapan minimum', def: 300, vals: [150, 300, 500, 800], names: ['150 ms (sangat peka)', '300 ms', '500 ms', '800 ms'], help: 'Potongan yang lebih pendek dari ini dibuang sebagai derau (klik, napas).' },
+    { key: 'ns', title: 'Peredam derau', def: 0, vals: [0, 1, 2, 3], names: ['Mati', 'Ringan (±−4 dB)', 'Sedang (±−7 dB)', 'Kuat (±−11 dB)'], help: 'Meredam derau stabil (desis, kipas, angin). Kuat bisa membuat ucapan sedikit tipis.' },
+    { key: 'gate', title: 'Redam suara latar', def: 0, vals: [0, 1, 2, 3], names: ['Mati', 'Ringan', 'Sedang', 'Kuat'], help: 'Menurunkan suara latar di sela ucapan; mengurangi teks palsu pada bagian senyap.' },
+    { key: 'hp', title: 'Filter gemuruh (high-pass)', def: 80, vals: [0, 80, 120, 200, 300], names: ['Mati', '80 Hz', '120 Hz', '200 Hz', '300 Hz'], help: 'Membuang gemuruh rendah. Di atas 200 Hz suara bass bisa menipis.' },
+    { key: 'lp', title: 'Filter desis (low-pass)', def: 0, vals: [0, 7000, 5000, 3800], names: ['Mati', '7 kHz', '5 kHz', '3,8 kHz'], help: 'Membuang desis tinggi. Terlalu rendah membuat huruf s, sh, f kurang jelas.' },
+    { key: 'auto', title: 'Penguat suara pelan otomatis', def: 6, vals: [1, 3, 6, 12], names: ['Mati (1×)', 'Ringan (3×)', 'Standar (6×)', 'Kuat (12×)'], help: 'Menaikkan potongan yang pelan sebelum dikirim, supaya konsonan lemah tidak hilang.' },
+    { key: 'minlen', title: 'Panjang teks minimum', def: 2, vals: [1, 2, 4, 6, 10], names: ['1 karakter', '2 karakter', '4 karakter', '6 karakter', '10 karakter'], help: 'Hasil teks yang lebih pendek dari ini dibuang.' }];
+  const PRESETS = [
+    ['Standar', 'Semua kembali ke bawaan', {}],
+    ['Video bising', 'Peredam derau sedang, redam latar ringan, buang gemuruh, deteksi lebih ketat', { ns: 2, gate: 1, hp: 120, sens: 3.6, dur: 500 }],
+    ['Suara pelan', 'Naikkan volume 3×, penguat otomatis kuat, deteksi lebih peka', { pg: 3, auto: 12, sens: 2.4, dur: 150 }],
+    ['Musik latar', 'Redam latar sedang, peredam derau ringan, fokus ke suara manusia', { ns: 1, gate: 2, hp: 200, lp: 5000, sens: 3.6, dur: 500 }],
+    ['Hanya suara jelas', 'Abaikan bisikan dan percakapan latar', { min: 0.04, sens: 5, gate: 2, dur: 500 }]];
+  function audSummary() { const T = S.sta || DEFSTA; let n = STA.filter(o => Number(T[o.key]) !== o.def).length + (T.filt === false ? 1 : 0) + (T.meter ? 1 : 0) + (T.legacy ? 1 : 0); return n ? n + ' pengaturan diubah' : 'Standar'; }
+  function presetDlg() {
+    const d = document.createElement('div'); d.className = 'dlg';
+    d.innerHTML = `<div class="card"><h3>Preset cepat</h3>${PRESETS.map((p, i) => `<button class="btn" data-i="${i}" style="width:100%;margin:4px 0;height:auto;padding:10px 14px;flex-direction:column;align-items:flex-start;gap:2px"><b>${esc(p[0])}</b><span style="color:var(--sub);font-size:12.5px;text-align:left">${esc(p[1])}</span></button>`).join('')}<div class="end"><button class="btn" data-x>Batal</button></div></div>`;
+    document.body.appendChild(d);
+    $('[data-x]', d).onclick = () => d.remove();
+    $$('[data-i]', d).forEach(b => b.onclick = () => { const p = PRESETS[+b.dataset.i]; d.remove(); set('sta', Object.assign({}, DEFSTA, p[2])); });
+  }
 
   async function renderSec(scroll) {
     $$('#side button').forEach(b => b.classList.toggle('on', b.dataset.k === sec));
@@ -75,11 +103,61 @@
         row('Lokasi simpan', S.dlDirShown, (() => { const d = document.createElement('div'); d.style.display = 'flex'; d.style.gap = '6px'; const b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Pilih folder…'; b.onclick = () => api('dir.pick'); d.appendChild(b); if (S.dlDir) { const r = document.createElement('button'); r.className = 'btn sm'; r.textContent = 'Setel ulang'; r.onclick = () => set('dlDir', ''); d.appendChild(r); } return d; })()),
         toggle('dlAsk', 'Tanya lokasi simpan setiap unduhan')]));
     }
-    if (sec === 'terjemah') {
+    if (sec === 'play') {
+      A(grp('Video')); A(box([
+        toggle('adblock', 'Blokir iklan YouTube', 'Hilangkan iklan video dan banner di YouTube'),
+        row('Perkecil video', 'Menu ⋮ → Gambar dalam gambar (PiP bawaan Chromium), bisa dipakai di situs apa pun', null)]));
+      A(grp('Terjemahan')); A(box([
+        toggle('ptr', 'Terjemahkan situs', 'Tampilkan "Terjemahkan halaman" di menu ⋮ (Ctrl+Alt+T)'),
+        toggle('tr', 'Terjemahan chat live', 'Terjemahkan chat live YouTube dan Twitch (juga tersedia di menu ⋮)'),
+        select('Bahasa tujuan', 'Dipakai untuk terjemahan situs, chat live, dan Suara ke teks', Object.entries(S.trLangs), S.trLang, v => set('trLang', v)),
+        toggle('trhide', 'Sembunyikan teks asli', 'Hanya tampilkan hasil terjemahan')]));
+      A(grp('Suara ke teks'));
+      const sr = [
+        toggle('stt', 'Suara ke teks', 'Tampilkan "Suara ke teks" di menu ⋮ (Ctrl+Alt+S). Audio video dikenali lalu diterjemahkan di kotak popup, tanpa mikrofon.'),
+        select('Penyedia suara ke teks', 'Whisper di cloud, atau server Whisper milik Anda', [['groq', 'Groq (gratis, disarankan)'], ['openai', 'OpenAI (whisper-1)'], ['custom', 'Kustom (kompatibel OpenAI, mis. server Whisper lokal)']], S.stprov, v => set('stprov', v))];
+      if (S.stprov === 'custom') {
+        const u = document.createElement('input'); u.className = 'inp'; u.style.width = '300px'; u.placeholder = 'http://localhost:8000/v1'; u.value = S.stcurl || ''; u.onchange = async () => { if (u.value.trim() && !(await set('stcurl', u.value.trim()))) { alert('Alamat harus diawali http:// atau https://'); u.value = S.stcurl || ''; } else if (!u.value.trim()) set('stcurl', ''); };
+        const m = document.createElement('input'); m.className = 'inp'; m.style.width = '200px'; m.placeholder = 'whisper-1'; m.value = S.stcmodel || ''; m.onchange = () => set('stcmodel', m.value.trim());
+        sr.push(row('Alamat server', 'Basis API yang punya /audio/transcriptions (faster-whisper-server, LocalAI, whisper.cpp server…)', u), row('Nama model', 'Sesuai server Anda', m));
+      }
+      const kb = document.createElement('div'); kb.style.display = 'flex'; kb.style.gap = '6px';
+      const kbtn = document.createElement('button'); kbtn.className = 'btn sm'; kbtn.textContent = S.stkeyMask ? 'Ganti…' : 'Isi…';
+      kbtn.onclick = async () => { const r = await askText('Kunci API', [{ l: 'Kunci API (disimpan terenkripsi di PC ini, tidak ikut cadangan)', t: 'password', p: S.stprov === 'openai' ? 'sk-…' : 'gsk_…' }]); if (r && r[0].trim()) await api('stt.key', r[0]); };
+      kb.appendChild(kbtn);
+      if (S.stkeyMask) { const kd = document.createElement('button'); kd.className = 'btn sm danger'; kd.textContent = 'Hapus'; kd.onclick = () => api('stt.key', ''); kb.appendChild(kd); }
+      sr.push(row('Kunci API', S.stkeyMask || (S.stprov === 'custom' ? 'Opsional untuk server lokal' : 'Belum diisi. Dapatkan gratis di console.groq.com'), kb));
+      const LG = [['', 'Otomatis (deteksi bahasa)'], ['en-US', 'Inggris'], ['id-ID', 'Indonesia'], ['ja-JP', 'Jepang'], ['ko-KR', 'Korea'], ['zh-CN', 'Mandarin'], ['es-ES', 'Spanyol'], ['ar-SA', 'Arab'], ['hi-IN', 'Hindi'], ['fr-FR', 'Prancis'], ['de-DE', 'Jerman'], ['pt-BR', 'Portugis'], ['ru-RU', 'Rusia'], ['it-IT', 'Italia'], ['nl-NL', 'Belanda'], ['tr-TR', 'Turki'], ['th-TH', 'Thai'], ['vi-VN', 'Vietnam'], ['ms-MY', 'Melayu']];
+      sr.push(select('Bahasa ucapan video', 'Memilih bahasa sendiri lebih cepat dan akurat daripada Otomatis', LG, S.stlang, v => set('stlang', v)),
+        select('Kecepatan teks', 'Makin cepat, makin banyak permintaan API per menit', [['fast', 'Cepat (potongan maks ±3,8 dtk)'], ['bal', 'Seimbang (±5,5 dtk, disarankan)'], ['eco', 'Hemat (±8,5 dtk, jatah gratis awet)']], S.stspeed, v => set('stspeed', v)),
+        button('Pengaturan audio', audSummary(), 'Buka', () => { sec = 'audio'; history.replaceState(null, '', '#audio'); renderSec(true); }));
+      A(box(sr));
+      A(grp('Teks suara di layar penuh'));
+      const F = S.stf, sf = (k, v) => set('stf', Object.assign({}, F, { [k]: v }));
       A(box([
-        select('Terjemahkan ke', 'Bahasa tujuan untuk Terjemahkan halaman (Ctrl+Alt+T)', Object.entries(S.trLangs), S.trLang, v => set('trLang', v)),
-        toggle('tr', 'Terjemahkan chat langsung', 'Menerjemahkan pesan chat live YouTube/Twitch otomatis'),
-        S.tr ? toggle('trhide', 'Sembunyikan teks asli chat') : row('', '', null)].filter(r => r.textContent !== '' || r.querySelector('input'))));
+        select('Ukuran teks', '', [['sm', 'Kecil'], ['md', 'Sedang'], ['lg', 'Besar'], ['xl', 'Sangat besar']], F.size, v => sf('size', v)),
+        select('Posisi', '', [['bottom', 'Bawah'], ['top', 'Atas']], F.pos, v => sf('pos', v)),
+        select('Latar teks', '', [['dim', 'Gelap transparan'], ['solid', 'Hitam pekat'], ['none', 'Tanpa latar (bayangan)']], F.bg, v => sf('bg', v)),
+        select('Warna teks', '', [['white', 'Putih'], ['yellow', 'Kuning'], ['cyan', 'Biru muda']], F.color, v => sf('color', v)),
+        (() => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = F.orig !== false; c.firstChild.onchange = () => sf('orig', c.firstChild.checked); return row('Tampilkan teks asli', 'Ucapan asli di bawah terjemahan', c); })()]));
+      A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu ⋮ → Suara ke teks (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
+    }
+    if (sec === 'audio') {
+      A(el('<p class="sub">Mengatur cara audio video diproses sebelum diubah jadi teks. Perubahan langsung diterapkan ke Suara ke teks yang sedang berjalan.</p>'));
+      A(box([button('Kembali ke Play', '', '← Play', () => { sec = 'play'; history.replaceState(null, '', '#play'); renderSec(true); })]));
+      const T = S.sta, st = (k, v) => set('sta', Object.assign({}, T, { [k]: v }));
+      A(grp('Mode')); A(box([
+        (() => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = !!T.legacy; c.firstChild.onchange = () => st('legacy', c.firstChild.checked); return row('Mode klasik (v78)', 'Proses audio seperti v78: tanpa pembersih audio, tanpa penguat otomatis', c); })(),
+        button('Preset cepat', 'Video bising, Suara pelan, Musik latar, dll.', 'Pilih…', presetDlg)]));
+      const grpOpts = (label, keys) => { A(grp(label)); A(box(keys.map(k => { const o = STA.find(x => x.key === k); return select(o.title, o.help, o.vals.map((v, i) => [v, o.names[i] + (v === o.def ? ' (bawaan)' : '')]), T[k], v => st(k, +v)); }))); };
+      grpOpts('Volume dan ambang', ['pg', 'min', 'max', 'sens', 'dur']);
+      grpOpts('Pembersih suara', ['ns', 'gate', 'hp', 'lp', 'auto']);
+      A(grp('Teks hasil')); const ml = STA.find(x => x.key === 'minlen');
+      A(box([select(ml.title, ml.help, ml.vals.map((v, i) => [v, ml.names[i]]), T.minlen, v => st('minlen', +v)),
+        (() => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = T.filt !== false; c.firstChild.onchange = () => st('filt', c.firstChild.checked); return row('Saring halusinasi dan derau teks', 'Buang kalimat khas model pada musik/senyap dan pengulangan berlebihan', c); })()]));
+      A(grp('Diagnostik')); A(box([
+        (() => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = !!T.meter; c.firstChild.onchange = () => st('meter', c.firstChild.checked); return row('Tampilkan level volume', 'Tampilkan level dB di status kotak, untuk menentukan Volume minimum/maksimum', c); })(),
+        button('Atur ulang pengaturan audio', 'Kembalikan semua ke bawaan', 'Atur ulang', async () => { if (await askConfirm('Atur ulang pengaturan audio?', 'Semua kembali ke bawaan.', 'Atur ulang')) set('sta', DEFSTA); })]));
     }
     if (sec === 'cadangan') {
       A(box([button('Ekspor pengaturan & bookmark', 'Berkas JSON (tanpa sandi, histori, dan PIN)', 'Ekspor…', () => api('backup.export')), button('Pulihkan dari cadangan', '', 'Pilih berkas…', async () => { const ok = await api('backup.import'); if (ok === false) alert('Berkas cadangan tidak valid.'); }),
