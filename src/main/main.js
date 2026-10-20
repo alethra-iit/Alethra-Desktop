@@ -41,7 +41,7 @@ const isInternalSender = (e) => { try { return (e.senderFrame && e.senderFrame.u
 /* ================= tema ================= */
 function isDark() { return nativeTheme.shouldUseDarkColors; }
 function barColors() {
-  if (isDark()) return setting('amoled') ? { color: '#000000', symbolColor: '#f4f4f5' } : { color: '#1c1c20', symbolColor: '#f4f4f5' };
+  if (isDark()) return setting('amoled') ? { color: '#000000', symbolColor: '#f4f4f5' } : { color: '#121214', symbolColor: '#f4f4f5' };
   return { color: '#e9e9ee', symbolColor: '#111113' };
 }
 function applyTheme() {
@@ -283,7 +283,7 @@ function injectTrAll() {
 }
 function sttToggle() {
   const t = curTab(); if (!t) return;
-  if (setting('stt') === false) { ctx.toast('Suara ke teks dimatikan di Pengaturan > Play'); return; }
+  if (setting('stt') === false) { ctx.toast('Terjemahan Suara dimatikan di Pengaturan > Play'); return; }
   STT.toggle(t);
 }
 function openSettingsAt(sec) {
@@ -511,7 +511,7 @@ function mainMenuSpec() {
     I('find', 'Cari di halaman', { key: 'Ctrl+F', off: !web }), I('print', 'Cetak…', { key: 'Ctrl+P', off: !web }), I('pdf', 'Simpan sebagai PDF', { off: !web }), I('offline.save', 'Simpan halaman offline', { key: 'Ctrl+S', off: !web }),
     ...(setting('ptr') !== false ? [I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web })] : []),
     I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
-    ...(setting('stt') !== false ? [I('stt', 'Suara ke teks', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web })] : []),
+    ...(setting('stt') !== false ? [I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web })] : []),
     I('reader', 'Mode baca', { key: 'Ctrl+Alt+R', off: !web }),
     I('vq', 'Kualitas video…', { off: !web }), I('pip', 'Gambar dalam gambar', { off: !web }),
     I('mobile', 'Tampilan situs seluler', { check: !!st.mobile, off: !web }), I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web }),

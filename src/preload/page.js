@@ -18,7 +18,7 @@ if (location.protocol === 'alethra:') {
       translate: (id, t, l) => ipcRenderer.send('tr:one', id, String(t), String(l)),
       translateBatch: (id, j, l) => ipcRenderer.send('tr:batch', id, String(j), String(l))
     });
-    // Jembatan Suara ke teks (dipakai skrip stt.js; main memeriksa token & tab aktif)
+    // Jembatan Terjemahan Suara (dipakai skrip stt.js; main memeriksa token & tab aktif)
     contextBridge.exposeInMainWorld('AlSTT', {
       chunk: (tok, b64, mime) => ipcRenderer.send('stt:chunk', String(tok), String(b64), String(mime)),
       status: (tok, t) => ipcRenderer.send('stt:status', String(tok), String(t)),

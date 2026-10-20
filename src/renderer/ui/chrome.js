@@ -23,8 +23,8 @@
       d.appendChild(fv);
       const tt = document.createElement('div'); tt.className = 'tt'; tt.textContent = t.title || t.url || 'Tab baru'; d.appendChild(tt);
       if (t.audible || t.muted) { const a = document.createElement('button'); a.className = 'au'; a.innerHTML = ICON(t.muted ? 'mute' : 'volume'); a.title = t.muted ? 'Aktifkan suara' : 'Bisukan tab'; a.onclick = e => { e.stopPropagation(); api('tab.mute', t.id); }; d.appendChild(a); }
-      const x = document.createElement('button'); x.className = 'x'; x.innerHTML = ICON('close'); x.title = 'Tutup tab'; x.onclick = e => { e.stopPropagation(); api('tab.close', t.id); }; d.appendChild(x);
-      d.onmousedown = e => { if (e.button === 0) api('tab.select', t.id); else if (e.button === 1) { e.preventDefault(); api('tab.close', t.id); } };
+      const x = document.createElement('button'); x.className = 'x'; x.innerHTML = ICON('close'); x.title = 'Tutup tab'; x.draggable = false; x.onmousedown = e => { e.stopPropagation(); if (e.button === 0) { e.preventDefault(); api('tab.close', t.id); } }; x.onclick = e => e.stopPropagation(); d.appendChild(x);
+      d.onmousedown = e => { if (e.target.closest('.x, .au')) return; if (e.button === 0) api('tab.select', t.id); else if (e.button === 1) { e.preventDefault(); api('tab.close', t.id); } };
       d.oncontextmenu = e => { e.preventDefault(); api('tab.menu', t.id); };
       d.ondblclick = () => {};
       d.ondragstart = e => { dragId = t.id; e.dataTransfer.effectAllowed = 'move'; };

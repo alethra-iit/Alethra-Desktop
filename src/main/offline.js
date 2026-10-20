@@ -1,4 +1,4 @@
-// Mesin offline untuk PC: Suara ke teks (sherpa-onnx) dan Terjemahan (Opus-MT lewat onnxruntime).
+// Mesin offline untuk PC: Terjemahan Suara (sherpa-onnx) dan Terjemahan (Opus-MT lewat onnxruntime).
 // Model diunduh sekali dari Hugging Face ke %APPDATA%\Alethra\models, lalu dijalankan di proses terpisah
 // (offline-stt-worker.js / offline-mt-worker.js) supaya jendela browser tidak tersendat dan memori bisa dilepas.
 const { app, net, shell } = require('electron');
@@ -253,7 +253,7 @@ async function loadStt(m) {
   await sttW.call({ op: 'load', kind: m.kind, dir: sttDir(m.id), roles: mf.roles, lang: m.kind === 'whisper' && !m.fixed ? lang : '', threads: threads() }, 120000);
   sttLoaded = key;
 }
-// dipanggil saat Suara ke teks dinyalakan, supaya model sudah siap sebelum kalimat pertama
+// dipanggil saat Terjemahan Suara dinyalakan, supaya model sudah siap sebelum kalimat pertama
 async function warm() { const m = selected(); if (!m) throw new Error('Model suara ke teks offline belum dipasang'); used(); await loadStt(m); }
 async function transcribe(wavBuf) {
   const m = selected(); if (!m) { const e = new Error('Model suara ke teks offline belum dipasang. Buka Pengaturan > Mesin offline'); e.fatal = true; throw e; }

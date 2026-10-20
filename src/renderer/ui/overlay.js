@@ -46,7 +46,7 @@
   }
   function renderStt(s) {
     const el = $('#stt'), t = s.stt;
-    if (!t) { el.hidden = true; el.innerHTML = ''; return; }
+    if (!t) { el.hidden = true; el.innerHTML = ''; el.className = ''; el.removeAttribute('style'); return; }
     el.hidden = false;
     el.style.left = (t.rect.x - s.ox) + 'px'; el.style.top = (t.rect.y - s.oy) + 'px'; el.style.width = t.rect.w + 'px'; el.style.height = t.rect.h + 'px';
     const cur = t.cur || {}, main = cur.tr || cur.orig || '', sub = (cur.tr && t.cfg.orig) ? cur.orig : '';

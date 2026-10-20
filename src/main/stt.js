@@ -1,4 +1,4 @@
-// Suara ke teks: audio video ditangkap oleh stt.js (di halaman), dikenali Whisper (cloud / server kompatibel OpenAI)
+// Terjemahan Suara: audio video ditangkap oleh stt.js (di halaman), dikenali Whisper (cloud / server kompatibel OpenAI)
 // atau mesin offline di PC (sherpa-onnx), diterjemahkan Google Translate atau terjemahan offline (Opus-MT),
 // lalu ditampilkan di popup (overlay) atau sebagai subtitle layar penuh.
 const { ipcMain } = require('electron');
@@ -52,7 +52,7 @@ function start(tab) {
   if (!/^https?:/.test(tab.url)) return H.toast('Buka halaman berisi video dulu');
   if (offlineOn()) {
     if (!OFF.sttReady()) { H.toast('Pasang model suara ke teks offline dulu di Pengaturan > Mesin offline'); H.openSettings('mesinoff'); return; }
-  } else if (prov === 'custom' ? !/^https?:\/\//.test(SV.setting('stcurl')) : !keyOf()) { H.toast(prov === 'custom' ? 'Isi alamat server di Pengaturan > Play' : 'Isi Kunci API dulu di Pengaturan > Play > Suara ke teks'); H.openSettings('play'); return; }
+  } else if (prov === 'custom' ? !/^https?:\/\//.test(SV.setting('stcurl')) : !keyOf()) { H.toast(prov === 'custom' ? 'Isi alamat server di Pengaturan > Play' : 'Isi Kunci API dulu di Pengaturan > Play > Terjemahan Suara'); H.openSettings('play'); return; }
   S = { tab, tok: String(Date.now()) + Math.random().toString(36).slice(2, 8), seq: 0, queue: [], busy: 0, cool: 0, ctxTail: '', base: 'Menyiapkan…', lat: '', lines: { cur: null, prev: null }, status: 'Menyiapkan…', gen: 0 };
   pos.x = 0; pos.y = 0; inject(); H.changed();
   if (offlineOn()) {

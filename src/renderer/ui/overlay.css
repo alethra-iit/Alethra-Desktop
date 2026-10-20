@@ -1,4 +1,5 @@
 html,body{background:transparent!important;overflow:hidden;height:100%;user-select:none}
+[hidden]{display:none!important}
 #catch{position:fixed;inset:0}
 #sug{position:fixed;top:2px;background:var(--bg);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;overflow:hidden}
 .si{display:flex;align-items:center;gap:10px;height:42px;padding:0 10px;border-radius:9px;cursor:default}

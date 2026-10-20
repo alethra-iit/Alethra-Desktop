@@ -136,14 +136,14 @@
       A(grp('Terjemahan')); A(box([
         toggle('ptr', 'Terjemahkan situs', 'Tampilkan "Terjemahkan halaman" di menu ⋮ (Ctrl+Alt+T)'),
         toggle('tr', 'Terjemahan chat live', 'Terjemahkan chat live YouTube dan Twitch (juga tersedia di menu ⋮)'),
-        select('Bahasa tujuan', 'Dipakai untuk terjemahan situs, chat live, dan Suara ke teks', Object.entries(S.trLangs), S.trLang, v => set('trLang', v)),
+        select('Bahasa tujuan', 'Dipakai untuk terjemahan situs, chat live, dan Terjemahan Suara', Object.entries(S.trLangs), S.trLang, v => set('trLang', v)),
         toggle('trhide', 'Sembunyikan teks asli', 'Hanya tampilkan hasil terjemahan')]));
-      A(grp('Suara ke teks'));
+      A(grp('Terjemahan Suara'));
       const OEs = await api('oe.list') || { stt: [], mt: [], jobs: {} };
       const goOff = () => { sec = 'mesinoff'; history.replaceState(null, '', '#mesinoff'); renderSec(true); };
       const curM = OEs.stt.find(m => m.id === S.stmodel && m.installed);
       const sr = [
-        toggle('stt', 'Suara ke teks', 'Tampilkan "Suara ke teks" di menu ⋮ (Ctrl+Alt+S). Audio video dikenali lalu diterjemahkan di kotak popup, tanpa mikrofon.'),
+        toggle('stt', 'Terjemahan Suara', 'Tampilkan "Terjemahan Suara" di menu ⋮ (Ctrl+Alt+S). Audio video dikenali lalu diterjemahkan di kotak popup, tanpa mikrofon.'),
         select('Mesin suara ke teks', 'Cloud butuh internet dan kunci API. Offline berjalan di PC ini, tanpa internet dan tanpa kunci.', [['cloud', 'Whisper cloud (Groq / OpenAI / server sendiri)'], ['offline', 'Offline di PC (ringan dan cepat)']], S.stengine, v => set('stengine', v))];
       if (S.stengine === 'offline') {
         sr.push(button('Model suara offline', curM ? 'Dipakai: ' + curM.title : 'Belum ada model terpasang. Unduh satu dulu (mulai dari ±40 MB).', 'Kelola model…', goOff));
@@ -179,11 +179,11 @@
         select('Latar teks', '', [['dim', 'Gelap transparan'], ['solid', 'Hitam pekat'], ['none', 'Tanpa latar (bayangan)']], F.bg, v => sf('bg', v)),
         select('Warna teks', '', [['white', 'Putih'], ['yellow', 'Kuning'], ['cyan', 'Biru muda']], F.color, v => sf('color', v)),
         (() => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = F.orig !== false; c.firstChild.onchange = () => sf('orig', c.firstChild.checked); return row('Tampilkan teks asli', 'Ucapan asli di bawah terjemahan', c); })()]));
-      A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu ⋮ → Suara ke teks (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
+      A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu ⋮ → Terjemahan Suara (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
     }
     if (sec === 'mesinoff') {
       OE = await api('oe.list') || { stt: [], mt: [], jobs: {}, langs: {}, groups: [] };
-      A(el('<p class="sub">Alat offline untuk Suara ke teks dan terjemahan. Model hanya perlu diunduh sekali, lalu berjalan di PC ini tanpa internet. Yang disediakan sengaja yang ringan dan cepat. Mesin dimuat saat Suara ke teks dinyalakan dan dilepas dari memori beberapa detik setelah dimatikan.</p>'));
+      A(el('<p class="sub">Alat offline untuk Terjemahan Suara (pengenalan ucapan dan penerjemahannya). Model hanya perlu diunduh sekali, lalu berjalan di PC ini tanpa internet. Yang disediakan sengaja yang ringan dan cepat. Mesin dimuat saat Terjemahan Suara dinyalakan dan dilepas dari memori beberapa detik setelah dimatikan.</p>'));
       A(box([
         select('Mesin suara ke teks', '', [['cloud', 'Whisper cloud'], ['offline', 'Offline di PC']], S.stengine, v => set('stengine', v)),
         select('Terjemahan hasil suara', '', [['online', 'Online (Google Translate)'], ['offline', 'Offline (Opus-MT)']], S.trmode, v => set('trmode', v))]));
@@ -234,7 +234,7 @@
         button('Penyimpanan model', fmtBytes(OE.total) + ' dipakai · ' + OE.root, 'Buka folder', () => api('oe.dir'))]));
     }
     if (sec === 'audio') {
-      A(el('<p class="sub">Mengatur cara audio video diproses sebelum diubah jadi teks. Perubahan langsung diterapkan ke Suara ke teks yang sedang berjalan.</p>'));
+      A(el('<p class="sub">Mengatur cara audio video diproses sebelum diubah jadi teks. Perubahan langsung diterapkan ke Terjemahan Suara yang sedang berjalan.</p>'));
       A(box([button('Kembali ke Play', '', '← Play', () => { sec = 'play'; history.replaceState(null, '', '#play'); renderSec(true); })]));
       const T = S.sta, st = (k, v) => set('sta', Object.assign({}, T, { [k]: v }));
       A(grp('Mode')); A(box([

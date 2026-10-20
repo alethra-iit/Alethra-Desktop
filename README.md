@@ -32,7 +32,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | DNS aman (DoH) | Cloudflare, AdGuard, Quad9, Google, kustom |
 | Cookie pihak ketiga, HTTPS-only, DNT/GPC | Ada |
 | Penerjemah halaman + chat live | Ada (Ctrl+Alt+T); chat live juga bisa dinyalakan dari menu ⋮ |
-| **Suara ke teks** (terjemahan ucapan video) | Menu ⋮ → Suara ke teks (Ctrl+Alt+S), lihat bagian di bawah |
+| **Terjemahan Suara** (terjemahan ucapan video) | Menu ⋮ → Terjemahan Suara (Ctrl+Alt+S), lihat bagian di bawah |
 | Mode baca + TTS | Ada (Ctrl+Alt+R), memakai suara Windows |
 | Kualitas video | Menu ⋮ → Kualitas video… |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
@@ -43,9 +43,9 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Cadangan | Ekspor/impor JSON |
 | Browser default | Installer mendaftarkan Alethra ke Windows (*Aplikasi default*) |
 
-## Suara ke teks (dari Android v90)
+## Terjemahan Suara (dari Android v90)
 Menerjemahkan ucapan di video secara hampir realtime, tanpa mikrofon (audio diambil langsung dari elemen video/audio halaman).
-- **Pengaturan → Play → Suara ke teks**: pilih penyedia **Groq** (gratis, disarankan), **OpenAI**, atau **Kustom** (server Whisper kompatibel OpenAI, misalnya faster-whisper-server/LocalAI/whisper.cpp server di PC sendiri, sehingga bisa offline). Isi **Kunci API** (disimpan terenkripsi Windows DPAPI dan tidak ikut cadangan).
+- **Pengaturan → Play → Terjemahan Suara**: pilih penyedia **Groq** (gratis, disarankan), **OpenAI**, atau **Kustom** (server Whisper kompatibel OpenAI, misalnya faster-whisper-server/LocalAI/whisper.cpp server di PC sendiri, sehingga bisa offline). Isi **Kunci API** (disimpan terenkripsi Windows DPAPI dan tidak ikut cadangan).
 - Pilih **Bahasa ucapan video**, **Bahasa tujuan**, dan **Kecepatan teks** (Cepat / Seimbang / Hemat).
 - **Pengaturan audio**: preset (Video bising, Suara pelan, Musik latar, …), penguat volume, volume minimum/maksimum, kepekaan, peredam derau, filter, penyaring halusinasi, level volume, dan Mode klasik. Perubahan langsung diterapkan.
 - Popup bisa digeser dan ditutup dengan X. Saat video layar penuh, terjemahan tampil sebagai subtitle (ukuran, posisi, latar, warna diatur di *Teks suara di layar penuh*) dan hilang 8 detik setelah ucapan berhenti.
@@ -53,11 +53,11 @@ Menerjemahkan ucapan di video secara hampir realtime, tanpa mikrofon (audio diam
 - Mesin offline tersedia di Pengaturan → Mesin offline (lihat bagian di bawah). Vosk, ML Kit, NLLB, dan Argos versi Android tidak dibawa.
 
 ## Mesin offline (Pengaturan → Mesin offline)
-Suara ke teks dan terjemahan bisa berjalan di PC tanpa internet, memakai model ringan yang diunduh sekali dari Hugging Face ke `%APPDATA%\Alethra\models`.
-- **Suara ke teks**: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) dengan Whisper tiny/base (semua bahasa), Whisper tiny/base Inggris, Moonshine tiny/base Jepang, Zipformer (Jepang ReazonSpeech, Inggris, Korea, Rusia, Vietnam). Ukuran ±40–170 MB.
+Terjemahan Suara (pengenalan ucapan dan penerjemahannya) bisa berjalan di PC tanpa internet, memakai model ringan yang diunduh sekali dari Hugging Face ke `%APPDATA%\Alethra\models`.
+- **Pengenalan suara**: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) dengan Whisper tiny/base (semua bahasa), Whisper tiny/base Inggris, Moonshine tiny/base Jepang, Zipformer (Jepang ReazonSpeech, Inggris, Korea, Rusia, Vietnam). Ukuran ±40–170 MB.
 - **Terjemahan**: Opus-MT int8 (±85 MB per arah, lewat Inggris bila tidak ada pasangan langsung): Jepang, Mandarin, Korea, Vietnam, Thai, Rusia, Arab, Hindi, Turki, Spanyol, Prancis, Jerman, Italia, Belanda, Indonesia. Cadangan Google Translate bisa dimatikan.
-- Pilih di **Pengaturan → Play → Suara ke teks**: *Mesin suara ke teks* (Whisper cloud / Offline di PC) dan *Terjemahan hasil suara* (Online / Offline); keduanya bisa dikombinasikan bebas. Pengaturan audio dan layar penuh tetap berlaku.
-- Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dari memori 45 detik setelah Suara ke teks dimatikan. Jumlah thread CPU bisa diatur.
+- Pilih di **Pengaturan → Play → Terjemahan Suara**: *Mesin suara ke teks* (Whisper cloud / Offline di PC) dan *Terjemahan hasil suara* (Online / Offline); keduanya bisa dikombinasikan bebas. Pengaturan audio dan layar penuh tetap berlaku.
+- Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dari memori 45 detik setelah Terjemahan Suara dimatikan. Jumlah thread CPU bisa diatur.
 - Bila huggingface.co diblokir, set variabel lingkungan `ALETHRA_HF=https://hf-mirror.com` sebelum membuka Alethra.
 
 Tidak dibawa karena khusus Android: biometrik, pintasan layar utama, intent berbagi, notifikasi bar status.
