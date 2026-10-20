@@ -6,6 +6,7 @@ const Store = require('./store');
 const SV = require('./services');
 const { setting, saveSetting } = SV;
 const STT = require('./stt');
+const OFF = require('./offline');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'alethra', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName('Alethra');
@@ -615,16 +616,28 @@ const API = {
     if (k === 'doh' && !U.DOH[v]) return false;
     if (k === 'clock' || k === 'sta' || k === 'stf') { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = o; }
     if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;
+    if (k === 'stengine' && !['cloud', 'offline'].includes(v)) return false;
+    if (k === 'trmode' && !['online', 'offline'].includes(v)) return false;
+    if (k === 'stmodel' && !OFF.validModel(v)) return false;
+    if (k === 'ofthreads' && !(Number.isInteger(v) && v >= 0 && v <= 16)) return false;
     if (k === 'stspeed' && !['fast', 'bal', 'eco'].includes(v)) return false;
     if (k === 'stcurl' && v && !/^https?:\/\/[^\s]+$/.test(v)) return false;
     saveSetting(k, v);
-    if (['sta', 'stspeed', 'stlang'].includes(k)) STT.refresh();
+    if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'trmode'].includes(k)) STT.refresh();
     if (k === 'stt' && !v) STT.stop();
     if (['tr', 'trhide', 'trLang'].includes(k)) injectTrAll();
     if (k === 'doh' || k === 'dohcustom') SV.applyDoh();
     if (k === 'tr' || k === 'adblock' || k === 'sadblock') { /* berlaku di muat berikutnya */ }
     applyTheme(); return true;
   },
+  /* mesin offline (suara ke teks & terjemahan) */
+  'oe.list': () => OFF.list(),
+  'oe.dl': (e, id) => OFF.download(String(id)),
+  'oe.cancel': (e, id) => OFF.cancel(String(id)),
+  'oe.del': async (e, id) => { const ok = await OFF.remove(String(id)); applyTheme(); return ok; },
+  'oe.plan': (e, s, t) => OFF.plan(String(s), String(t)),
+  'oe.test': async (e, text, s, t) => { try { return { ok: true, text: (await OFF.translate(String(text || '').slice(0, 300), String(s), String(t))) || String(text) }; } catch (err) { return { ok: false, err: err.message }; } },
+  'oe.dir': () => OFF.openDir(),
   'stt.stop': () => STT.stop(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
   'stt.key': (e, key) => {
@@ -779,7 +792,7 @@ app.on('second-instance', (_e, argv) => {
 });
 app.on('web-contents-created', (_e, c) => { c.on('will-attach-webview', ev => ev.preventDefault()); });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { quitting = true; try { saveSession(); } catch {} wipeIncog(); [ctx.settings, ctx.bm, ctx.hist, ctx.perms, ctx.pw, ctx.off, ctx.dlStore].forEach(s => s && s.flush()); });
+app.on('before-quit', () => { quitting = true; try { OFF.shutdown(); } catch {} try { saveSession(); } catch {} wipeIncog(); [ctx.settings, ctx.bm, ctx.hist, ctx.perms, ctx.pw, ctx.off, ctx.dlStore].forEach(s => s && s.flush()); });
 
 app.whenReady().then(() => {
   ctx.dataDir = path.join(app.getPath('userData'), 'data');
@@ -795,6 +808,7 @@ app.whenReady().then(() => {
   ctx.dlList = (ctx.dlStore.data || []).map(d => d.state === 'progressing' || d.state === 'paused' ? Object.assign(d, { state: 'interrupted' }) : d);
   SV.setupSession(session.defaultSession, false);
   SV.initTranslate(); SV.applyDoh();
+  ctx.refreshSettings = () => applyTheme();
   STT.init({ toast: (m) => ctx.toast(m), changed: () => renderOverlay(), script: injectScript, openSettings: openSettingsAt });
   nativeTheme.themeSource = setting('theme');
   nativeTheme.on('updated', () => applyTheme());

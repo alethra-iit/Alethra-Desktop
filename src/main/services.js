@@ -13,7 +13,7 @@ const DEFAULTS = {
     { n: 'Wikipedia', u: 'https://id.wikipedia.org' }, { n: 'GitHub', u: 'https://github.com' }],
   clock: { c: 'analog', p: 'mid', z: 1, k: 't', al: 'c', d2: 0, h24: true, q: false, y: true, n: true, b: true },
   logo: true, grad: false, wall: 0, dim: 1,
-  ptr: true, stt: true, stprov: 'groq', stspeed: 'bal', stlang: '', stcurl: '', stcmodel: 'whisper-1',
+  ptr: true, stt: true, stengine: 'cloud', stmodel: '', trmode: 'online', mtfb: true, ofthreads: 0, stprov: 'groq', stspeed: 'bal', stlang: '', stcurl: '', stcmodel: 'whisper-1',
   sta: { pg: 1, min: 0, max: 0, sens: 2.8, dur: 300, ns: 0, gate: 0, hp: 80, lp: 0, auto: 6, minlen: 2, filt: true, meter: false, legacy: false },
   stf: { size: 'md', pos: 'bottom', bg: 'dim', color: 'white', orig: true },
   lock: { mode: 'off', parts: [], grace: 60000, hash: '', salt: '' }

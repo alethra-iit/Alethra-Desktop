@@ -1,7 +1,7 @@
 (async function () {
   let built = false, sec = (location.hash || '#umum').slice(1), S = {};
   S = await pageInit(s => { S = s; if (built) renderSec(false); });
-  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['unduhan', 'Unduhan', 'download'], ['play', 'Play', 'play'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
+  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['unduhan', 'Unduhan', 'download'], ['play', 'Play', 'play'], ['mesinoff', 'Mesin offline', 'mic'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
   $('#side').innerHTML = '<h2>Pengaturan</h2>'; SECS.forEach(([k, l, ic, hid]) => { if (hid) return; const b = document.createElement('button'); b.dataset.k = k; b.innerHTML = ICON(ic, 18) + esc(l); b.onclick = () => { sec = k; history.replaceState(null, '', '#' + k); renderSec(true); }; $('#side').appendChild(b); });
   const set = (k, v) => api('settings.set', k, v);
   const el = (h) => { const t = document.createElement('div'); t.innerHTML = h.trim(); return t.firstChild; };
@@ -40,6 +40,32 @@
     $('[data-x]', d).onclick = () => d.remove();
     $$('[data-i]', d).forEach(b => b.onclick = () => { const p = PRESETS[+b.dataset.i]; d.remove(); set('sta', Object.assign({}, DEFSTA, p[2])); });
   }
+
+  let OE = null, mtS = '', mtT = '';
+  // baris model (suara atau terjemahan): unduh / batal / pakai / hapus, dengan bilah kemajuan yang diperbarui langsung
+  function oeRow(map) {
+    return (m0) => {
+      const m = map(m0), job = (OE.jobs || {})[m.id], busy = job && job.busy, pct = job && job.total ? Math.min(100, Math.round(job.done * 100 / job.total)) : 0;
+      const r = el(`<div class="set"><div class="tx"><div>${esc(m.title)}${m.sel ? ' <span style="font-size:11px;padding:2px 8px;border-radius:9px;background:var(--acc);color:var(--onacc);margin-left:6px">Dipakai</span>' : ''}</div><div class="d">${esc(m.desc)} · ${m.installed ? fmtBytes(m.bytes) : '±' + m.mb + ' MB'}</div>${busy ? `<div class="prog"><i data-p="${m.id}" style="width:${pct}%"></i></div><div class="d" data-pt="${m.id}">${esc(job.phase || '')} ${job.total ? pct + '% (' + fmtBytes(job.done) + ' / ' + fmtBytes(job.total) + ')' : ''}</div>` : ''}${!busy && job && job.error ? `<div class="d" style="color:var(--danger)">${esc(job.error)}</div>` : ''}</div></div>`);
+      const a = document.createElement('div'); a.style.cssText = 'display:flex;gap:6px;flex:none';
+      const b = (t, fn, cls) => { const x = document.createElement('button'); x.className = 'btn sm ' + (cls || ''); x.textContent = t; x.onclick = fn; a.appendChild(x); };
+      if (busy) b('Batal', async () => { await api('oe.cancel', m.id); renderSec(false); });
+      else if (m.installed) { if (m.pick && !m.sel) b('Pakai', () => m.pick()); b('Hapus', async () => { if (await askConfirm('Hapus model?', m.title + ' akan dihapus dari PC ini.', 'Hapus', true)) { await api('oe.del', m.id); renderSec(false); } }, 'danger'); }
+      else b(job && job.error ? 'Coba lagi' : 'Unduh', async () => { await api('oe.dl', m.id); renderSec(false); }, 'pri');
+      r.appendChild(a); return r;
+    };
+  }
+  alethra.on('oe', (jobs) => {
+    if (!OE || (sec !== 'mesinoff' && sec !== 'play')) return;
+    const was = OE.jobs || {}; OE.jobs = jobs; let redo = false;
+    for (const id of Object.keys(Object.assign({}, was, jobs))) { const a = was[id], b = jobs[id]; if (!!(a && a.busy) !== !!(b && b.busy)) redo = true; }
+    if (redo) return renderSec(false);
+    for (const id of Object.keys(jobs)) {
+      const j = jobs[id]; if (!j.busy) continue; const pct = j.total ? Math.min(100, Math.round(j.done * 100 / j.total)) : 0;
+      const bar = document.querySelector(`[data-p="${id}"]`), tx = document.querySelector(`[data-pt="${id}"]`);
+      if (bar) bar.style.width = pct + '%'; if (tx) tx.textContent = (j.phase || '') + ' ' + (j.total ? pct + '% (' + fmtBytes(j.done) + ' / ' + fmtBytes(j.total) + ')' : '');
+    }
+  });
 
   async function renderSec(scroll) {
     $$('#side button').forEach(b => b.classList.toggle('on', b.dataset.k === sec));
@@ -113,22 +139,35 @@
         select('Bahasa tujuan', 'Dipakai untuk terjemahan situs, chat live, dan Suara ke teks', Object.entries(S.trLangs), S.trLang, v => set('trLang', v)),
         toggle('trhide', 'Sembunyikan teks asli', 'Hanya tampilkan hasil terjemahan')]));
       A(grp('Suara ke teks'));
+      const OEs = await api('oe.list') || { stt: [], mt: [], jobs: {} };
+      const goOff = () => { sec = 'mesinoff'; history.replaceState(null, '', '#mesinoff'); renderSec(true); };
+      const curM = OEs.stt.find(m => m.id === S.stmodel && m.installed);
       const sr = [
         toggle('stt', 'Suara ke teks', 'Tampilkan "Suara ke teks" di menu ⋮ (Ctrl+Alt+S). Audio video dikenali lalu diterjemahkan di kotak popup, tanpa mikrofon.'),
-        select('Penyedia suara ke teks', 'Whisper di cloud, atau server Whisper milik Anda', [['groq', 'Groq (gratis, disarankan)'], ['openai', 'OpenAI (whisper-1)'], ['custom', 'Kustom (kompatibel OpenAI, mis. server Whisper lokal)']], S.stprov, v => set('stprov', v))];
-      if (S.stprov === 'custom') {
-        const u = document.createElement('input'); u.className = 'inp'; u.style.width = '300px'; u.placeholder = 'http://localhost:8000/v1'; u.value = S.stcurl || ''; u.onchange = async () => { if (u.value.trim() && !(await set('stcurl', u.value.trim()))) { alert('Alamat harus diawali http:// atau https://'); u.value = S.stcurl || ''; } else if (!u.value.trim()) set('stcurl', ''); };
-        const m = document.createElement('input'); m.className = 'inp'; m.style.width = '200px'; m.placeholder = 'whisper-1'; m.value = S.stcmodel || ''; m.onchange = () => set('stcmodel', m.value.trim());
-        sr.push(row('Alamat server', 'Basis API yang punya /audio/transcriptions (faster-whisper-server, LocalAI, whisper.cpp server…)', u), row('Nama model', 'Sesuai server Anda', m));
+        select('Mesin suara ke teks', 'Cloud butuh internet dan kunci API. Offline berjalan di PC ini, tanpa internet dan tanpa kunci.', [['cloud', 'Whisper cloud (Groq / OpenAI / server sendiri)'], ['offline', 'Offline di PC (ringan dan cepat)']], S.stengine, v => set('stengine', v))];
+      if (S.stengine === 'offline') {
+        sr.push(button('Model suara offline', curM ? 'Dipakai: ' + curM.title : 'Belum ada model terpasang. Unduh satu dulu (mulai dari ±40 MB).', 'Kelola model…', goOff));
+      } else {
+        sr.push(select('Penyedia suara ke teks', 'Whisper di cloud, atau server Whisper milik Anda', [['groq', 'Groq (gratis, disarankan)'], ['openai', 'OpenAI (whisper-1)'], ['custom', 'Kustom (kompatibel OpenAI, mis. server Whisper lokal)']], S.stprov, v => set('stprov', v)));
+        if (S.stprov === 'custom') {
+          const u = document.createElement('input'); u.className = 'inp'; u.style.width = '300px'; u.placeholder = 'http://localhost:8000/v1'; u.value = S.stcurl || ''; u.onchange = async () => { if (u.value.trim() && !(await set('stcurl', u.value.trim()))) { alert('Alamat harus diawali http:// atau https://'); u.value = S.stcurl || ''; } else if (!u.value.trim()) set('stcurl', ''); };
+          const m = document.createElement('input'); m.className = 'inp'; m.style.width = '200px'; m.placeholder = 'whisper-1'; m.value = S.stcmodel || ''; m.onchange = () => set('stcmodel', m.value.trim());
+          sr.push(row('Alamat server', 'Basis API yang punya /audio/transcriptions (faster-whisper-server, LocalAI, whisper.cpp server…)', u), row('Nama model', 'Sesuai server Anda', m));
+        }
+        const kb = document.createElement('div'); kb.style.display = 'flex'; kb.style.gap = '6px';
+        const kbtn = document.createElement('button'); kbtn.className = 'btn sm'; kbtn.textContent = S.stkeyMask ? 'Ganti…' : 'Isi…';
+        kbtn.onclick = async () => { const r = await askText('Kunci API', [{ l: 'Kunci API (disimpan terenkripsi di PC ini, tidak ikut cadangan)', t: 'password', p: S.stprov === 'openai' ? 'sk-…' : 'gsk_…' }]); if (r && r[0].trim()) await api('stt.key', r[0]); };
+        kb.appendChild(kbtn);
+        if (S.stkeyMask) { const kd = document.createElement('button'); kd.className = 'btn sm danger'; kd.textContent = 'Hapus'; kd.onclick = () => api('stt.key', ''); kb.appendChild(kd); }
+        sr.push(row('Kunci API', S.stkeyMask || (S.stprov === 'custom' ? 'Opsional untuk server lokal' : 'Belum diisi. Dapatkan gratis di console.groq.com'), kb));
       }
-      const kb = document.createElement('div'); kb.style.display = 'flex'; kb.style.gap = '6px';
-      const kbtn = document.createElement('button'); kbtn.className = 'btn sm'; kbtn.textContent = S.stkeyMask ? 'Ganti…' : 'Isi…';
-      kbtn.onclick = async () => { const r = await askText('Kunci API', [{ l: 'Kunci API (disimpan terenkripsi di PC ini, tidak ikut cadangan)', t: 'password', p: S.stprov === 'openai' ? 'sk-…' : 'gsk_…' }]); if (r && r[0].trim()) await api('stt.key', r[0]); };
-      kb.appendChild(kbtn);
-      if (S.stkeyMask) { const kd = document.createElement('button'); kd.className = 'btn sm danger'; kd.textContent = 'Hapus'; kd.onclick = () => api('stt.key', ''); kb.appendChild(kd); }
-      sr.push(row('Kunci API', S.stkeyMask || (S.stprov === 'custom' ? 'Opsional untuk server lokal' : 'Belum diisi. Dapatkan gratis di console.groq.com'), kb));
+      sr.push(select('Terjemahan hasil suara', 'Online memakai Google Translate. Offline memakai model di PC dan bisa dipakai dengan mesin suara apa pun.', [['online', 'Online (Google Translate)'], ['offline', 'Offline (Opus-MT di PC)']], S.trmode, v => set('trmode', v)));
+      if (S.trmode === 'offline') {
+        const n = OEs.mt.filter(p => p.installed).length;
+        sr.push(button('Bahasa terjemahan offline', n ? n + ' model terpasang. Bahasa tujuan: ' + (S.trLangs[S.trLang] || S.trLang) : 'Belum ada model terpasang. Pilih bahasa lalu unduh.', 'Kelola bahasa…', goOff));
+      }
       const LG = [['', 'Otomatis (deteksi bahasa)'], ['en-US', 'Inggris'], ['id-ID', 'Indonesia'], ['ja-JP', 'Jepang'], ['ko-KR', 'Korea'], ['zh-CN', 'Mandarin'], ['es-ES', 'Spanyol'], ['ar-SA', 'Arab'], ['hi-IN', 'Hindi'], ['fr-FR', 'Prancis'], ['de-DE', 'Jerman'], ['pt-BR', 'Portugis'], ['ru-RU', 'Rusia'], ['it-IT', 'Italia'], ['nl-NL', 'Belanda'], ['tr-TR', 'Turki'], ['th-TH', 'Thai'], ['vi-VN', 'Vietnam'], ['ms-MY', 'Melayu']];
-      sr.push(select('Bahasa ucapan video', 'Memilih bahasa sendiri lebih cepat dan akurat daripada Otomatis', LG, S.stlang, v => set('stlang', v)),
+      sr.push(select('Bahasa ucapan video', 'Memilih bahasa sendiri lebih cepat dan akurat daripada Otomatis. Dipakai juga untuk memilih model terjemahan offline.', LG, S.stlang, v => set('stlang', v)),
         select('Kecepatan teks', 'Makin cepat, makin banyak permintaan API per menit', [['fast', 'Cepat (potongan maks ±3,8 dtk)'], ['bal', 'Seimbang (±5,5 dtk, disarankan)'], ['eco', 'Hemat (±8,5 dtk, jatah gratis awet)']], S.stspeed, v => set('stspeed', v)),
         button('Pengaturan audio', audSummary(), 'Buka', () => { sec = 'audio'; history.replaceState(null, '', '#audio'); renderSec(true); }));
       A(box(sr));
@@ -141,6 +180,58 @@
         select('Warna teks', '', [['white', 'Putih'], ['yellow', 'Kuning'], ['cyan', 'Biru muda']], F.color, v => sf('color', v)),
         (() => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = F.orig !== false; c.firstChild.onchange = () => sf('orig', c.firstChild.checked); return row('Tampilkan teks asli', 'Ucapan asli di bawah terjemahan', c); })()]));
       A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu ⋮ → Suara ke teks (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
+    }
+    if (sec === 'mesinoff') {
+      OE = await api('oe.list') || { stt: [], mt: [], jobs: {}, langs: {}, groups: [] };
+      A(el('<p class="sub">Alat offline untuk Suara ke teks dan terjemahan. Model hanya perlu diunduh sekali, lalu berjalan di PC ini tanpa internet. Yang disediakan sengaja yang ringan dan cepat. Mesin dimuat saat Suara ke teks dinyalakan dan dilepas dari memori beberapa detik setelah dimatikan.</p>'));
+      A(box([
+        select('Mesin suara ke teks', '', [['cloud', 'Whisper cloud'], ['offline', 'Offline di PC']], S.stengine, v => set('stengine', v)),
+        select('Terjemahan hasil suara', '', [['online', 'Online (Google Translate)'], ['offline', 'Offline (Opus-MT)']], S.trmode, v => set('trmode', v))]));
+
+      /* ----- model suara ke teks ----- */
+      A(grp('Model suara ke teks'));
+      A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Pilih satu model lalu tekan Pakai. Untuk video Jepang coba Moonshine tiny; untuk bahasa campuran pakai Whisper tiny atau base. Model yang lebih kecil lebih cepat tetapi kurang akurat.</p>'));
+      OE.groups.forEach(([g, gname]) => {
+        const ms = OE.stt.filter(m => (m.lang === g)); if (!ms.length) return;
+        A(el(`<div class="group" style="margin-top:14px">${esc(gname)}</div>`));
+        A(box(ms.map(oeRow(m => ({ id: m.id, title: m.title, desc: m.note, mb: m.mb, installed: m.installed, bytes: m.bytes, sel: S.stmodel === m.id, pick: () => set('stmodel', m.id) })))));
+      });
+
+      /* ----- terjemahan offline ----- */
+      A(grp('Terjemahan offline'));
+      A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Model Opus-MT (±85 MB per arah). Kebanyakan bahasa lewat Inggris, jadi Jepang → Indonesia memakai dua model (Jepang → Inggris dan Inggris → Indonesia). Pilih pasangan lalu unduh yang diperlukan.</p>'));
+      const LN = OE.langs; const base = (v) => String(v || '').split('-')[0].toLowerCase();
+      if (!mtS) mtS = base(S.stlang) && LN[base(S.stlang)] ? base(S.stlang) : 'ja';
+      if (!mtT) mtT = LN[base(S.trLang)] ? base(S.trLang) : 'id';
+      const opts = Object.entries(LN);
+      const planRow = row('Status', 'Memeriksa…', null);
+      const showPlan = async () => {
+        const p = await api('oe.plan', mtS, mtT); const d = planRow.querySelector('.d');
+        if (p === null) d.textContent = 'Pasangan bahasa ini belum didukung.';
+        else if (!p.length) d.textContent = mtS === mtT ? 'Bahasa sumber dan tujuan sama.' : 'Siap dipakai.';
+        else d.textContent = 'Perlu diunduh: ' + p.map(id => { const q = OE.mt.find(x => x.id === id); return LN[q.src] + ' → ' + LN[q.tgt]; }).join(', ') + ' (±' + p.length * 85 + ' MB).';
+        return p;
+      };
+      const goBtn = document.createElement('button'); goBtn.className = 'btn sm pri'; goBtn.textContent = 'Unduh yang diperlukan';
+      goBtn.onclick = async () => { const p = await showPlan(); if (p === null) return alert('Pasangan bahasa ini belum didukung.'); if (!p.length) return; for (const id of p) await api('oe.dl', id); renderSec(false); };
+      planRow.appendChild(goBtn);
+      A(box([select('Dari bahasa', 'Bahasa ucapan di video', opts, mtS, v => { mtS = v; showPlan(); }), select('Ke bahasa', 'Bahasa terjemahan', opts, mtT, v => { mtT = v; showPlan(); }), planRow,
+        button('Coba terjemahan', 'Uji model yang terpasang dengan satu kalimat', 'Coba…', async () => {
+          const r = await askText('Coba terjemahan offline', [{ l: LN[mtS] + ' → ' + LN[mtT], v: '', p: 'Ketik kalimat dalam ' + LN[mtS] }], 'Terjemahkan'); if (!r || !r[0].trim()) return;
+          const o = await api('oe.test', r[0], mtS, mtT); alert(o && o.ok ? o.text : 'Gagal: ' + (o ? o.err : 'tidak diketahui'));
+        }),
+        toggle('mtfb', 'Cadangan terjemahan online', 'Bila model offline belum terpasang atau gagal, pakai Google Translate')]));
+      showPlan();
+      const pairs = OE.mt.filter(p => p.installed || (OE.jobs[p.id] && (OE.jobs[p.id].busy || OE.jobs[p.id].error)));
+      A(el('<div class="group" style="margin-top:14px">Model terjemahan terpasang</div>'));
+      if (!pairs.length) A(el('<div class="list"><div class="empty" style="padding:22px">Belum ada model terjemahan.</div></div>'));
+      else A(box(pairs.map(oeRow(p => ({ id: p.id, title: LN[p.src] + ' → ' + LN[p.tgt], desc: 'Opus-MT, int8', mb: p.mb, installed: p.installed, bytes: p.bytes, sel: false })))));
+
+      /* ----- kinerja & penyimpanan ----- */
+      A(grp('Kinerja dan penyimpanan'));
+      A(box([
+        select('Thread CPU', 'Otomatis memakai setengah inti CPU (2-4). Naikkan bila PC kuat; turunkan bila video tersendat.', [[0, 'Otomatis'], [1, '1'], [2, '2'], [3, '3'], [4, '4'], [6, '6'], [8, '8']], S.ofthreads | 0, v => set('ofthreads', +v)),
+        button('Penyimpanan model', fmtBytes(OE.total) + ' dipakai · ' + OE.root, 'Buka folder', () => api('oe.dir'))]));
     }
     if (sec === 'audio') {
       A(el('<p class="sub">Mengatur cara audio video diproses sebelum diubah jadi teks. Perubahan langsung diterapkan ke Suara ke teks yang sedang berjalan.</p>'));
