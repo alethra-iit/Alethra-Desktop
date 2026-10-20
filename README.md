@@ -50,3 +50,9 @@ Ctrl+D bookmark · Ctrl+H histori · Ctrl+J unduhan · Ctrl+P cetak · Ctrl+S si
 F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan
 
 Data pengguna: `%APPDATA%\Alethra\data`.
+
+## Jika aplikasi tidak terbuka
+1. Buka **Task Manager** (Ctrl+Shift+Esc) → bila ada proses *Alethra* yang tersisa, **End task**, lalu buka lagi (Alethra hanya mengizinkan satu salinan).
+2. Lihat log kesalahan: tekan Win+R, ketik `%APPDATA%\Alethra\alethra-log.txt`.
+3. Jalankan dari terminal untuk melihat pesan error:
+   `"%LOCALAPPDATA%\Programs\Alethra\Alethra.exe"`

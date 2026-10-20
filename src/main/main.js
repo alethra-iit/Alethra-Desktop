@@ -9,8 +9,17 @@ const { setting, saveSetting } = SV;
 protocol.registerSchemesAsPrivileged([{ scheme: 'alethra', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName('Alethra');
 app.setPath('userData', path.join(app.getPath('appData'), 'Alethra'));
+// ---- log kesalahan: %APPDATA%\Alethra\alethra-log.txt ----
+function log(...a) {
+  try {
+    const f = path.join(app.getPath('userData'), 'alethra-log.txt'); fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.appendFileSync(f, new Date().toISOString() + ' ' + a.map(x => (x && x.stack) || String(x)).join(' ') + '\n');
+  } catch {}
+}
+process.on('uncaughtException', e => { log('uncaught', e); try { dialog.showErrorBox('Alethra: terjadi kesalahan', String((e && e.stack) || e) + '\n\nRincian tersimpan di %APPDATA%\\Alethra\\alethra-log.txt'); } catch {} });
+process.on('unhandledRejection', e => log('unhandledRejection', e));
 const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) { app.quit(); process.exit(0); }
+if (!gotLock) { log('instance lain sudah berjalan'); app.quit(); process.exit(0); }
 
 let win, chromeWC, overlay, chromeH = 84, pageId = 0;
 const closed = [];
@@ -688,6 +697,11 @@ function createWindow() {
   overlay.webContents.loadURL('alethra://app/ui/overlay.html');
   chromeWC.loadURL('alethra://app/ui/chrome.html');
   win.once('ready-to-show', () => win.show());
+  setTimeout(() => { if (win && !win.isDestroyed() && !win.isVisible()) { log('ready-to-show tidak muncul, memaksa tampil'); win.show(); } }, 4000);
+  chromeWC.on('did-fail-load', (_e, code, desc, u) => { log('UI gagal dimuat', code, desc, u); dialog.showErrorBox('Alethra: UI gagal dimuat', code + ' ' + desc + '\n' + u); });
+  chromeWC.on('render-process-gone', (_e, d) => log('UI crash', JSON.stringify(d)));
+  chromeWC.on('console-message', (_e, lvl, msg, line, src) => { if (lvl >= 2) log('UI console', msg, src + ':' + line); });
+  overlay.webContents.on('console-message', (_e, lvl, msg, line, src) => { if (lvl >= 2) log('overlay console', msg, src + ':' + line); });
   ['resize', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'].forEach(ev => win.on(ev, () => layout()));
   win.on('blur', () => { lastLeft = Date.now(); });
   win.on('minimize', () => { lastLeft = Date.now(); });
@@ -695,7 +709,7 @@ function createWindow() {
   win.on('focus', back); win.on('restore', back);
   win.on('close', () => { saveSession(); });
   win.on('closed', () => { win = null; });
-  chromeWC.on('did-finish-load', () => { if (!ctx.booted) { ctx.booted = true; try { boot(); } catch (e) { console.error('BOOT', e); } } });
+  chromeWC.on('did-finish-load', () => { if (!ctx.booted) { ctx.booted = true; try { boot(); } catch (e) { log('BOOT', e); } } });
 }
 function urlArgs(argv) { return argv.slice(1).filter(a => /^https?:\/\//i.test(a)); }
 function boot() {
