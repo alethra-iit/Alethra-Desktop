@@ -1,6 +1,7 @@
-// Mesin offline untuk PC: Terjemahan Suara (sherpa-onnx) dan Terjemahan (Opus-MT lewat onnxruntime).
+// Mesin offline untuk PC. Suara ke teks: sherpa-onnx, Whisper (Transformers.js), atau Vosk. Terjemahan: Opus-MT atau NLLB-200 600M (Transformers.js).
+// Mesin suara dan mesin terjemahan bebas dikombinasikan.
 // Model diunduh sekali dari Hugging Face ke %APPDATA%\Alethra\models, lalu dijalankan di proses terpisah
-// (offline-stt-worker.js / offline-mt-worker.js) supaya jendela browser tidak tersendat dan memori bisa dilepas.
+// (offline-stt-worker.js / offline-asr-worker.js / offline-vosk-worker.js / offline-mt-worker.js) supaya jendela browser tidak tersendat dan memori bisa dilepas.
 const { app, net, shell } = require('electron');
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const { once } = require('events');
@@ -31,7 +32,30 @@ const STT_MODELS = [
   { id: 'zipformer-ru-small', title: 'Zipformer Rusia (kecil)', kind: 'transducer', repo: 'k2-fsa/sherpa-onnx-small-zipformer-ru-2024-09-18', lang: 'ru', mb: 40, note: 'Khusus Rusia. Sangat ringan.' },
   { id: 'zipformer-vi-30m', title: 'Zipformer Vietnam (kecil)', kind: 'transducer', repo: 'k2-fsa/sherpa-onnx-zipformer-vi-30M-int8-2026-02-09', lang: 'vi', mb: 40, note: 'Khusus Vietnam. Sangat ringan.' }
 ];
-STT_MODELS.forEach(m => { if (!m.fixed && m.lang !== 'multi') m.fixed = m.lang; });
+STT_MODELS.forEach(m => { m.engine = 'sherpa'; if (!m.fixed && m.lang !== 'multi') m.fixed = m.lang; });
+
+// Whisper lewat Transformers.js (ONNX int8 dari Xenova). Semua bahasa kecuali varian .en.
+const tjs = (id, title, repo, mb, lang, note) => STT_MODELS.push({ id: 'tjs-' + id, title, engine: 'tjs', kind: 'tjs', repo: 'Xenova/' + repo, lang, fixed: lang === 'multi' ? '' : lang, mb, note });
+tjs('whisper-tiny', 'Whisper tiny', 'whisper-tiny', 45, 'multi', 'Semua bahasa (±99). Paling ringan, akurasi dasar.');
+tjs('whisper-base', 'Whisper base', 'whisper-base', 85, 'multi', 'Semua bahasa (±99). Seimbang antara kecepatan dan akurasi.');
+tjs('whisper-small', 'Whisper small', 'whisper-small', 270, 'multi', 'Semua bahasa (±99). Jauh lebih akurat, butuh CPU yang kuat agar tetap hampir realtime.');
+tjs('whisper-tiny-en', 'Whisper tiny · Inggris', 'whisper-tiny.en', 45, 'en', 'Khusus Inggris. Paling ringan.');
+tjs('whisper-base-en', 'Whisper base · Inggris', 'whisper-base.en', 85, 'en', 'Khusus Inggris. Lebih akurat dari tiny.');
+tjs('whisper-small-en', 'Whisper small · Inggris', 'whisper-small.en', 270, 'en', 'Khusus Inggris. Akurat, butuh CPU yang kuat.');
+
+// Vosk (Kaldi): satu model per bahasa, berupa .zip dari alphacephei.com. Tidak ada model Indonesia resmi.
+const VOSK_URL = (process.env.ALETHRA_VOSK || 'https://alphacephei.com/vosk/models').replace(/\/+$/, '');
+const vosk = (lang, zip, mb) => STT_MODELS.push({ id: 'vosk-' + lang, title: 'Vosk small · ' + (LANG[lang] || VOSK_LANG[lang]), engine: 'vosk', kind: 'vosk', zip, lang, fixed: lang, mb, note: 'Khusus ' + (LANG[lang] || VOSK_LANG[lang]) + '. Ringan dan cepat, tanpa tanda baca.' });
+const VOSK_LANG = { pt: 'Portugis', pl: 'Polandia', uk: 'Ukraina' };
+vosk('en', 'vosk-model-small-en-us-0.15', 40); vosk('ja', 'vosk-model-small-ja-0.22', 48); vosk('zh', 'vosk-model-small-cn-0.22', 42); vosk('ko', 'vosk-model-small-ko-0.22', 83);
+vosk('ru', 'vosk-model-small-ru-0.22', 45); vosk('vi', 'vosk-model-small-vn-0.4', 33); vosk('tr', 'vosk-model-small-tr-0.3', 37); vosk('hi', 'vosk-model-small-hi-0.22', 44);
+vosk('es', 'vosk-model-small-es-0.42', 40); vosk('fr', 'vosk-model-small-fr-0.22', 42); vosk('de', 'vosk-model-small-de-0.15', 47); vosk('it', 'vosk-model-small-it-0.22', 50);
+vosk('nl', 'vosk-model-small-nl-0.22', 41); vosk('pt', 'vosk-model-small-pt-0.3', 33); vosk('ar', 'vosk-model-small-ar-0.3', 105); vosk('pl', 'vosk-model-small-pl-0.22', 53); vosk('uk', 'vosk-model-small-uk-v3-nano', 78);
+
+// nilai pengaturan "stengine" → jenis mesin pada model, dan pengaturan yang menyimpan model terpilih per mesin
+const ENG = { offline: 'sherpa', tjs: 'tjs', vosk: 'vosk' };
+const KEY = { sherpa: 'stmodel', tjs: 'stwmodel', vosk: 'stvmodel' };
+const ENG_NAME = { sherpa: 'sherpa-onnx', tjs: 'Whisper (Transformers.js)', vosk: 'Vosk' };
 
 // Opus-MT (Helsinki-NLP, versi ONNX dari Xenova). Hampir semua pasangan lewat Inggris; pasangan langsung dipakai bila ada,
 // jika tidak teks diterjemahkan sumber → Inggris → tujuan.
@@ -41,15 +65,22 @@ const mtp = (src, tgt, repo, mb) => MT_PAIRS.push({ id: `opus-${src}-${tgt}`, sr
 mtp('en', 'ja', 'en-jap');
 ['id', 'zh', 'vi', 'ru', 'ar', 'hi', 'es', 'fr', 'de', 'it', 'nl'].forEach(l => mtp('en', l, 'en-' + l));
 const mtFind = (id) => MT_PAIRS.find(p => p.id === id);
+
+// NLLB-200 distilled 600M (Xenova, ONNX int8): satu model untuk semua pasangan bahasa, tanpa pivot lewat Inggris.
+const NLLB = { id: 'nllb-600m', title: 'NLLB-200 600M', repo: 'Xenova/nllb-200-distilled-600M', mb: 900 };
+const NLLB_CODES = { en: 'eng_Latn', id: 'ind_Latn', ja: 'jpn_Jpan', zh: 'zho_Hans', ko: 'kor_Hang', vi: 'vie_Latn', th: 'tha_Thai', ru: 'rus_Cyrl', ar: 'arb_Arab', hi: 'hin_Deva', tr: 'tur_Latn', es: 'spa_Latn', fr: 'fra_Latn', de: 'deu_Latn', it: 'ita_Latn', nl: 'nld_Latn', pt: 'por_Latn', ms: 'zsm_Latn', jv: 'jav_Latn', su: 'sun_Latn', tl: 'tgl_Latn', bn: 'ben_Beng', ur: 'urd_Arab', ta: 'tam_Taml', fa: 'pes_Arab', he: 'heb_Hebr', pl: 'pol_Latn', uk: 'ukr_Cyrl', el: 'ell_Grek', sv: 'swe_Latn', ro: 'ron_Latn', cs: 'ces_Latn', hu: 'hun_Latn', da: 'dan_Latn', fi: 'fin_Latn', no: 'nob_Latn', sw: 'swh_Latn', ca: 'cat_Latn', kk: 'kaz_Cyrl', kz: 'kaz_Cyrl' };
+const nllbCode = (l) => /^zh[-_](tw|hk|hant)/i.test(String(l || '')) ? 'zho_Hant' : (NLLB_CODES[norm(l)] || '');
 const sttFind = (id) => STT_MODELS.find(m => m.id === id);
 
 const MT_ROOT_FILES = ['config.json', 'generation_config.json', 'special_tokens_map.json', 'tokenizer.json', 'tokenizer_config.json'];
 const MT_ONNX = ['onnx/encoder_model_quantized.onnx', 'onnx/decoder_model_merged_quantized.onnx'];
+const TJS_ONNX = MT_ONNX;
 
 /* ================= status terpasang ================= */
 const manifest = (dir) => { try { return JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')); } catch { return null; } };
 const sttInstalled = (m) => !!manifest(sttDir(m.id));
 const mtInstalled = (p) => !!manifest(mtDir(p.id));
+const nllbInstalled = () => !!manifest(mtDir(NLLB.id));
 function dirSize(d) { let n = 0; try { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); n += f.isDirectory() ? dirSize(p) : fs.statSync(p).size; } } catch {} return n; }
 
 /* ================= unduhan ================= */
@@ -120,16 +151,35 @@ async function fetchTo(url, dest, size, job) {
   fs.renameSync(part, dest);
 }
 
+// ekstrak zip model Vosk ke dir (folder teratas di dalam zip dibuang). Memakai fflate (JS murni, tanpa program luar).
+async function unzipModel(zipPath, dir) {
+  const fflate = require('fflate');
+  const data = new Uint8Array(await fs.promises.readFile(zipPath));
+  const files = await new Promise((res, rej) => fflate.unzip(data, (e, f) => e ? rej(e) : res(f)));
+  const names = Object.keys(files).filter(n => !n.endsWith('/'));
+  if (!names.length) throw new Error('Berkas zip kosong');
+  const tops = new Set(names.map(n => n.split('/')[0])), strip = tops.size === 1 && names.every(n => n.includes('/'));
+  const base = path.resolve(dir);
+  for (const n of names) {
+    const rel = strip ? n.split('/').slice(1).join('/') : n, out = path.resolve(base, rel);
+    if (out !== base && !out.startsWith(base + path.sep)) throw new Error('Zip tidak valid');
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, files[n]);
+  }
+  if (!fs.existsSync(path.join(base, 'conf')) && !fs.existsSync(path.join(base, 'am'))) throw new Error('Isi model Vosk tidak lengkap');
+}
+
 async function runJob(job, plan) {
   try {
     job.phase = 'Membaca daftar berkas…'; push();
-    const { files, meta, dir } = await plan(job.ctl.signal);
+    const { files, meta, dir, after } = await plan(job.ctl.signal);
     job.total = files.reduce((a, f) => a + (f.size || 0), 0) || job.total;
     job.phase = 'Mengunduh…';
     for (const f of files) {
       if (job.ctl.signal.aborted) throw new Error('dibatalkan');
       await fetchTo(f.url, path.join(dir, f.name), f.size, job);
     }
+    if (after) { job.phase = 'Mengekstrak…'; push(); await after(dir, job); }
     fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(Object.assign({ ts: Date.now() }, meta)));
     job.finished = true; job.phase = 'Selesai';
     onInstalled(job);
@@ -140,7 +190,7 @@ async function runJob(job, plan) {
   } finally { push(); }
 }
 function onInstalled(job) {
-  if (job.kind === 'stt' && !SV.setting('stmodel')) SV.saveSetting('stmodel', job.id);
+  if (job.kind === 'stt') { const m = sttFind(job.id), k = m && KEY[m.engine]; if (k && !SV.setting(k)) SV.saveSetting(k, job.id); }
   ctx.toast && ctx.toast('Model terpasang');
   ctx.broadcastPages && ctx.broadcastPages('oe', jobInfo());
   if (ctx.refreshSettings) ctx.refreshSettings();
@@ -154,9 +204,31 @@ function download(id) {
   const m = sttFind(id);
   if (m) {
     if (sttInstalled(m)) return true;
+    if (m.engine === 'tjs') return startJob('stt', id, m.mb, async (signal) => {
+      const root = (await hfList(m.repo, '', signal)).filter(f => /\.(json|txt)$/.test(f.name));
+      if (!root.some(f => f.name === 'config.json') || !root.some(f => f.name === 'tokenizer.json')) throw new Error('Berkas model tidak lengkap di repo');
+      const ox = (await hfList(m.repo, 'onnx', signal)).filter(f => TJS_ONNX.includes(f.name));
+      if (ox.length !== TJS_ONNX.length) throw new Error('Versi ringan (quantized) model ini tidak tersedia');
+      return { dir: sttDir(id), meta: { id, engine: 'tjs', dtype: 'q8' }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${HF}/${m.repo}/resolve/main/${f.name}` })) };
+    });
+    if (m.engine === 'vosk') return startJob('stt', id, m.mb * 1.05, async (signal) => {
+      const url = `${VOSK_URL}/${m.zip}.zip`;
+      let size = 0; try { const h = await net.fetch(url, { method: 'HEAD', signal }); if (!h.ok) throw httpErr(h.status, m.zip + '.zip'); size = +h.headers.get('content-length') || 0; } catch (e) { if (e && e.name !== 'AbortError' && /HTTP|tidak ditemukan|ditolak/.test(e.message)) throw e; }
+      return { dir: sttDir(id), meta: { id, engine: 'vosk' }, files: [{ name: 'model.zip', size, url }], after: async (dir) => { await unzipModel(path.join(dir, 'model.zip'), dir); try { fs.unlinkSync(path.join(dir, 'model.zip')); } catch {} } };
+    });
     return startJob('stt', id, m.mb, async (signal) => {
       const { files, roles } = pick(m, await hfList(m.repo, '', signal));
-      return { dir: sttDir(id), meta: { id, kind: m.kind, roles }, files: files.map(f => ({ name: f.name, size: f.size, url: `${HF}/${m.repo}/resolve/main/${f.name}` })) };
+      return { dir: sttDir(id), meta: { id, engine: 'sherpa', kind: m.kind, roles }, files: files.map(f => ({ name: f.name, size: f.size, url: `${HF}/${m.repo}/resolve/main/${f.name}` })) };
+    });
+  }
+  if (id === NLLB.id) {
+    if (nllbInstalled()) return true;
+    return startJob('mt', id, NLLB.mb, async (signal) => {
+      const root = (await hfList(NLLB.repo, '', signal)).filter(f => /\.(json|model)$/.test(f.name) && f.name !== 'quantize_config.json');
+      if (!root.some(f => f.name === 'tokenizer.json') || !root.some(f => f.name === 'config.json')) throw new Error('Berkas model tidak lengkap di repo');
+      const ox = (await hfList(NLLB.repo, 'onnx', signal)).filter(f => MT_ONNX.includes(f.name));
+      if (ox.length !== MT_ONNX.length) throw new Error('Versi ringan (quantized) model ini tidak tersedia');
+      return { dir: mtDir(id), meta: { id, engine: 'nllb' }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${HF}/${NLLB.repo}/resolve/main/${f.name}` })) };
     });
   }
   const p = mtFind(id);
@@ -178,10 +250,11 @@ async function remove(id) {
   const j = jobs.get(id); if (j && !j.finished) return false;
   jobs.delete(id);
   if (sttFind(id)) {
-    if (SV.setting('stmodel') === id) { SV.saveSetting('stmodel', ''); }
-    sttW.kill(); sttLoaded = '';
+    const m = sttFind(id), k = KEY[m.engine];
+    if (SV.setting(k) === id) { SV.saveSetting(k, ''); }
+    W[m.engine].kill(); loaded[m.engine] = '';
     rmDir(sttDir(id));
-  } else if (mtFind(id)) { mtW.kill(); rmDir(mtDir(id)); }
+  } else if (mtFind(id) || id === NLLB.id) { mtW.kill(); rmDir(mtDir(id)); }
   else return false;
   push(); return true;
 }
@@ -214,22 +287,29 @@ class Worker {
   }
   kill() { const p = this.p; this.p = null; if (p) { try { p.kill(); } catch {} } }
 }
-const sttW = new Worker('offline-stt-worker.js', 'Mesin suara ke teks offline');
+const sttW = new Worker('offline-stt-worker.js', 'Mesin suara ke teks offline (sherpa-onnx)');
+const asrW = new Worker('offline-asr-worker.js', 'Mesin Whisper (Transformers.js)');
+const voskW = new Worker('offline-vosk-worker.js', 'Mesin Vosk');
 const mtW = new Worker('offline-mt-worker.js', 'Mesin terjemahan offline');
-let sttLoaded = '';
-sttW.onexit = () => { sttLoaded = ''; };
+const W = { sherpa: sttW, tjs: asrW, vosk: voskW };
+const loaded = { sherpa: '', tjs: '', vosk: '', mt: '' };
+sttW.onexit = () => { loaded.sherpa = ''; }; asrW.onexit = () => { loaded.tjs = ''; }; voskW.onexit = () => { loaded.vosk = ''; }; mtW.onexit = () => { loaded.mt = ''; };
 let idleT = null;
 const used = () => { clearTimeout(idleT); idleT = null; };
+const killAll = () => { sttW.kill(); asrW.kill(); voskW.kill(); mtW.kill(); loaded.sherpa = loaded.tjs = loaded.vosk = loaded.mt = ''; };
 // lepas memori bila mesin tidak dipakai beberapa saat
-function releaseSoon(ms) { clearTimeout(idleT); idleT = setTimeout(() => { sttW.kill(); mtW.kill(); sttLoaded = ''; }, ms || 45000); }
-function shutdown() { clearTimeout(idleT); sttW.kill(); mtW.kill(); }
+function releaseSoon(ms) { clearTimeout(idleT); idleT = setTimeout(killAll, ms || 45000); }
+function shutdown() { clearTimeout(idleT); killAll(); }
 
 /* ================= suara ke teks ================= */
 const norm = (t) => { t = String(t || '').trim(); if (!t) return ''; if (/^(zh|yue|cmn)/i.test(t)) return 'zh'; if (/^(iw)$/i.test(t)) return 'he'; if (/^jp$/i.test(t)) return 'ja'; return t.split(/[-_]/)[0].toLowerCase(); };
 const WHISPER_NAMES = { english: 'en', indonesian: 'id', japanese: 'ja', korean: 'ko', chinese: 'zh', spanish: 'es', arabic: 'ar', hindi: 'hi', french: 'fr', german: 'de', portuguese: 'pt', russian: 'ru', italian: 'it', dutch: 'nl', turkish: 'tr', thai: 'th', vietnamese: 'vi', malay: 'ms' };
 const langFromName = (n) => WHISPER_NAMES[String(n || '').toLowerCase()] || '';
 const threads = () => { const c = SV.setting('ofthreads'); const n = require('os').cpus().length; return c > 0 ? Math.min(c, 16) : Math.max(2, Math.min(4, Math.floor(n / 2))); };
-const selected = () => { const m = sttFind(SV.setting('stmodel')); return m && sttInstalled(m) ? m : null; };
+const curEngine = () => ENG[SV.setting('stengine')] || '';
+const selected = () => { const e = curEngine(); if (!e) return null; const m = sttFind(SV.setting(KEY[e])); return m && m.engine === e && sttInstalled(m) ? m : null; };
+// tebak bahasa dari aksara (dipakai bila mesin tidak melaporkan bahasa); huruf Latin tidak bisa dibedakan, jadi dikosongkan
+const guessLang = (t) => /[\u3040-\u30ff]/.test(t) ? 'ja' : /[\uac00-\ud7af]/.test(t) ? 'ko' : /[\u4e00-\u9fff]/.test(t) ? 'zh' : /[\u0400-\u04ff]/.test(t) ? 'ru' : /[\u0e00-\u0e7f]/.test(t) ? 'th' : /[\u0600-\u06ff]/.test(t) ? 'ar' : /[\u0900-\u097f]/.test(t) ? 'hi' : '';
 const sttReady = () => !!selected();
 
 function wavToFloat(buf) {
@@ -245,21 +325,48 @@ function wavToFloat(buf) {
   return out;
 }
 
+const modelRoot = () => path.join(root(), 'stt');
 async function loadStt(m) {
-  const lang = m.fixed || norm(SV.setting('stlang'));
-  const key = [m.id, lang, threads()].join('|');
-  if (key === sttLoaded) return;
-  const mf = manifest(sttDir(m.id));
-  await sttW.call({ op: 'load', kind: m.kind, dir: sttDir(m.id), roles: mf.roles, lang: m.kind === 'whisper' && !m.fixed ? lang : '', threads: threads() }, 120000);
-  sttLoaded = key;
+  const th = threads();
+  if (m.engine === 'sherpa') {
+    const lang = m.fixed || norm(SV.setting('stlang'));
+    const key = [m.id, lang, th].join('|'); if (key === loaded.sherpa) return;
+    const mf = manifest(sttDir(m.id));
+    await sttW.call({ op: 'load', kind: m.kind, dir: sttDir(m.id), roles: mf.roles, lang: m.kind === 'whisper' && !m.fixed ? lang : '', threads: th }, 120000);
+    loaded.sherpa = key;
+  } else if (m.engine === 'tjs') {
+    const key = [m.id, th].join('|'); if (key === loaded.tjs) return;
+    await asrW.call(Object.assign({ op: 'load' }, tjsArgs(m)), 240000);
+    loaded.tjs = key;
+  } else {
+    if (m.id === loaded.vosk) return;
+    await voskW.call({ op: 'load', dir: sttDir(m.id) }, 120000);
+    loaded.vosk = m.id;
+  }
 }
-// dipanggil saat Terjemahan Suara dinyalakan, supaya model sudah siap sebelum kalimat pertama
-async function warm() { const m = selected(); if (!m) throw new Error('Model suara ke teks offline belum dipasang'); used(); await loadStt(m); }
+const tjsArgs = (m) => { const mf = manifest(sttDir(m.id)) || {}; return { root: modelRoot(), model: m.id, dtype: mf.dtype || 'q8', lang: m.fixed ? '' : norm(SV.setting('stlang')), threads: threads() }; };
+// dipanggil saat Terjemahan Suara dinyalakan, supaya model sudah siap sebelum kalimat pertama (suara ke teks dan, bila dipilih, NLLB)
+async function warm() {
+  const m = selected(); if (!m) throw new Error('Model suara ke teks offline belum dipasang');
+  used();
+  await Promise.all([loadStt(m), SV.setting('trmode') === 'nllb' && nllbInstalled() ? warmNllb() : null]);
+}
+async function warmNllb() { if (loaded.mt === NLLB.id) return; await mtW.call({ op: 'load', root: path.join(root(), 'mt'), model: NLLB.id, threads: threads() }, 300000); loaded.mt = NLLB.id; }
+const spaceless = (t, lang) => (lang === 'ja' || lang === 'zh') ? t.replace(/\s+/g, '') : t;      // Vosk memberi spasi antar kata pada Jepang/Mandarin
 async function transcribe(wavBuf) {
   const m = selected(); if (!m) { const e = new Error('Model suara ke teks offline belum dipasang. Buka Pengaturan > Mesin offline'); e.fatal = true; throw e; }
   used(); await loadStt(m);
-  const r = await sttW.call({ op: 'run', pcm: wavToFloat(wavBuf) }, 60000);
-  return { text: String(r.text || '').trim(), lang: m.fixed || norm(r.lang) || norm(SV.setting('stlang')) };
+  const pcm = wavToFloat(wavBuf), stl = norm(SV.setting('stlang'));
+  if (m.engine === 'sherpa') {
+    const r = await sttW.call({ op: 'run', pcm }, 60000), text = String(r.text || '').trim();
+    return { text, lang: m.fixed || norm(r.lang) || stl || guessLang(text) };
+  }
+  if (m.engine === 'tjs') {
+    const r = await asrW.call(Object.assign({ op: 'run', pcm }, tjsArgs(m)), 120000), text = String(r.text || '').trim();
+    return { text, lang: m.fixed || stl || guessLang(text) };
+  }
+  const r = await voskW.call({ op: 'run', pcm }, 60000);
+  return { text: spaceless(String(r.text || '').trim(), m.fixed), lang: m.fixed };
 }
 function sttStop() { releaseSoon(45000); }
 
@@ -292,18 +399,34 @@ async function translate(text, src, tgt) {
   }
   return cur;
 }
+async function translateNllb(text, src, tgt) {
+  const s = norm(src), t = norm(tgt);
+  if (!s) throw new Missing('Bahasa ucapan tidak diketahui, pilih Bahasa ucapan video di Pengaturan > Play');
+  const sc = nllbCode(src), tc = nllbCode(tgt);
+  if (!sc) throw new Missing(`Bahasa ${LANG[s] || s} belum didukung NLLB`);
+  if (!tc) throw new Missing(`Bahasa tujuan ${LANG[t] || t} belum didukung NLLB`);
+  if (sc === tc) return '';
+  if (!nllbInstalled()) throw new Missing('Model NLLB-200 600M belum terpasang. Buka Pengaturan > Mesin offline');
+  used();
+  const r = await mtW.call({ op: 'run', root: path.join(root(), 'mt'), model: NLLB.id, text, src_lang: sc, tgt_lang: tc, threads: threads() }, loaded.mt === NLLB.id ? 120000 : 300000);
+  loaded.mt = NLLB.id;
+  return String(r.text || '').trim();
+}
+// mode: 'offline' = Opus-MT, 'nllb' = NLLB-200 600M
+const translateBy = (mode, text, src, tgt) => mode === 'nllb' ? translateNllb(text, src, tgt) : translate(text, src, tgt);
 const mtReady = (src, tgt) => { const p = plan(src, tgt); return Array.isArray(p) && p.length === 0; };
 
 /* ================= untuk halaman Pengaturan ================= */
 function list() {
   return {
-    langs: LANG, groups: GROUPS.map(g => [g, GROUP_NAME[g]]), selected: SV.setting('stmodel'), root: root(), jobs: jobInfo(),
-    stt: STT_MODELS.map(m => ({ id: m.id, title: m.title, note: m.note, lang: m.lang, mb: m.mb, installed: sttInstalled(m), bytes: sttInstalled(m) ? dirSize(sttDir(m.id)) : 0 })),
+    langs: LANG, groups: GROUPS.map(g => [g, GROUP_NAME[g]]), engines: ENG_NAME, selected: { sherpa: SV.setting('stmodel'), tjs: SV.setting('stwmodel'), vosk: SV.setting('stvmodel') }, root: root(), jobs: jobInfo(),
+    nllb: { id: NLLB.id, title: NLLB.title, mb: NLLB.mb, installed: nllbInstalled(), bytes: nllbInstalled() ? dirSize(mtDir(NLLB.id)) : 0 },
+    stt: STT_MODELS.map(m => ({ id: m.id, engine: m.engine, title: m.title, note: m.note, lang: m.lang, mb: m.mb, installed: sttInstalled(m), bytes: sttInstalled(m) ? dirSize(sttDir(m.id)) : 0 })),
     mt: MT_PAIRS.map(p => ({ id: p.id, src: p.src, tgt: p.tgt, mb: p.mb, installed: mtInstalled(p), bytes: mtInstalled(p) ? dirSize(mtDir(p.id)) : 0 })),
     total: dirSize(root())
   };
 }
 const openDir = () => { fs.mkdirSync(root(), { recursive: true }); shell.openPath(root()); };
-const validModel = (id) => !id || !!sttFind(id);
+const validModel = (id, key) => !id || (() => { const m = sttFind(id); return !!m && (!key || KEY[m.engine] === key); })();
 
-module.exports = { list, download, cancel, remove, plan, translate, transcribe, warm, sttReady, mtReady, sttStop, shutdown, openDir, validModel, selected, norm, langFromName, Missing, LANG, jobInfo };
+module.exports = { list, download, cancel, remove, plan, translate, translateNllb, translateBy, transcribe, warm, sttReady, mtReady, sttStop, shutdown, openDir, validModel, selected, norm, langFromName, Missing, LANG, jobInfo };

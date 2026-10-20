@@ -643,14 +643,14 @@ const API = {
     if (k === 'doh' && !U.DOH[v]) return false;
     if (['clock', 'sta', 'stf', 'stb', 'tools'].includes(k)) { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = (k === 'stf' || k === 'stb') ? STT.sanitize(k, o) : o; }
     if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;
-    if (k === 'stengine' && !['cloud', 'offline'].includes(v)) return false;
-    if (k === 'trmode' && !['online', 'offline'].includes(v)) return false;
-    if (k === 'stmodel' && !OFF.validModel(v)) return false;
+    if (k === 'stengine' && !['cloud', 'offline', 'tjs', 'vosk'].includes(v)) return false;
+    if (k === 'trmode' && !['online', 'offline', 'nllb'].includes(v)) return false;
+    if (['stmodel', 'stwmodel', 'stvmodel'].includes(k) && !OFF.validModel(v, k)) return false;
     if (k === 'ofthreads' && !(Number.isInteger(v) && v >= 0 && v <= 16)) return false;
     if (k === 'stspeed' && !['fast', 'bal', 'eco'].includes(v)) return false;
     if (k === 'stcurl' && v && !/^https?:\/\/[^\s]+$/.test(v)) return false;
     saveSetting(k, v);
-    if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'trmode'].includes(k)) STT.refresh();
+    if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'stwmodel', 'stvmodel', 'trmode'].includes(k)) STT.refresh();
     if (k === 'stt' && !v) STT.stop();
     if (['tr', 'trhide', 'trLang'].includes(k)) injectTrAll();
     if (k === 'doh' || k === 'dohcustom') SV.applyDoh();
@@ -663,7 +663,7 @@ const API = {
   'oe.cancel': (e, id) => OFF.cancel(String(id)),
   'oe.del': async (e, id) => { const ok = await OFF.remove(String(id)); applyTheme(); return ok; },
   'oe.plan': (e, s, t) => OFF.plan(String(s), String(t)),
-  'oe.test': async (e, text, s, t) => { try { return { ok: true, text: (await OFF.translate(String(text || '').slice(0, 300), String(s), String(t))) || String(text) }; } catch (err) { return { ok: false, err: err.message }; } },
+  'oe.test': async (e, text, s, t, mode) => { try { return { ok: true, text: (await OFF.translateBy(mode === 'nllb' ? 'nllb' : 'offline', String(text || '').slice(0, 300), String(s), String(t))) || String(text) }; } catch (err) { return { ok: false, err: err.message }; } },
   'oe.dir': () => OFF.openDir(),
   'stt.stop': () => STT.stop(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),

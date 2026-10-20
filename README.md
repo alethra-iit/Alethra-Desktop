@@ -50,17 +50,24 @@ Menerjemahkan ucapan di video secara hampir realtime, tanpa mikrofon (audio diam
 - **Pengaturan audio**: preset (Video bising, Suara pelan, Musik latar, …), penguat volume, volume minimum/maksimum, kepekaan, peredam derau, filter, penyaring halusinasi, level volume, dan Mode klasik. Perubahan langsung diterapkan.
 - Popup bisa digeser dan ditutup dengan X. Saat video layar penuh, terjemahan tampil sebagai subtitle (ukuran, posisi, transparansi, warna, lebar, tinggi diatur di *Teks suara di layar penuh*; kotak di luar layar penuh diatur di *Kotak terjemahan suara*) dan hilang 8 detik setelah ucapan berhenti.
 - Berhenti otomatis saat pindah tab atau halaman. Video di iframe lintas-situs dan video ber-DRM tidak bisa ditangkap.
-- Mesin offline tersedia di Pengaturan → Mesin offline (lihat bagian di bawah). Vosk, ML Kit, NLLB, dan Argos versi Android tidak dibawa.
+- Mesin offline tersedia di Pengaturan → Mesin offline (lihat bagian di bawah). ML Kit dan Argos versi Android tidak dibawa.
 
 ## Mesin offline (Pengaturan → Mesin offline)
-Terjemahan Suara (pengenalan ucapan dan penerjemahannya) bisa berjalan di PC tanpa internet, memakai model ringan yang diunduh sekali dari Hugging Face ke `%APPDATA%\Alethra\models`.
-- **Pengenalan suara**: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) dengan Whisper tiny/base (semua bahasa), Whisper tiny/base Inggris, Moonshine tiny/base Jepang, Zipformer (Jepang ReazonSpeech, Inggris, Korea, Rusia, Vietnam). Ukuran ±40–170 MB.
-- **Terjemahan**: Opus-MT int8 (±85 MB per arah, lewat Inggris bila tidak ada pasangan langsung): Jepang, Mandarin, Korea, Vietnam, Thai, Rusia, Arab, Hindi, Turki, Spanyol, Prancis, Jerman, Italia, Belanda, Indonesia. Cadangan Google Translate bisa dimatikan.
-- Pilih di **Pengaturan → Play → Terjemahan Suara**: *Mesin suara ke teks* (Whisper cloud / Offline di PC) dan *Terjemahan hasil suara* (Online / Offline); keduanya bisa dikombinasikan bebas. Pengaturan audio dan layar penuh tetap berlaku.
-- Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dari memori 45 detik setelah Terjemahan Suara dimatikan. Jumlah thread CPU bisa diatur.
-- Bila huggingface.co diblokir, set variabel lingkungan `ALETHRA_HF=https://hf-mirror.com` sebelum membuka Alethra.
+Terjemahan Suara (pengenalan ucapan dan penerjemahannya) bisa berjalan di PC tanpa internet. Model diunduh sekali ke `%APPDATA%\Alethra\models`. **Mesin suara dan mesin terjemahan bebas dikombinasikan** (mis. sherpa-onnx + NLLB, Vosk + Opus-MT, Whisper Transformers.js + Google Translate).
 
-Tidak dibawa karena khusus Android: biometrik, pintasan layar utama, intent berbagi, notifikasi bar status.
+**Suara ke teks** (Pengaturan → Play → *Mesin suara ke teks*):
+| Mesin | Model | Catatan |
+|---|---|---|
+| **sherpa-onnx** | Whisper tiny/base (semua bahasa & Inggris), Moonshine tiny/base Jepang, Zipformer (Jepang, Inggris, Korea, Rusia, Vietnam) · ±40–170 MB | Ringan dan cepat |
+| **Whisper (Transformers.js)** | Whisper tiny/base/small, multibahasa dan varian `.en` (ONNX int8 dari Xenova) · ±45–270 MB | Semua bahasa; bahasa ditebak otomatis bila *Bahasa ucapan video* = Otomatis |
+| **Vosk** | Satu model kecil per bahasa: Inggris, Jepang, Mandarin, Korea, Rusia, Vietnam, Turki, Hindi, Spanyol, Prancis, Jerman, Italia, Belanda, Portugis, Arab, Polandia, Ukraina · ±30–105 MB | Sangat ringan, tanpa tanda baca. Tidak ada model Indonesia resmi |
+
+**Terjemahan** (*Terjemahan hasil suara*):
+- **Opus-MT** (±85 MB per arah, lewat Inggris bila tidak ada pasangan langsung): Jepang, Mandarin, Korea, Vietnam, Thai, Rusia, Arab, Hindi, Turki, Spanyol, Prancis, Jerman, Italia, Belanda, Indonesia.
+- **NLLB-200 distilled 600M** (Transformers.js, ±900 MB unduhan, ±1,5 GB RAM): satu model untuk semua pasangan bahasa (±40 bahasa tujuan tersedia di Alethra), tanpa lewat Inggris.
+- Cadangan Google Translate bisa dimatikan.
+
+Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dari memori 45 detik setelah Terjemahan Suara dimatikan. Jumlah thread CPU bisa diatur. Unduhan memakai Hugging Face (bisa diganti cermin lewat variabel `ALETHRA_HF`) dan alphacephei.com untuk Vosk (`ALETHRA_VOSK`).
 
 ## Pintasan keyboard
 Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+W tutup · Ctrl+Tab ganti tab · Ctrl+1…9 · Ctrl+L alamat · Ctrl+F cari ·

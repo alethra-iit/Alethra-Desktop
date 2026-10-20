@@ -1,5 +1,5 @@
 // Terjemahan Suara: audio video ditangkap oleh stt.js (di halaman), dikenali Whisper (cloud / server kompatibel OpenAI)
-// atau mesin offline di PC (sherpa-onnx), diterjemahkan Google Translate atau terjemahan offline (Opus-MT),
+// atau mesin offline di PC (sherpa-onnx, Whisper Transformers.js, Vosk), diterjemahkan Google Translate atau terjemahan offline (Opus-MT, NLLB-200 600M),
 // lalu ditampilkan di popup (overlay) atau sebagai subtitle layar penuh.
 const { ipcMain } = require('electron');
 const ctx = require('./ctx');
@@ -17,7 +17,7 @@ const COMMON = new Set(['thank you', 'thanks for watching', 'thank you for watch
 const keyOf = () => { const e = ctx.settings.data.stkeyEnc; return e ? SV.dec(e) : ''; };
 const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
 const A = () => SV.setting('sta');
-const offlineOn = () => SV.setting('stengine') === 'offline';
+const offlineOn = () => ['offline', 'tjs', 'vosk'].includes(SV.setting('stengine'));   // sherpa-onnx, Whisper (Transformers.js), atau Vosk
 
 function init(h) {
   H = h;
@@ -156,9 +156,10 @@ async function run(j) {
 // terjemahan: offline (Opus-MT) bila dipilih, dengan cadangan Google Translate; selain itu Google Translate
 async function translateText(text, src, tgt) {
   text = text.slice(0, 500);
-  if (SV.setting('trmode') === 'offline') {
+  const mode = SV.setting('trmode');
+  if (mode === 'offline' || mode === 'nllb') {
     const stl = SV.setting('stlang'), sl = src || (stl && stl.split('-')[0]);
-    try { return await OFF.translate(text, sl, tgt); }
+    try { return await OFF.translateBy(mode, text, sl, tgt); }
     catch (e) { if (SV.setting('mtfb') === false) throw new Error(e && e.missing ? e.message : 'Terjemahan offline gagal: ' + (e && e.message)); }
   }
   try { return await SV.trOne(text, tgt); } catch { throw new Error('Google Translate gagal, periksa internet'); }

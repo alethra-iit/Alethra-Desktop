@@ -184,12 +184,14 @@
       A(grp('Terjemahan Suara'));
       const OEs = await api('oe.list') || { stt: [], mt: [], jobs: {} };
       const goOff = () => { sec = 'mesinoff'; history.replaceState(null, '', '#mesinoff'); renderSec(true); };
-      const curM = OEs.stt.find(m => m.id === S.stmodel && m.installed);
+      const SELK = { offline: 'stmodel', tjs: 'stwmodel', vosk: 'stvmodel' }, ENGN = { offline: 'sherpa-onnx', tjs: 'Whisper (Transformers.js)', vosk: 'Vosk' };
+      const isLocal = S.stengine in SELK;
+      const curM = isLocal && OEs.stt.find(m => m.id === S[SELK[S.stengine]] && m.installed);
       const sr = [
         toggle('stt', 'Terjemahan Suara', 'Aktifkan "Terjemahan Suara" di menu Tools (Ctrl+Alt+S). Audio video dikenali lalu diterjemahkan di kotak popup, tanpa mikrofon.'),
-        select('Mesin suara ke teks', 'Cloud butuh internet dan kunci API. Offline berjalan di PC ini, tanpa internet dan tanpa kunci.', [['cloud', 'Whisper cloud (Groq / OpenAI / server sendiri)'], ['offline', 'Offline di PC (ringan dan cepat)']], S.stengine, v => set('stengine', v))];
-      if (S.stengine === 'offline') {
-        sr.push(button('Model suara offline', curM ? 'Dipakai: ' + curM.title : 'Belum ada model terpasang. Unduh satu dulu (mulai dari ±40 MB).', 'Kelola model…', goOff));
+        select('Mesin suara ke teks', 'Cloud butuh internet dan kunci API. Tiga mesin offline berjalan di PC ini, tanpa internet dan tanpa kunci. Mesin suara dan mesin terjemahan bebas dikombinasikan.', [['cloud', 'Whisper cloud (Groq / OpenAI / server sendiri)'], ['offline', 'Offline · sherpa-onnx (ringan dan cepat)'], ['tjs', 'Offline · Whisper (Transformers.js)'], ['vosk', 'Offline · Vosk (sangat ringan)']], S.stengine, v => set('stengine', v))];
+      if (isLocal) {
+        sr.push(button('Model suara · ' + ENGN[S.stengine], curM ? 'Dipakai: ' + curM.title : 'Belum ada model terpasang. Unduh satu dulu (mulai dari ±40 MB).', 'Kelola model…', goOff));
       } else {
         sr.push(select('Penyedia suara ke teks', 'Whisper di cloud, atau server Whisper milik Anda', [['groq', 'Groq (gratis, disarankan)'], ['openai', 'OpenAI (whisper-1)'], ['custom', 'Kustom (kompatibel OpenAI, mis. server Whisper lokal)']], S.stprov, v => set('stprov', v)));
         if (S.stprov === 'custom') {
@@ -204,13 +206,16 @@
         if (S.stkeyMask) { const kd = document.createElement('button'); kd.className = 'btn sm danger'; kd.textContent = 'Hapus'; kd.onclick = () => api('stt.key', ''); kb.appendChild(kd); }
         sr.push(row('Kunci API', S.stkeyMask || (S.stprov === 'custom' ? 'Opsional untuk server lokal' : 'Belum diisi. Dapatkan gratis di console.groq.com'), kb));
       }
-      sr.push(select('Terjemahan hasil suara', 'Online memakai Google Translate. Offline memakai model di PC dan bisa dipakai dengan mesin suara apa pun.', [['online', 'Online (Google Translate)'], ['offline', 'Offline (Opus-MT di PC)']], S.trmode, v => set('trmode', v)));
+      sr.push(select('Terjemahan hasil suara', 'Online memakai Google Translate. Opus-MT: model kecil per pasangan bahasa. NLLB: satu model besar, lebih akurat untuk bahasa langka. Keduanya bisa dipakai dengan mesin suara apa pun.', [['online', 'Online (Google Translate)'], ['offline', 'Offline · Opus-MT (ringan, per pasangan)'], ['nllb', 'Offline · NLLB-200 600M (Transformers.js, semua bahasa)']], S.trmode, v => set('trmode', v)));
+      if (S.trmode === 'nllb') {
+        sr.push(button('Model NLLB-200 600M', OEs.nllb && OEs.nllb.installed ? 'Terpasang (' + fmtBytes(OEs.nllb.bytes) + '). Satu model untuk semua pasangan bahasa.' : 'Belum terpasang (±900 MB). Unduh dulu. Butuh ±1,5 GB RAM saat dipakai.', 'Kelola model…', goOff));
+      }
       if (S.trmode === 'offline') {
         const n = OEs.mt.filter(p => p.installed).length;
         sr.push(button('Bahasa terjemahan offline', n ? n + ' model terpasang. Bahasa tujuan: ' + (S.trLangs[S.trLang] || S.trLang) : 'Belum ada model terpasang. Pilih bahasa lalu unduh.', 'Kelola bahasa…', goOff));
       }
       const LG = [['', 'Otomatis (deteksi bahasa)'], ['en-US', 'Inggris'], ['id-ID', 'Indonesia'], ['ja-JP', 'Jepang'], ['ko-KR', 'Korea'], ['zh-CN', 'Mandarin'], ['es-ES', 'Spanyol'], ['ar-SA', 'Arab'], ['hi-IN', 'Hindi'], ['fr-FR', 'Prancis'], ['de-DE', 'Jerman'], ['pt-BR', 'Portugis'], ['ru-RU', 'Rusia'], ['it-IT', 'Italia'], ['nl-NL', 'Belanda'], ['tr-TR', 'Turki'], ['th-TH', 'Thai'], ['vi-VN', 'Vietnam'], ['ms-MY', 'Melayu']];
-      sr.push(select('Bahasa ucapan video', 'Memilih bahasa sendiri lebih cepat dan akurat daripada Otomatis. Dipakai juga untuk memilih model terjemahan offline.', LG, S.stlang, v => set('stlang', v)),
+      sr.push(select('Bahasa ucapan video', 'Memilih bahasa sendiri lebih cepat dan akurat daripada Otomatis. Dipakai juga untuk memilih model terjemahan offline. Vosk selalu memakai bahasa modelnya.', LG, S.stlang, v => set('stlang', v)),
         select('Kecepatan teks', 'Makin cepat, makin banyak permintaan API per menit', [['fast', 'Cepat (potongan maks ±3,8 dtk)'], ['bal', 'Seimbang (±5,5 dtk, disarankan)'], ['eco', 'Hemat (±8,5 dtk, jatah gratis awet)']], S.stspeed, v => set('stspeed', v)),
         button('Pengaturan audio', audSummary(), 'Buka', () => { sec = 'audio'; history.replaceState(null, '', '#audio'); renderSec(true); }));
       A(box(sr));
@@ -258,18 +263,28 @@
     }
     if (sec === 'mesinoff') {
       OE = await api('oe.list') || { stt: [], mt: [], jobs: {}, langs: {}, groups: [] };
-      A(el('<p class="sub">Alat offline untuk Terjemahan Suara (pengenalan ucapan dan penerjemahannya). Model hanya perlu diunduh sekali, lalu berjalan di PC ini tanpa internet. Yang disediakan sengaja yang ringan dan cepat. Mesin dimuat saat Terjemahan Suara dinyalakan dan dilepas dari memori beberapa detik setelah dimatikan.</p>'));
+      A(el('<p class="sub">Alat offline untuk Terjemahan Suara. Suara ke teks: sherpa-onnx, Whisper (Transformers.js), atau Vosk. Terjemahan: Opus-MT atau NLLB-200 600M. Pilih satu mesin suara dan satu mesin terjemahan, bebas dikombinasikan (mis. sherpa-onnx + NLLB). Model hanya perlu diunduh sekali, lalu berjalan di PC ini tanpa internet. Mesin dimuat saat Terjemahan Suara dinyalakan dan dilepas dari memori beberapa detik setelah dimatikan.</p>'));
       A(box([
-        select('Mesin suara ke teks', '', [['cloud', 'Whisper cloud'], ['offline', 'Offline di PC']], S.stengine, v => set('stengine', v)),
-        select('Terjemahan hasil suara', '', [['online', 'Online (Google Translate)'], ['offline', 'Offline (Opus-MT)']], S.trmode, v => set('trmode', v))]));
+        select('Mesin suara ke teks', '', [['cloud', 'Whisper cloud'], ['offline', 'Offline · sherpa-onnx'], ['tjs', 'Offline · Whisper (Transformers.js)'], ['vosk', 'Offline · Vosk']], S.stengine, v => set('stengine', v)),
+        select('Terjemahan hasil suara', '', [['online', 'Online (Google Translate)'], ['offline', 'Offline · Opus-MT'], ['nllb', 'Offline · NLLB-200 600M (Transformers.js)']], S.trmode, v => set('trmode', v))]));
 
-      /* ----- model suara ke teks ----- */
-      A(grp('Model suara ke teks'));
-      A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Pilih satu model lalu tekan Pakai. Untuk video Jepang coba Moonshine tiny; untuk bahasa campuran pakai Whisper tiny atau base. Model yang lebih kecil lebih cepat tetapi kurang akurat.</p>'));
-      OE.groups.forEach(([g, gname]) => {
-        const ms = OE.stt.filter(m => (m.lang === g)); if (!ms.length) return;
-        A(el(`<div class="group" style="margin-top:14px">${esc(gname)}</div>`));
-        A(box(ms.map(oeRow(m => ({ id: m.id, title: m.title, desc: m.note, mb: m.mb, installed: m.installed, bytes: m.bytes, sel: S.stmodel === m.id, pick: () => set('stmodel', m.id) })))));
+      /* ----- model suara ke teks (tiga mesin) ----- */
+      const SELK = { sherpa: 'stmodel', tjs: 'stwmodel', vosk: 'stvmodel' };
+      const sttRows = (ms) => box(ms.map(oeRow(m => ({ id: m.id, title: m.title, desc: m.note, mb: m.mb, installed: m.installed, bytes: m.bytes, sel: S[SELK[m.engine]] === m.id, pick: () => set(SELK[m.engine], m.id) }))));
+      const ENGHELP = {
+        sherpa: 'Pilih satu model lalu tekan Pakai. Untuk video Jepang coba Moonshine tiny; untuk bahasa campuran pakai Whisper tiny atau base. Model yang lebih kecil lebih cepat tetapi kurang akurat.',
+        tjs: 'Whisper yang dijalankan lewat Transformers.js (ONNX int8). Semua bahasa, bahasa dideteksi otomatis bila Bahasa ucapan video di Play diset Otomatis. Pakai tiny/base untuk PC biasa; small hanya untuk CPU kuat.',
+        vosk: 'Vosk (Kaldi): satu model per bahasa, sangat ringan dan cepat, tanpa tanda baca dan kurang akurat pada ucapan bising. Tidak ada model Indonesia resmi; untuk ucapan Indonesia pakai Whisper.'
+      };
+      ['sherpa', 'tjs', 'vosk'].forEach(eg => {
+        A(grp('Suara ke teks · ' + (OE.engines[eg] || eg)));
+        A(el(`<p class="sub" style="font-size:12.5px;margin:0 0 8px">${esc(ENGHELP[eg])}</p>`));
+        if (eg === 'sherpa') {
+          OE.groups.forEach(([g, gname]) => {
+            const ms = OE.stt.filter(m => m.engine === eg && m.lang === g); if (!ms.length) return;
+            A(el(`<div class="group" style="margin-top:14px">${esc(gname)}</div>`)); A(sttRows(ms));
+          });
+        } else A(sttRows(OE.stt.filter(m => m.engine === eg)));
       });
 
       /* ----- terjemahan offline ----- */
@@ -301,6 +316,16 @@
       A(el('<div class="group" style="margin-top:14px">Model terjemahan terpasang</div>'));
       if (!pairs.length) A(el('<div class="list"><div class="empty" style="padding:22px">Belum ada model terjemahan.</div></div>'));
       else A(box(pairs.map(oeRow(p => ({ id: p.id, title: LN[p.src] + ' → ' + LN[p.tgt], desc: 'Opus-MT, int8', mb: p.mb, installed: p.installed, bytes: p.bytes, sel: false })))));
+
+      /* ----- NLLB ----- */
+      A(grp('Terjemahan offline · NLLB-200 600M (Transformers.js)'));
+      A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Satu model untuk semua pasangan bahasa (±200 bahasa), tanpa lewat Inggris, jadi lebih akurat daripada Opus-MT untuk pasangan seperti Jepang → Indonesia. Lebih besar dan lebih lambat: ±900 MB unduhan, ±1,5 GB RAM saat dipakai. Cocok dipasangkan dengan sherpa-onnx atau Whisper.</p>'));
+      const NL = OE.nllb || { id: 'nllb-600m', title: 'NLLB-200 600M', mb: 900, installed: false, bytes: 0 };
+      A(box([oeRow(m => m)({ id: NL.id, title: NL.title, desc: 'Transformers.js, int8', mb: NL.mb, installed: NL.installed, bytes: NL.bytes, sel: S.trmode === 'nllb', pick: () => set('trmode', 'nllb') }),
+        button('Coba NLLB', 'Uji dengan satu kalimat memakai pasangan bahasa yang dipilih di atas', 'Coba…', async () => {
+          const r = await askText('Coba terjemahan NLLB', [{ l: LN[mtS] + ' → ' + LN[mtT], v: '', p: 'Ketik kalimat dalam ' + LN[mtS] }], 'Terjemahkan'); if (!r || !r[0].trim()) return;
+          const o = await api('oe.test', r[0], mtS, mtT, 'nllb'); alert(o && o.ok ? o.text : 'Gagal: ' + (o ? o.err : 'tidak diketahui'));
+        })]));
 
       /* ----- kinerja & penyimpanan ----- */
       A(grp('Kinerja dan penyimpanan'));

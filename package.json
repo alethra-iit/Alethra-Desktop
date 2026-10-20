@@ -36,7 +36,10 @@
       "!node_modules/onnxruntime-node/bin/napi-v3/win32/arm64/**",
       "!node_modules/sherpa-onnx-linux-*/**",
       "!node_modules/sherpa-onnx-darwin-*/**",
-      "!node_modules/sherpa-onnx-win-ia32/**"
+      "!node_modules/sherpa-onnx-win-ia32/**",
+      "!node_modules/koffi/build/koffi/{darwin_*,freebsd_*,linux_*,musl_*,openbsd_*,win32_arm64,win32_ia32}/**",
+      "!node_modules/vosk-koffi/bin-{linux,darwin}-*/**",
+      "!node_modules/vosk-koffi/bin-win32-ia32/**"
     ],
     "asar": true,
     "win": {
@@ -73,11 +76,15 @@
     "npmRebuild": false,
     "asarUnpack": [
       "node_modules/sherpa-onnx-win-x64/**",
-      "node_modules/onnxruntime-node/bin/napi-v3/win32/x64/**"
+      "node_modules/onnxruntime-node/bin/napi-v3/win32/x64/**",
+      "node_modules/vosk-koffi/**",
+      "node_modules/koffi/**"
     ]
   },
   "dependencies": {
     "sherpa-onnx-node": "^1.13.8",
-    "@huggingface/transformers": "^3.8.1"
+    "@huggingface/transformers": "^3.8.1",
+    "vosk-koffi": "^1.1.1",
+    "fflate": "^0.8.2"
   }
 }
