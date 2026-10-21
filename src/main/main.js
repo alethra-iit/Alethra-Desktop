@@ -48,8 +48,15 @@ const isInternalSender = (e) => { try { return (e.senderFrame && e.senderFrame.u
 /* ================= tema ================= */
 function isDark() { return nativeTheme.shouldUseDarkColors; }
 function barColors() {
-  if (isDark()) return setting('amoled') ? { color: '#000000', symbolColor: '#f4f4f5' } : { color: '#121214', symbolColor: '#f4f4f5' };
-  return { color: '#e9e9ee', symbolColor: '#111113' };
+  const cp = U.barPalette(setting('barcol'));   // warna toolbar kustom berlaku di tema terang maupun gelap
+  if (cp) return { color: cp.strip, symbolColor: cp.fg };
+  if (isDark()) {
+    const am = setting('amoled'), st = setting('barstyle');
+    const c = (am ? { abu: '#000000', biru: '#000000', hangat: '#000000', putih: '#121214' } : { abu: '#121214', biru: '#0f1620', hangat: '#1a1714', putih: '#1c1c20' })[st] || (am ? '#000000' : '#121214');
+    return { color: c, symbolColor: '#f4f4f5' };
+  }
+  const c = { abu: '#d9dae0', biru: '#d3dae6', hangat: '#e0dcd4', putih: '#e9e9ee' }[setting('barstyle')] || '#d9dae0';
+  return { color: c, symbolColor: '#111113' };
 }
 function applyTheme() {
   nativeTheme.themeSource = setting('theme');
@@ -64,6 +71,7 @@ function publicSettings() {
   delete s.stkeyEnc; { const e = ctx.settings.data.stkeyEnc; const k = e ? SV.dec(e) : ''; s.stkeyMask = k ? '••••' + k.slice(-4) : ''; }
   for (const k of ['sta', 'stf', 'stb', 'tools']) s[k] = SV.setting(k);
   s.stDefs = { stf: SV.DEFAULTS.stf, stb: SV.DEFAULTS.stb, tools: SV.DEFAULTS.tools };
+  s.barpal = U.barPalette(s.barcol);
   s.dark = isDark(); s.engines = U.ENGINES; s.doh_list = U.DOH; s.trLangs = U.TR_LANGS; s.dlDirShown = SV.dlDir(); s.version = app.getVersion();
   for (const k of Object.keys(SV.DEFAULTS)) if (s[k] === undefined && k !== 'lock') s[k] = SV.DEFAULTS[k];
   return s;
@@ -109,12 +117,36 @@ function geometry(w, h, top) {
     bars: [{ r: bars[0], on: activeId === split.a }, { r: bars[1], on: activeId === split.b }] };
   return out;
 }
+/* ---------- Mode perangkat (ponsel/tablet): viewport dipersempit + UA seluler + sentuh ---------- */
+const EMU = [{ name: 'Ponsel', w: 390, h: 844, dpr: 3 }, { name: 'Tablet', w: 820, h: 1180, dpr: 2 }];
+function emuApply(t, r) {
+  const e = t.emu, wc = t.view.webContents;
+  const bw = Math.max(200, Math.min(e.w, r.width)), bh = Math.max(200, Math.min(e.h, r.height));
+  const b = { x: r.x + Math.round((r.width - bw) / 2), y: r.y, width: bw, height: bh };
+  const key = [e.name, bw, bh].join('x');
+  if (t._emuKey !== key) {
+    t._emuKey = key;
+    try { wc.enableDeviceEmulation({ screenPosition: 'mobile', screenSize: { width: e.w, height: e.h }, viewPosition: { x: 0, y: 0 }, deviceScaleFactor: e.dpr, viewSize: { width: bw, height: bh }, scale: 1 }); } catch {}
+  }
+  return b;
+}
+function emuCycle(t) {
+  if (!t || internalName(t.url) || !/^https?:/.test(t.url)) { ctx.toast('Mode perangkat hanya untuk halaman web'); return; }
+  const wc = t.view.webContents;
+  const cur = t.emu ? EMU.findIndex(x => x.name === t.emu.name) : -1;
+  t.emu = EMU[cur + 1] || null; t._emuKey = '';
+  if (!t.emu) { try { wc.disableDeviceEmulation(); } catch {} }
+  try { wc.setUserAgent(t.emu || SV.isMobileSite(U.hostOf(t.url)) ? SV.MOBILE_UA : SV.UA); } catch {}
+  layout(); pushTabs();
+  ctx.toast(t.emu ? 'Mode perangkat: ' + t.emu.name + ' (' + t.emu.w + '×' + t.emu.h + ')' : 'Mode perangkat dimatikan');
+  wc.reloadIgnoringCache();
+}
 function layout() {
   if (!win) return;
   const [w, h] = win.getContentSize();
   const top = htmlFs && fsId != null ? 0 : (htmlFs ? 0 : chromeH);
   const G = lastGeo = geometry(w, h, top);
-  ctx.tabs.forEach(t => { const r = G.rects[t.id]; t.view.setVisible(!!r); if (r) t.view.setBounds(r); });
+  ctx.tabs.forEach(t => { const r = G.rects[t.id]; t.view.setVisible(!!r); if (r) t.view.setBounds(t.emu ? emuApply(t, r) : r); });
   ctx.sendChrome('split', G.chrome);
   renderOverlay();
 }
@@ -170,7 +202,7 @@ function tabState() {
     const host = U.hostOf(t.url);
     return { id: t.id, title: t.title, url: t.url, icon: t.icon, loading: t.loading, incog: t.incog, audible: t.audible, muted: t.muted, back, fwd,
       pinned: !!t.pinned, group: t.group || null, active: t.id === activeId, pane: inSplit(t.id) ? (t.id === split.a ? 'a' : 'b') : '', secure: /^https:/.test(t.url), internal: !!internalName(t.url), trOn: t.trOn, zoom: wc.getZoomFactor ? Math.round(wc.getZoomFactor() * 100) : 100,
-      bookmarked: ctx.bm.data.some(b => b.u === t.url), mobile: SV.isMobileSite(host), adoff: !!host && (setting('sadoff') || []).some(d => host === d || host.endsWith('.' + d)) };
+      bookmarked: ctx.bm.data.some(b => b.u === t.url), mobile: SV.isMobileSite(host), emu: t.emu ? t.emu.name : '', trTo: t.trTo || '', trFrom: t.trFrom || '', adoff: !!host && (setting('sadoff') || []).some(d => host === d || host.endsWith('.' + d)) };
   });
 }
 let pushT = null;
@@ -293,7 +325,7 @@ function wire(t) {
   const onNav = (_e, url) => {
     t.url = url;
     const h = U.hostOf(url);
-    if (h) { const z = (setting('zoomMap') || {})[h]; wc.setZoomFactor(z || 1); try { wc.setUserAgent(SV.isMobileSite(h) ? SV.MOBILE_UA : SV.UA); } catch {} }
+    if (h) { const z = (setting('zoomMap') || {})[h]; wc.setZoomFactor(z || 1); try { wc.setUserAgent(SV.isMobileSite(h) || t.emu ? SV.MOBILE_UA : SV.UA); } catch {} }
     addHistory(t, url); pushTabs();
   };
   wc.on('did-navigate', onNav);
@@ -332,11 +364,14 @@ function wire(t) {
   wc.on('before-input-event', (e, input) => { if (shortcut(e, input)) e.preventDefault(); });
   wc.on('focus', () => { closePopups(); if (inSplit(t.id) && t.id !== activeId && !htmlFs) paneFocus(t.id); });
   wc.on('context-menu', (_e, p) => showContextMenu(t, p));
-  wc.on('devtools-opened', () => {});
+  wc.on('devtools-opened', () => {
+    // Tombol perangkat bawaan DevTools tidak bekerja di WebContentsView; Ctrl+Shift+M diarahkan ke mode perangkat Alethra
+    try { wc.devToolsWebContents.on('before-input-event', (ev, inp) => { if (inp.type === 'keyDown' && (inp.control || inp.meta) && inp.shift && (inp.key || '').toLowerCase() === 'm') { ev.preventDefault(); emuCycle(t); } }); } catch {}
+  });
 }
 const injects = {};
 function injectScript(name) { return injects[name] || (injects[name] = fs.readFileSync(path.join(__dirname, '..', 'inject', name), 'utf8')); }
-function startPageTr(t) { t.view.webContents.executeJavaScript(injectScript('pagetr.js') + `;window.__alPT&&window.__alPT.start(${JSON.stringify(setting('trLang'))})`).catch(() => {}); }
+function startPageTr(t) { t.view.webContents.executeJavaScript(injectScript('pagetr.js') + `;window.__alPT&&window.__alPT.start(${JSON.stringify((t.trFrom && U.TR_LANGS[t.trFrom] ? t.trFrom + '>' : '') + (t.trTo || setting('trLang')))})`).catch(() => {}); }
 function injectTrAll() {
   const on = !!setting('tr');
   ctx.tabs.forEach(t => { if (!/^https?:/.test(t.url)) return; t.view.webContents.executeJavaScript(`window.__alCfg={on:${on},lang:${JSON.stringify(setting('trLang'))},hide:${!!setting('trhide')}};` + (on ? injectScript('translate.js') : '')).catch(() => {}); });
@@ -511,7 +546,7 @@ function openSettingsAt(sec) {
 function togglePageTr() {
   const t = curTab(); if (!t || !/^https?:/.test(t.url)) return ctx.toast('Buka sebuah situs dulu untuk menerjemahkan');
   t.trOn = !t.trOn;
-  if (t.trOn) { startPageTr(t); ctx.toast('Menerjemahkan ke ' + (U.TR_LANGS[setting('trLang')] || setting('trLang'))); }
+  if (t.trOn) { startPageTr(t); const c = t.trTo || setting('trLang'); ctx.toast('Menerjemahkan' + (t.trFrom ? ' dari ' + U.TR_LANGS[t.trFrom] : '') + ' ke ' + (U.TR_LANGS[c] || c)); }
   else { t.view.webContents.executeJavaScript('window.__alPT&&window.__alPT.stop()').catch(() => {}); ctx.toast('Terjemahan dimatikan'); }
   pushTabs();
 }
@@ -619,7 +654,7 @@ async function saveImage(t, src) {
     const m = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(src); if (!m) return;
     const mime = m[1] || 'image/png', buf = m[2] ? Buffer.from(m[3], 'base64') : Buffer.from(decodeURIComponent(m[3]));
     const r = await dialog.showSaveDialog(win, { defaultPath: path.join(SV.dlDir(), 'gambar' + (SV.EXT[mime] || '.png')) });
-    if (!r.canceled) { fs.writeFileSync(r.filePath, buf); ctx.toast('Gambar disimpan'); }
+    if (!r.canceled) { fs.writeFileSync(r.filePath, buf); SV.recordSaved(r.filePath, mime); ctx.toast('Gambar disimpan'); }
   } else wc.downloadURL(src);
 }
 
@@ -643,6 +678,7 @@ function shortcut(e, i) {
   if (k === 'f5' || (c && k === 'r' && !s && !a)) return run(() => (c && i.shift ? curWC().reloadIgnoringCache() : curWC().reload()));
   if ((c && s && k === 'r') || (c && k === 'f5')) return run(() => curWC().reloadIgnoringCache());
   if (k === 'f12' || (c && s && k === 'i')) return run(() => { const w = curWC(); w.isDevToolsOpened() ? w.closeDevTools() : w.openDevTools({ mode: 'right' }); });
+  if (c && s && k === 'm') return run(() => emuCycle(curTab()));
   if (c && a && (k === 'arrowleft' || k === 'arrowright')) return run(splitFocusNext);   // pindah fokus antar panel (sebelum Alt+panah = mundur/maju)
   if (k === 'f6' || (c && k === 'l') || (a && k === 'd')) return run(() => focusOmni());
   if (k === 'f3' || (c && k === 'g')) return run(() => findNext(!s));
@@ -728,6 +764,7 @@ function mainMenuSpec() {
     { head: 'Tab' },
     I('tab.new', 'Tab baru', { key: 'Ctrl+T' }), I('tab.incog', 'Tab Incognito baru', { key: 'Ctrl+Shift+N' }), I('tab.reopen', 'Buka tab tertutup', { key: 'Ctrl+Shift+T', off: !closed.length }),
     I('tabs.search', 'Cari tab…', { key: 'Ctrl+Shift+A', off: ctx.tabs.length < 2 && !closed.length }),
+    I('menu.tabs', 'Atur tab', { arrow: true, off: !t }),
     { sep: 1 },
     I('tabs.closeother', 'Tutup tab lain', { off: !ctx.tabs.some(t => t.id !== activeId && !t.pinned) }), I('tabs.closeall', 'Tutup semua tab', { off: !ctx.tabs.some(t => !t.pinned) }),
     { sep: 1 }, { head: 'Pustaka' },
@@ -738,6 +775,76 @@ function mainMenuSpec() {
     { sep: 1 },
     I('open.settings', 'Pengaturan', { key: 'Ctrl+,' }), I('open.about', 'Tentang Alethra'), I('quit', 'Keluar')
   ];
+}
+/* ================= submenu "Atur tab" (isi sama dengan klik kanan tab; berlaku untuk tab aktif) ================= */
+function tabsMenuSpec() {
+  const t = curTab(); if (!t) return [{ head: 'Atur tab' }, { id: 'menu.main', label: '‹ Menu utama' }];
+  const I = (id, label, o = {}) => Object.assign({ id, label }, o);
+  const i = ctx.tabs.indexOf(t), closable = (l) => l.some(x => !x.pinned);
+  return [
+    I('menu.main', '‹ Menu utama'),
+    { head: 'Atur tab · ' + ((t.title || t.url || 'Tab').slice(0, 28)) },
+    I('tm.reload', 'Muat ulang'), I('tm.dup', 'Duplikat tab'), I('tm.mute', t.muted ? 'Aktifkan suara tab' : 'Bisukan tab'),
+    { sep: 1 },
+    I('tm.pin', t.pinned ? 'Lepas sematan tab' : 'Sematkan tab'),
+    !t.pinned && I('menu.tabgroup', 'Tambahkan ke grup', { arrow: true }),
+    t.group && I('tm.ungroup', 'Keluarkan dari grup'),
+    I('tabs.search', 'Cari tab…', { key: 'Ctrl+Shift+A', off: ctx.tabs.length < 2 && !closed.length }),
+    { sep: 1 },
+    inSplit(t.id) ? I('tm.split', 'Tutup tampilan terpisah') : I('tm.split', 'Tampilan terpisah (tab baru)'),
+    { sep: 1 },
+    I('tm.close', 'Tutup tab'),
+    I('tm.closeother', 'Tutup tab lain', { off: !closable(ctx.tabs.filter(x => x.id !== t.id)) }),
+    I('tm.closeright', 'Tutup tab di kanan', { off: !closable(ctx.tabs.slice(i + 1)) }),
+    I('tabs.closeall', 'Tutup semua tab', { off: !closable(ctx.tabs) })
+  ].filter(Boolean);
+}
+function tabGroupMenuSpec() {
+  const t = curTab(); if (!t) return [];
+  const out = [{ id: 'menu.tabs', label: '‹ Atur tab' }, { head: 'Tambahkan ke grup' }];
+  ctx.groups.forEach(g => out.push({ id: 'tm.group:' + g.id, label: (g.name || GCOLORS[g.color][0]) + (t.group === g.id ? '  ✓' : ''), off: t.group === g.id, check: t.group === g.id }));
+  if (ctx.groups.length) out.push({ sep: 1 });
+  out.push({ id: 'tm.groupnew', label: 'Grup baru…' });
+  return out;
+}
+/* ================= pilihan bahasa terjemahan halaman (ikon terjemahan di toolbar) ================= */
+function trPickSpec() {
+  const t = curTab(), L = U.TR_LANGS, cur = t && (t.trTo || setting('trLang'));
+  const POP = ['id', 'en', 'ja', 'ko', 'zh-CN', 'es', 'ar', 'hi', 'fr', 'de', 'pt', 'ru'];
+  const item = (c) => ({ id: 'trp:' + c, label: L[c], key: c, check: !!(t && t.trOn && cur === c), q: (L[c] + ' ' + c).toLowerCase() });
+  const out = [{ filter: 'Cari bahasa…' },
+    { id: 'menu.trsrc', label: 'Bahasa asal: ' + (t && t.trFrom && L[t.trFrom] ? L[t.trFrom] : 'Deteksi otomatis'), arrow: true, q: 'bahasa asal deteksi otomatis' },
+    { sep: 1 }, { head: 'Terjemahkan halaman ini ke…' }];
+  if (t && t.trOn) out.push({ id: 'trp.off', label: 'Tampilkan bahasa asli', q: 'tampilkan bahasa asli matikan' }, { sep: 1 });
+  out.push({ head: 'Sering dipakai' });
+  POP.filter(c => L[c]).forEach(c => out.push(item(c)));
+  out.push({ sep: 1 }, { head: 'Semua bahasa (' + Object.keys(L).length + ')' });
+  Object.keys(L).sort((a, b) => L[a].localeCompare(L[b], 'id')).forEach(c => out.push(item(c)));
+  return out;
+}
+function trSrcSpec() {
+  const t = curTab(), L = U.TR_LANGS, cur = t && t.trFrom;
+  const POP = ['en', 'id', 'ja', 'ko', 'zh-CN', 'es', 'ar', 'hi', 'fr', 'de', 'pt', 'ru'];
+  const item = (c) => ({ id: 'trs:' + c, label: L[c], key: c, check: cur === c, q: (L[c] + ' ' + c).toLowerCase() });
+  const out = [{ filter: 'Cari bahasa…' }, { id: 'menu.trlang', label: '‹ Pilih bahasa tujuan' }, { head: 'Bahasa asal (bahasa teks di halaman)' },
+    { id: 'trs:auto', label: 'Deteksi otomatis', check: !cur, q: 'deteksi otomatis auto' }, { sep: 1 }, { head: 'Sering dipakai' }];
+  POP.filter(c => L[c]).forEach(c => out.push(item(c)));
+  out.push({ sep: 1 }, { head: 'Semua bahasa (' + Object.keys(L).length + ')' });
+  Object.keys(L).sort((a, b) => L[a].localeCompare(L[b], 'id')).forEach(c => out.push(item(c)));
+  return out;
+}
+function pickTr(t, code) {
+  if (!U.TR_LANGS[code]) return;
+  if (!/^https?:/.test(t.url)) return ctx.toast('Buka sebuah situs dulu untuk menerjemahkan');
+  if (t.trFrom === code) return ctx.toast('Bahasa asal dan tujuan sama (' + U.TR_LANGS[code] + ')');
+  t.trTo = code; t.trOn = true; startPageTr(t);
+  ctx.toast('Menerjemahkan' + (t.trFrom ? ' dari ' + U.TR_LANGS[t.trFrom] : '') + ' ke ' + U.TR_LANGS[code]); pushTabs();
+}
+function pickTrSrc(t, code) {
+  t.trFrom = code === 'auto' || !U.TR_LANGS[code] ? '' : code;
+  if (t.trOn) startPageTr(t);   // sedang diterjemahkan: ulangi dengan bahasa asal baru
+  ctx.toast('Bahasa asal: ' + (t.trFrom ? U.TR_LANGS[t.trFrom] : 'deteksi otomatis')); pushTabs();
+  openMenu('trlang');           // kembali ke pilihan bahasa tujuan
 }
 /* ================= menu Tools (overlay) ================= */
 // Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play tetap ditampilkan (redup)
@@ -764,6 +871,7 @@ function toolsMenuSpec() {
     [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
      on('mobile') && I('mobile', 'Tampilan situs seluler', { check: !!st.mobile, off: !web }),
+     on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
      on('adsite') && I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web })]
   ].map(g => g.filter(Boolean)).filter(g => g.length);
   const out = [];
@@ -772,16 +880,43 @@ function toolsMenuSpec() {
   else { out.push({ sep: 1 }); out.push(I('tools.config', 'Atur menu Tools…')); }
   return out;
 }
+let trRight = 8;
 function openMenu(kind, right) {
+  if (kind === 'trlang' && right != null) trRight = right;
   OV.suggest = null;
   if (kind === 'tools') STT.prewarm();   // muat model suara lebih dulu selagi menu terbuka, supaya Terjemahan Suara langsung siap
-  OV.menu = kind === 'tools' ? { kind, items: toolsMenuSpec(), right: Math.max(8, right | 0) } : { kind: 'main', items: mainMenuSpec() };
+  OV.menu = kind === 'tools' ? { kind, items: toolsMenuSpec(), right: Math.max(8, right | 0) }
+    : kind === 'tabs' ? { kind, items: tabsMenuSpec() }
+    : kind === 'tabgroup' ? { kind, items: tabGroupMenuSpec() }
+    : kind === 'trlang' || kind === 'trsrc' ? { kind, items: kind === 'trlang' ? trPickSpec() : trSrcSpec(), right: Math.max(8, (right == null ? trRight : right) | 0) }
+    : { kind: 'main', items: mainMenuSpec() };
   renderOverlay();
+  if (kind === 'trlang' || kind === 'trsrc') setTimeout(() => { try { overlay.webContents.focus(); } catch {} }, 30);
 }
 function menuAction(id) {
+  // navigasi antar panel menu: menu tidak ditutup
+  if (id === 'menu.main') return openMenu('main');
+  if (id === 'menu.tabs') return openMenu('tabs');
+  if (id === 'menu.tabgroup') return openMenu('tabgroup');
+  if (id === 'menu.trsrc') return openMenu('trsrc');
+  if (id === 'menu.trlang') return openMenu('trlang');
   OV.menu = null; renderOverlay();
   const t = curTab(), wc = curWC();
+  if (t && id.startsWith('tm.group:')) return addToGroup(t.id, +id.slice(9));
+  if (t && id.startsWith('trp:')) return pickTr(t, id.slice(4));
+  if (t && id.startsWith('trs:')) return pickTrSrc(t, id.slice(4));
+  if (t && id === 'trp.off') { t.trOn = false; wc.executeJavaScript('window.__alPT&&window.__alPT.stop()').catch(() => {}); ctx.toast('Terjemahan dimatikan'); return pushTabs(); }
   switch (id) {
+    case 'tm.reload': return wc.reload();
+    case 'tm.dup': return createTab(t.url, { incog: t.incog, index: ctx.tabs.indexOf(t) + 1 });
+    case 'tm.mute': return API['tab.mute'](null, t.id);
+    case 'tm.pin': return pinTab(t.id, !t.pinned);
+    case 'tm.ungroup': return removeFromGroup(t.id);
+    case 'tm.groupnew': return newGroupFor(t.id);
+    case 'tm.split': return inSplit(t.id) ? splitClose() : splitNew();
+    case 'tm.close': return closeTab(t.id);
+    case 'tm.closeother': return closeMany(ctx.tabs.filter(x => x.id !== t.id).map(x => x.id), 'Tutup tab lain');
+    case 'tm.closeright': return closeMany(ctx.tabs.slice(ctx.tabs.indexOf(t) + 1).map(x => x.id), 'Tutup tab di kanan');
     case 'tab.new': return createTab('alethra://home');
     case 'tab.incog': return newIncogTab();
     case 'tab.reopen': return reopenClosed();
@@ -799,7 +934,7 @@ function menuAction(id) {
     case 'tools.config': { const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog); if (ex) { go(ex, 'alethra://settings#tools'); return selectTab(ex.id); } return createTab('alethra://settings#tools'); }
     case 'find': chromeWC.focus(); return ctx.sendChrome('find', { open: true, focus: true });
     case 'print': return wc.print();
-    case 'pdf': return wc.printToPDF({ printBackground: true }).then(async b => { const r = await dialog.showSaveDialog(win, { defaultPath: path.join(SV.dlDir(), (t.title || 'halaman').replace(/[<>:"/\\|?*]/g, '_') + '.pdf') }); if (!r.canceled) { fs.writeFileSync(r.filePath, b); ctx.toast('PDF disimpan'); } });
+    case 'pdf': return wc.printToPDF({ printBackground: true }).then(async b => { const r = await dialog.showSaveDialog(win, { defaultPath: path.join(SV.dlDir(), (t.title || 'halaman').replace(/[<>:"/\\|?*]/g, '_') + '.pdf') }); if (!r.canceled) { fs.writeFileSync(r.filePath, b); SV.recordSaved(r.filePath, 'application/pdf'); ctx.toast('PDF disimpan'); } });
     case 'offline.save': return SV.saveOffline(t);
     case 'translate': return togglePageTr();
     case 'chat': { saveSetting('tr', !setting('tr')); injectTrAll(); applyTheme(); return ctx.toast(setting('tr') ? 'Terjemahan chat live aktif (YouTube, Twitch)' : 'Terjemahan chat live dimatikan'); }
@@ -807,6 +942,7 @@ function menuAction(id) {
     case 'reader': return readerMode();
     case 'vq': return videoQuality();
     case 'pip': return pip();
+    case 'emu': return emuCycle(t);
     case 'mobile': { const h = U.hostOf(t.url); if (!h) return; const l = new Set(setting('mobileSites')); l.has(h) ? l.delete(h) : l.add(h); saveSetting('mobileSites', [...l]); wc.setUserAgent(l.has(h) ? SV.MOBILE_UA : SV.UA); wc.reloadIgnoringCache(); return; }
     case 'adsite': { const h = U.hostOf(t.url); if (!h) return; let l = (setting('sadoff') || []).slice(); const on = l.some(d => h === d || h.endsWith('.' + d)); if (on) l = l.filter(d => !(h === d || h.endsWith('.' + d))); else l.push(h); saveSetting('sadoff', l); if (!setting('sadblock')) saveSetting('sadblock', true); ctx.toast(on ? 'Blokir iklan dimatikan untuk ' + h : 'Blokir iklan aktif untuk ' + h); wc.reload(); return; }
     case 'clear': return clearDataDialog();
@@ -826,7 +962,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'tools.open']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'tools.open', 'tr.open']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -889,7 +1025,7 @@ const API = {
     fmt = fmt === 'srt' ? 'srt' : 'txt'; const s = STT.hist.build(sid, fmt, mode, stamps !== false); if (!s) { ctx.toast('Belum ada teks untuk disimpan'); return false; }
     const r = await dialog.showSaveDialog(win, { defaultPath: path.join(SV.dlDir(), STT.hist.fileBase(sid) + '.' + fmt), filters: [{ name: fmt === 'srt' ? 'Subtitle SRT' : 'Teks', extensions: [fmt] }] });
     if (r.canceled || !r.filePath) return false;
-    try { fs.writeFileSync(r.filePath, s, 'utf8'); ctx.toast('Tersimpan: ' + path.basename(r.filePath)); return true; } catch (er) { ctx.toast('Gagal menyimpan: ' + (er && er.message)); return false; }
+    try { fs.writeFileSync(r.filePath, s, 'utf8'); SV.recordSaved(r.filePath, fmt === 'srt' ? 'application/x-subrip' : 'text/plain'); ctx.toast('Tersimpan: ' + path.basename(r.filePath)); return true; } catch (er) { ctx.toast('Gagal menyimpan: ' + (er && er.message)); return false; }
   },
   'stt.clear': (e, sid) => STT.hist.clear(sid),
   // klik waktu di riwayat: lompat ke posisi itu di video sumbernya (bila tabnya masih terbuka)
@@ -912,6 +1048,7 @@ const API = {
   'ov.pick': (e, i) => { const it = OV.suggest && OV.suggest.items[i]; closePopups(); if (it) navigateInput(it.target); },
   'ov.close': () => { closePopups(); sendTo(chromeWC, 'omni-blur'); },
   'menu.open': () => { if (OV.menu) { closePopups(); return; } openMenu('main'); },
+  'tr.open': (e, right) => { if (OV.menu) { closePopups(); return; } const t = curTab(); if (!t || !/^https?:/.test(t.url)) return ctx.toast('Buka sebuah situs dulu untuk menerjemahkan'); openMenu('trlang', right); },
   'tools.open': (e, right) => { if (OV.menu) { closePopups(); return; } openMenu('tools', right); },
   'ov.menu': (e, id) => menuAction(id),
   'ov.zoom': (e, d) => { zoomBy(d); openMenu('main'); },
@@ -935,6 +1072,8 @@ const API = {
     if (k === 'accent' && v && !/^#[0-9a-f]{6}$/i.test(v)) return false;
     if (k === 'dlDir' && v && !fs.existsSync(v)) return false;
     if (k === 'trLang' && !U.TR_LANGS[v]) return false;
+    if (k === 'barstyle' && !['abu', 'biru', 'hangat', 'putih'].includes(v)) return false;
+    if (k === 'barcol' && v && !/^#[0-9a-f]{6}$/i.test(v)) return false;
     if (k === 'doh' && !U.DOH[v]) return false;
     if (['clock', 'sta', 'stf', 'stb', 'tools'].includes(k)) { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = (k === 'stf' || k === 'stb') ? STT.sanitize(k, o) : o; }
     if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;

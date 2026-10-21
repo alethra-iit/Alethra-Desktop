@@ -1,5 +1,5 @@
 (function () {
-  let st = {}, lastModal = null;
+  let st = {}, lastModal = null, lastMk = null, mq = '';
   const SIC = { go: 'search', bm: 'star', hist: 'clock' };
   const catcher = $('#catch');
   catcher.addEventListener('mousedown', () => api('ov.close'));
@@ -21,7 +21,16 @@
     // menu utama
     if (s.menu) {
       const el = $('#menu'); el.hidden = false; el.innerHTML = ''; el.style.right = (s.menu.right != null ? s.menu.right : 8) + 'px';
+      if (s.menu.kind !== lastMk) { lastMk = s.menu.kind; mq = ''; }
+      let fin = null;
       s.menu.items.forEach(it => {
+        if (it.filter) {
+          const w = document.createElement('div'); w.className = 'mflt'; w.innerHTML = '<input type="search" autocomplete="off" spellcheck="false">';
+          const inp = fin = $('input', w); inp.placeholder = it.filter; inp.value = mq;
+          inp.oninput = () => { mq = inp.value; applyF(); };
+          inp.onkeydown = (ev) => { if (ev.key === 'Enter') { if (!mq.trim()) return; const f = $$('#menu .mi[data-q]').find(x => !x.classList.contains('x')); if (f) f.click(); } else if (ev.key === 'Escape') api('ov.close'); };
+          el.appendChild(w); return;
+        }
         if (it.sep) { el.insertAdjacentHTML('beforeend', '<div class="msep"></div>'); return; }
         if (it.head) { el.insertAdjacentHTML('beforeend', `<div class="mhd">${esc(it.head)}</div>`); return; }
         if (it.zoom) {
@@ -30,10 +39,18 @@
         }
         const d = document.createElement('div'); d.className = 'mi' + (it.off ? ' off' : '') + (it.dim ? ' dim' : '');
         // dim = item tidak bisa dipakai sekarang, tapi tetap bisa diklik untuk membuka pengaturan yang menyebabkannya; note = alasannya
-        d.innerHTML = `<span class="ck">${it.check ? ICON('check', 16) : ''}</span><span class="l">${esc(it.label)}</span>${it.note ? `<span class="nt">${esc(it.note)}</span>` : `<span class="k">${esc(it.key || '')}</span>`}`;
+        d.innerHTML = `<span class="ck">${it.check ? ICON('check', 16) : ''}</span><span class="l">${esc(it.label)}</span>${it.note ? `<span class="nt">${esc(it.note)}</span>` : `<span class="k">${it.arrow ? '›' : esc(it.key || '')}</span>`}`;
         if (it.note) d.title = it.note + ' — klik untuk membuka pengaturan';
+        if (it.q) d.dataset.q = it.q;
         d.onclick = () => api('ov.menu', it.id); el.appendChild(d);
       });
+      function applyF() {
+        const f = mq.trim().toLowerCase();
+        $$('#menu .mhd, #menu .msep').forEach(x => x.classList.toggle('x', !!f));
+        $$('#menu .mi').forEach(x => x.classList.toggle('x', !!f && !(x.dataset.q || '').includes(f)));
+      }
+      applyF();
+      if (fin) setTimeout(() => { fin.focus(); const n = fin.value.length; try { fin.setSelectionRange(n, n); } catch {} }, 20);
     } else hide('menu', false);
     // modal
     const m = s.modal, md = $('#modal');

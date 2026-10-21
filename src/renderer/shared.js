@@ -24,6 +24,7 @@
     const R = document.documentElement;
     if (s.dark) R.setAttribute('data-theme', 'dark'); else R.removeAttribute('data-theme');
     if (s.dark && s.amoled) R.setAttribute('data-amoled', ''); else R.removeAttribute('data-amoled');
+    if (s.barstyle && s.barstyle !== 'abu') R.setAttribute('data-bar', s.barstyle); else R.removeAttribute('data-bar');
     if (s.accent && /^#[0-9a-f]{6}$/i.test(s.accent)) {
       R.style.setProperty('--acc', s.accent);
       const n = parseInt(s.accent.slice(1), 16), l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;

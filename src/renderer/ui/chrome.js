@@ -107,7 +107,7 @@
   $('#back').onclick = () => api('nav.back'); $('#fwd').onclick = () => api('nav.forward');
   $('#reload').onclick = () => api(cur() && cur().loading ? 'nav.stop' : 'nav.reload');
   $('#home').onclick = () => api('nav.home'); $('#star').onclick = () => api('bookmark.toggle');
-  $('#trb').onclick = () => api('ov.menu', 'translate'); $('#dlb').onclick = () => api('dl.open'); $('#menub').onclick = () => api('menu.open');
+  $('#trb').onclick = () => { const r = $('#trb').getBoundingClientRect(); api('tr.open', Math.round(window.innerWidth - r.right)); }; $('#dlb').onclick = () => api('dl.open'); $('#menub').onclick = () => api('menu.open');
   $('#toolsb').onclick = () => { const r = $('#toolsb').getBoundingClientRect(); api('tools.open', Math.round(window.innerWidth - r.right)); };
   document.addEventListener('mousedown', e => { if (!e.target.closest('#omni')) api('omni.hide'); }, true);
   $('#tabstrip').addEventListener('dblclick', e => { if (e.target.id === 'tabstrip') api('tab.new'); });
@@ -166,7 +166,14 @@
   $('#tabs').addEventListener('wheel', e => { const b = $('#tabs'); if (b.scrollWidth > b.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { b.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
   alethra.on('groups', l => { groups = Array.isArray(l) ? l : []; });
   alethra.on('tabs', l => { const prev = cur(); tabs = l; const c = cur(); if (prev && c && prev.id !== c.id) { $('#findbar').hidden = true; } renderTabs(); renderBar(); });
-  alethra.on('settings', s => { S = s; applyTheme(s); renderBm(); });
+  // warna toolbar kustom (palet dihitung di proses utama): menimpa variabel warna khusus halaman toolbar
+  const BARV = { strip: '--strip', tbar: '--tbar', omni: '--omni', bline: '--bline', fg: '--fg', sub: '--sub', tbh: '--tbh', bg: '--bg', surf2: '--surf2' };
+  function applyBar(s) {
+    const R = document.documentElement.style, p = s && s.barpal;
+    Object.keys(BARV).forEach(k => { if (p) R.setProperty(BARV[k], p[k]); else R.removeProperty(BARV[k]); });
+    if (p) R.setProperty('--line', p.bline); else R.removeProperty('--line');
+  }
+  alethra.on('settings', s => { S = s; applyTheme(s); applyBar(s); renderBm(); });
   alethra.on('bookmarks', l => { bms = l; renderBm(); });
   alethra.on('infobars', l => { infos = l; renderInfos(); });
   alethra.on('downloads', d => { const b = $('#badge'); b.style.display = d.active ? 'flex' : 'none'; b.textContent = d.active ? d.pct + '%' : ''; });
@@ -180,5 +187,5 @@
   alethra.on('fullscreen', v => document.body.classList.toggle('fs', !!v));
 
   new ResizeObserver(() => api('chrome.height', Math.ceil($('#bars').getBoundingClientRect().height))).observe($('#bars'));
-  api('ui.ready').then(r => { if (!r) return; S = r.settings; bms = r.bookmarks; tabs = r.tabs; applyTheme(S); renderTabs(); renderBar(); renderBm(); });
+  api('ui.ready').then(r => { if (!r) return; S = r.settings; bms = r.bookmarks; tabs = r.tabs; applyTheme(S); applyBar(S); renderTabs(); renderBar(); renderBm(); });
 })();

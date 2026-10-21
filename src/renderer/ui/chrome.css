@@ -1,8 +1,19 @@
-:root{--strip:#e9e9ee;--tbar:#fafafb;--tbh:rgba(0,0,0,.07)}
-:root[data-theme=dark]{--strip:#121214;--tbar:#2a2a2f;--tbh:rgba(255,255,255,.1)}
-:root[data-theme=dark][data-amoled]{--strip:#000;--tbar:#1b1b1f;--tbh:rgba(255,255,255,.1)}
+/* Toolbar dibuat abu-abu + garis bawah supaya terpisah jelas dari halaman putih. Pilihan warna: Pengaturan → Tampilan → Warna toolbar */
+:root{--strip:#d9dae0;--tbar:#ecedf1;--omni:#dedfe5;--bline:#c4c5cd;--tbh:rgba(0,0,0,.08)}
+:root[data-bar=biru]{--strip:#d3dae6;--tbar:#e6ecf5;--omni:#d6dfec;--bline:#bcc6d6}
+:root[data-bar=hangat]{--strip:#e0dcd4;--tbar:#efece6;--omni:#e3dfd7;--bline:#cdc8be}
+:root[data-bar=putih]{--strip:#e9e9ee;--tbar:#fafafb;--omni:#e9e9ee;--bline:#d6d6dc}
+:root[data-theme=dark]{--strip:#121214;--tbar:#2a2a2f;--omni:#121214;--bline:#3a3a40;--tbh:rgba(255,255,255,.1)}
+:root[data-theme=dark][data-amoled]{--strip:#000;--tbar:#1b1b1f;--omni:#000;--bline:#2a2a2f;--tbh:rgba(255,255,255,.1)}
+/* gaya bawaan di tema gelap & AMOLED (abu = palet di atas) */
+:root[data-theme=dark][data-bar=biru]{--strip:#0f1620;--tbar:#1e2a3a;--omni:#141d2a;--bline:#2d3b50}
+:root[data-theme=dark][data-bar=hangat]{--strip:#1a1714;--tbar:#332e28;--omni:#221e1a;--bline:#4a443b}
+:root[data-theme=dark][data-bar=putih]{--strip:#1c1c20;--tbar:#0b0b0d;--omni:#1c1c20;--bline:#26262b}
+:root[data-theme=dark][data-amoled][data-bar=biru]{--strip:#000;--tbar:#0c1624;--omni:#050b14;--bline:#1a2a40}
+:root[data-theme=dark][data-amoled][data-bar=hangat]{--strip:#000;--tbar:#1a1612;--omni:#0d0b09;--bline:#2c261f}
+:root[data-theme=dark][data-amoled][data-bar=putih]{--strip:#121214;--tbar:#000;--omni:#121214;--bline:#1f1f23}
 html,body{background:var(--strip);overflow:hidden;user-select:none}
-#bars{background:var(--strip)}
+#bars{background:var(--strip);border-bottom:1px solid var(--bline)}
 #tabstrip{display:flex;align-items:flex-end;height:40px;width:env(titlebar-area-width,100%);margin-left:env(titlebar-area-x,0);padding:6px 8px 0;-webkit-app-region:drag;gap:2px}
 #tabs{display:flex;min-width:0;flex:0 1 auto;gap:2px;max-width:calc(100% - 78px);overflow-x:auto;overflow-y:hidden;scrollbar-width:none}#tabs::-webkit-scrollbar{display:none}
 .tab{-webkit-app-region:no-drag;position:relative;display:flex;align-items:center;gap:7px;height:34px;min-width:44px;width:216px;flex:0 1 216px;padding:0 6px 0 11px;border-radius:10px 10px 0 0;color:var(--sub);cursor:default;overflow:hidden}
@@ -17,7 +28,7 @@ html,body{background:var(--strip);overflow:hidden;user-select:none}
 #newtab,#tabsrch{-webkit-app-region:no-drag;width:30px;height:30px;margin:0 0 2px 4px;border:0;border-radius:9px;background:none;color:var(--sub);display:flex;align-items:center;justify-content:center;flex:none}#newtab:hover,#tabsrch:hover{background:var(--tbh)}#tabsrch{margin-left:0}#tabsrch svg{width:16px;height:16px}
 #toolbar{display:flex;align-items:center;gap:2px;height:44px;padding:0 8px;background:var(--tbar)}
 .tb{width:34px;height:34px;border:0;background:none;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative;color:var(--fg);flex:none}.tb:hover:not(:disabled){background:var(--tbh)}.tb:disabled{opacity:.3;cursor:default}.tb.sm{width:28px;height:28px}.tb.on{color:var(--acc)}
-#omni{flex:1;min-width:120px;height:34px;margin:0 6px;background:var(--strip);border-radius:17px;display:flex;align-items:center;padding:0 4px 0 12px;gap:6px;border:2px solid transparent}
+#omni{flex:1;min-width:120px;height:34px;margin:0 6px;background:var(--omni);border-radius:17px;display:flex;align-items:center;padding:0 4px 0 12px;gap:6px;border:2px solid transparent}
 #omni:focus-within{border-color:var(--acc);background:var(--bg)}
 #sec{display:flex;color:var(--sub)}#sec svg{width:16px;height:16px}#sec.bad{color:var(--danger)}
 #url{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;font-size:13.5px;user-select:text}

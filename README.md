@@ -40,6 +40,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Pengelola sandi | Terenkripsi (Windows DPAPI), isi otomatis saat kolom diklik |
 | Kunci aplikasi | **PIN** (scrypt), seluruh app atau bagian tertentu |
 | Mode desktop/seluler | Dibalik: *Tampilan situs seluler* per situs |
+| Mode perangkat (ponsel/tablet) | *Mode perangkat* di Tools atau Ctrl+Shift+M (juga dari dalam Alat pengembang): halaman dipersempit seperti layar ponsel (390×844) atau tablet (820×1180), memakai UA seluler dan emulasi sentuh. Tekan lagi untuk ganti/mati |
 | Cadangan | Ekspor/impor JSON |
 | Browser default | Installer mendaftarkan Alethra ke Windows (*Aplikasi default*) |
 
@@ -123,6 +124,9 @@ Tools → *Riwayat terjemahan suara* (Ctrl+Alt+H, atau ikon jam di popup) membuk
 
 ## Mengelola banyak tab
 - **Sematkan tab:** klik kanan tab → *Sematkan tab*. Tab sematan hanya berupa ikon di paling kiri, tanpa tombol tutup (klik tengah juga tidak menutupnya), tidak ikut *Tutup tab lain/semua*, dan **selalu dipulihkan saat Alethra dibuka**, walau "Lanjutkan sesi sebelumnya" mati. Menyematkan tab di dalam grup mengeluarkannya dari grup.
+- **Ikon terjemahan (di kiri Unduhan):** klik untuk memilih bahasa tujuan dari daftar ±100 bahasa (ada kolom cari, Enter memilih hasil pertama). Baris *Bahasa asal* di atas daftar memungkinkan memilih bahasa teks sumber (default *Deteksi otomatis*, selalu di paling atas daftar asal). Pilihan hanya berlaku untuk tab itu; *Tampilkan bahasa asli* mengembalikan teks. Ctrl+Alt+T tetap menerjemahkan langsung ke bahasa default di Pengaturan.
+- **Warna toolbar (tema terang):** toolbar kini abu-abu dengan garis pemisah di bawahnya agar tidak menyatu dengan halaman putih. Gaya bawaan (berlaku di tema terang, gelap, dan AMOLED): Abu-abu (bawaan), Biru keabuan, Krem hangat, Menyatu dengan halaman. Selain itu ada **warna kustom** (swatch, pemilih warna, atau kode hex `#RRGGBB`/`#RGB`) yang berlaku di tema terang maupun gelap; teks, strip tab, dan kolom alamat menyesuaikan otomatis (Pengaturan → Tampilan → Warna toolbar).
+- **Atur tab (menu ⋮ → Atur tab):** membuka daftar opsi yang sama dengan klik kanan pada tab (muat ulang, duplikat, bisukan, sematkan, grup, tampilan terpisah, tutup tab/di kanan/lain/semua) untuk tab yang sedang aktif. Klik kanan pada tab tetap tersedia seperti biasa.
 - **Cari tab (Ctrl+Shift+A, tombol kaca pembesar di samping +, atau menu ⋮):** palet yang menyaring tab terbuka berdasarkan judul, alamat, dan nama grup (beberapa kata sekaligus). Urutan awal = yang terakhir dipakai, dengan sorotan di tab sebelumnya (seperti Alt+Tab). ↑↓ memilih, Enter membuka, Del menutup tab yang disorot. Di bawahnya ada tab yang baru ditutup, bisa dibuka lagi.
 - **Tutup massal:** menu ⋮ → *Tutup tab lain* dan *Tutup semua tab* (juga di klik kanan tab, bersama *Tutup tab di kanan*). Tab sematan dilewati; bila tidak ada yang tersisa, dibuatkan tab baru. Penutupan ≥ 5 tab meminta konfirmasi. Tab yang ditutup bisa dibuka lagi dengan Ctrl+Shift+T (50 terakhir).
 - **Kelompok tab berwarna:** klik kanan tab → *Tambahkan ke grup → Grup baru…* (nama opsional + 9 warna). Chip berwarna di depan grup: klik untuk menciutkan/membentangkan, klik kanan untuk ubah nama/warna, tab baru di grup, pisahkan grup, atau tutup grup. Seret tab ke chip untuk memasukkannya; seret keluar dari deretan grup untuk melepasnya. Tab yang dibuka dari tab dalam grup ikut grup itu. Grup disimpan bersama sesi.

@@ -101,6 +101,7 @@
 
   function start(l) {
     if (active && l !== lang) stop();
+    if (l !== lang) cache = {};
     lang = l;
     if (!document.body) return;
     if (!active) {

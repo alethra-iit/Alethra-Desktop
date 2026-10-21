@@ -5,7 +5,7 @@ const U = require('./util');
 const ctx = require('./ctx');
 
 const DEFAULTS = {
-  theme: 'system', amoled: false, accent: '', engine: 'google', customEngine: '', httpsOnly: false, suggest: true,
+  theme: 'system', amoled: false, barstyle: 'abu', barcol: '', accent: '', engine: 'google', customEngine: '', httpsOnly: false, suggest: true,
   restore: true, adblock: true, sadblock: true, sadoff: [], tpc: false, dnt: false, doh: 'off', dohcustom: '',
   bmbar: true, dlAsk: false, dlDir: '', trLang: 'id', tr: false, trhide: false, rdsize: 18, rdtheme: '',
   zoomMap: {}, mobileSites: [], shortcuts: [
@@ -114,7 +114,7 @@ function setupSession(ses, incog) {
     const t = tabOfReq(d);
     if (t) {
       const th = U.hostOf(t.url);
-      if (isMobileSite(th)) h['User-Agent'] = MOBILE_UA;
+      if (isMobileSite(th) || t.emu) h['User-Agent'] = MOBILE_UA;
       if ((incog || setting('tpc')) && d.resourceType !== 'mainFrame' && th && U.siteOf(U.hostOf(d.url)) !== U.siteOf(th)) delete h['Cookie'];
     }
     cb({ requestHeaders: h });
@@ -220,6 +220,11 @@ ctx.onDownload = (e, item, wc, incog) => {
     persistDl(); dlPush();
   });
 };
+function recordSaved(filePath, mime) {
+  let size = 0; try { size = fs.statSync(filePath).size; } catch {}
+  ctx.dlList.push({ id: ++dlSeq, name: path.basename(filePath), url: '', path: filePath, total: size, received: size, state: 'completed', time: Date.now(), mime: mime || '', incog: false });
+  persistDl(); dlPush();
+}
 function dlAct(id, a) {
   const rec = ctx.dlList.find(d => d.id === id); if (!rec) return;
   const it = liveItems.get(id);
@@ -246,14 +251,18 @@ function pwPut(origin, u, p) {
 }
 
 /* ---------- Penerjemah ---------- */
+// lang bisa "tujuan" (asal otomatis) atau "asal>tujuan"
+const splitLang = (l) => { l = String(l); const i = l.indexOf('>'); return i > 0 ? [l.slice(0, i), l.slice(i + 1)] : ['auto', l]; };
 async function trOne(text, lang) {
-  const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + encodeURIComponent(lang) + '&dt=t&q=' + encodeURIComponent(text), { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(7000) });
+  const [sl, tl] = splitLang(lang);
+  const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + encodeURIComponent(sl) + '&tl=' + encodeURIComponent(tl) + '&dt=t&q=' + encodeURIComponent(text), { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(7000) });
   if (!r.ok) return '';
   const j = await r.json(); return (j[0] || []).map(s => s[0] || '').join('');
 }
 async function trBatch(arr, lang) {
   try {
-    const body = 'client=gtx&sl=auto&tl=' + encodeURIComponent(lang) + '&dt=t' + arr.map(t => '&q=' + encodeURIComponent(t)).join('');
+    const [sl, tl] = splitLang(lang);
+    const body = 'client=gtx&sl=' + encodeURIComponent(sl) + '&tl=' + encodeURIComponent(tl) + '&dt=t' + arr.map(t => '&q=' + encodeURIComponent(t)).join('');
     const r = await fetch('https://translate.googleapis.com/translate_a/t', { method: 'POST', headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body, signal: AbortSignal.timeout(12000) });
     if (r.ok) {
       const j = await r.json(); let good = 0;
@@ -350,5 +359,5 @@ function applyDoh() {
 }
 
 module.exports = { trOne, DEFAULTS, setting, saveSetting, UA, MOBILE_UA, isMobileSite, localOk, offDir, setupSession, getPerm, setPerm, listPerms, PERM_LABEL,
-  dlAct, listDownloads, dlSummary, dlPush, dlDir, pwFind, pwPut, dec, enc, initTranslate, saveOffline, exportBookmarksHtml, importBookmarksHtml,
+  dlAct, recordSaved, listDownloads, dlSummary, dlPush, dlDir, pwFind, pwPut, dec, enc, initTranslate, saveOffline, exportBookmarksHtml, importBookmarksHtml,
   verifyPin, setPin, hashPin, clearData, applyDoh, EXT };

@@ -133,6 +133,16 @@
     }
     if (sec === 'tampilan') {
       A(box([select('Tema', '', [['system', 'Ikuti sistem'], ['light', 'Terang'], ['dark', 'Gelap']], S.theme, v => set('theme', v)), toggle('amoled', 'Mode AMOLED', 'Latar hitam pekat saat tema gelap')]));
+      const nh = (v) => { v = String(v || '').trim().replace(/^#?/, '#'); if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + v.slice(1).split('').map(c => c + c).join(''); return /^#[0-9a-f]{6}$/i.test(v) ? v.toUpperCase() : null; };
+      const bw = el('<div class="sws"></div>');
+      [['', 'Ikuti tema'], ['#ECEDF1', 'Abu terang'], ['#E6ECF5', 'Biru muda'], ['#EFECE6', 'Krem'], ['#FFFFFF', 'Putih'], ['#2A2A2F', 'Abu gelap'], ['#1E2A3A', 'Biru malam'], ['#2B2A33', 'Ungu gelap'], ['#1B1B1F', 'Hitam lembut'], ['#0F3D2E', 'Hijau tua'], ['#4A1F2B', 'Marun']].forEach(([c, n]) => { const b = document.createElement('button'); b.className = 'swc' + ((S.barcol || '').toUpperCase() === c ? ' on' : ''); b.style.background = c || 'linear-gradient(135deg,#fff 50%,#111 50%)'; b.title = n; b.onclick = () => set('barcol', c); bw.appendChild(b); });
+      const pk = document.createElement('input'); pk.type = 'color'; pk.value = /^#[0-9a-f]{6}$/i.test(S.barcol) ? S.barcol : '#ecedf1'; pk.title = 'Pilih warna lain'; pk.style.cssText = 'width:36px;height:30px;border:1px solid var(--line);border-radius:8px;background:none;padding:2px;cursor:pointer'; pk.onchange = () => set('barcol', pk.value.toUpperCase()); bw.appendChild(pk);
+      const bi = document.createElement('input'); bi.className = 'inp'; bi.style.width = '110px'; bi.placeholder = '#RRGGBB'; bi.value = S.barcol || '';
+      bi.onchange = () => { const t = bi.value.trim(); if (!t) return set('barcol', ''); const h = nh(t); if (h) set('barcol', h); else { bi.value = S.barcol || ''; bi.style.borderColor = 'var(--danger)'; setTimeout(() => { bi.style.borderColor = ''; }, 1200); } };
+      bw.appendChild(bi);
+      A(grp('Warna toolbar')); A(box([
+        select('Gaya bawaan', 'Berlaku di tema terang, gelap, dan AMOLED. Dipakai bila warna kustom di bawah tidak diatur', [['abu', 'Abu-abu (bawaan)'], ['biru', 'Biru keabuan'], ['hangat', 'Krem hangat'], ['putih', 'Menyatu dengan halaman']], S.barstyle || 'abu', v => set('barstyle', v)),
+        row('Warna kustom', 'Berlaku di tema terang dan gelap. Warna teks, strip tab, dan kolom alamat menyesuaikan otomatis. Kosongkan atau pilih "Ikuti tema" untuk mengembalikan', bw)]));
       const sw = el('<div class="sws"></div>');
       ['', '#2F6BFF', '#7C4DFF', '#E91E63', '#F44336', '#FF9800', '#2E9E5B', '#00A3A3'].forEach(c => { const b = document.createElement('button'); b.className = 'swc' + ((S.accent || '') === c ? ' on' : ''); b.style.background = c || 'linear-gradient(135deg,#fff 50%,#111 50%)'; b.title = c || 'Hitam/putih'; b.onclick = () => set('accent', c); sw.appendChild(b); });
       const ci = document.createElement('input'); ci.className = 'inp'; ci.style.width = '110px'; ci.placeholder = '#RRGGBB'; ci.value = S.accent || ''; ci.onchange = () => set('accent', ci.value.trim().toUpperCase()); sw.appendChild(ci);
@@ -185,7 +195,7 @@
         tgp('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara', 'stt', 'Terjemahan Suara'),
         tg('reader', 'Mode baca', 'Ctrl+Alt+R'), tg('transcript', 'Riwayat terjemahan suara', 'Ctrl+Alt+H. Daftar kalimat hasil Terjemahan Suara')]));
       A(grp('Video & situs')); A(box([
-        tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('mobile', 'Tampilan situs seluler', 'Per situs'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs'), tg('split', 'Tampilan terpisah', 'Ctrl+Alt+V. Dua halaman berdampingan, mis. video + catatan')]));
+        tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('mobile', 'Tampilan situs seluler', 'Per situs'), tg('emu', 'Mode perangkat (ponsel/tablet)', 'Ctrl+Shift+M. Lebar halaman dipersempit seperti layar ponsel'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs'), tg('split', 'Tampilan terpisah', 'Ctrl+Alt+V. Dua halaman berdampingan, mis. video + catatan')]));
       A(box([button('Tampilkan semua', 'Kembalikan semua item ke menu Tools', 'Atur ulang', () => set('tools', S.stDefs.tools))]));
     }
     if (sec === 'play') {

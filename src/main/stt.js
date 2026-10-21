@@ -76,6 +76,8 @@ function autosave(ss) {
     const dir = path.join(SV.dlDir(), 'Transkrip Alethra'); fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, fileBase(ss) + '.srt'), build(ss.id, 'srt', 'both'), 'utf8');
     fs.writeFileSync(path.join(dir, fileBase(ss) + '.txt'), build(ss.id, 'txt', 'both', true), 'utf8');
+    SV.recordSaved(path.join(dir, fileBase(ss) + '.srt'), 'application/x-subrip');
+    SV.recordSaved(path.join(dir, fileBase(ss) + '.txt'), 'text/plain');
     H.toast('Riwayat disimpan di ' + dir);
   } catch (e) { H.toast('Gagal menyimpan riwayat: ' + (e && e.message)); }
 }

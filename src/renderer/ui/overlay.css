@@ -54,3 +54,5 @@ html,body{background:transparent!important;overflow:hidden;height:100%;user-sele
 /* dialog grup */
 .gsw{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .mc button.gs{width:28px;height:28px;padding:0;border-radius:50%;background:var(--c);border:2px solid transparent;box-shadow:inset 0 0 0 2px var(--bg)}.mc button.gs.on{border-color:var(--fg)}.mc button.gs:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.mflt{position:sticky;top:-6px;z-index:1;background:var(--bg);padding:6px 0 6px;margin:-6px 0 0}.mflt input{width:100%;box-sizing:border-box;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--surf2);color:inherit;padding:0 10px;font:inherit;font-size:13px;outline:none}.mflt input:focus{border-color:var(--acc)}
+#menu .x{display:none}
