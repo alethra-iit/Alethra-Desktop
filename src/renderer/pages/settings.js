@@ -152,6 +152,11 @@
         select('Warna jam', '', [['t', 'Teks'], ['a', 'Aksen'], ['g', 'Emas'], ['b', 'Biru'], ['h', 'Hijau']], C.k, v => sc('k', v)),
         select('Format tanggal', '', [[0, 'Lengkap'], [1, 'Singkat'], [2, 'Sembunyikan']], C.d2, v => sc('d2', +v)),
         ck('h24', 'Format 24 jam'), ck('q', 'Tampilkan detik'), ck('n', 'Angka pada jam analog'), ck('y', 'Tampilkan zona waktu'), ck('b', 'Latar kartu jam')]));
+      A(grp('Tampilan terpisah (split view)'));
+      A(box([
+        select('Susunan panel', 'Otomatis: berdampingan di jendela lebar, atas-bawah di jendela sempit. Buka dari menu Tools → Tampilan terpisah (Ctrl+Alt+V), klik kanan tab, atau klik kanan tautan.', [['auto', 'Otomatis'], ['h', 'Selalu berdampingan'], ['v', 'Selalu atas-bawah']], S.splitMode || 'auto', v => set('splitMode', v)),
+        button('Lebar panel', 'Seret pembagi di antara panel untuk mengubah ukuran. Klik dua kali pembagi, atau tombol ini, untuk 50:50. Ctrl+Alt+←/→ memindahkan fokus antar panel.', 'Samakan 50:50', () => set('splitRatio', 0.5))
+      ]));
     }
     if (sec === 'unduhan') {
       A(box([
@@ -178,9 +183,9 @@
         tgp('translate', 'Terjemahkan halaman', 'Ctrl+Alt+T. Juga perlu dinyalakan di Play → Terjemahkan situs', 'ptr', 'Terjemahkan situs'),
         tg('chat', 'Terjemahkan chat live', 'YouTube dan Twitch'),
         tgp('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara', 'stt', 'Terjemahan Suara'),
-        tg('reader', 'Mode baca', 'Ctrl+Alt+R')]));
+        tg('reader', 'Mode baca', 'Ctrl+Alt+R'), tg('transcript', 'Riwayat terjemahan suara', 'Ctrl+Alt+H. Daftar kalimat hasil Terjemahan Suara')]));
       A(grp('Video & situs')); A(box([
-        tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('mobile', 'Tampilan situs seluler', 'Per situs'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs')]));
+        tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('mobile', 'Tampilan situs seluler', 'Per situs'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs'), tg('split', 'Tampilan terpisah', 'Ctrl+Alt+V. Dua halaman berdampingan, mis. video + catatan')]));
       A(box([button('Tampilkan semua', 'Kembalikan semua item ke menu Tools', 'Atur ulang', () => set('tools', S.stDefs.tools))]));
     }
     if (sec === 'play') {
@@ -253,6 +258,13 @@
         select('Kecepatan teks', 'Makin cepat, makin banyak permintaan API per menit', [['fast', 'Cepat (potongan maks ±3,8 dtk)'], ['bal', 'Seimbang (±5,5 dtk, disarankan)'], ['eco', 'Hemat (±8,5 dtk, jatah gratis awet)']], S.stspeed, v => set('stspeed', v)),
         button('Pengaturan audio', audSummary(), 'Buka', () => { sec = 'audio'; history.replaceState(null, '', '#audio'); renderSec(true); }));
       A(box(sr));
+      A(grp('Riwayat terjemahan'));
+      A(box([
+        toggle('sthist', 'Catat riwayat Terjemahan Suara', 'Kalimat disimpan di memori (5 sesi terakhir, maks 3000 kalimat per sesi) supaya bisa disalin atau disimpan sebagai .txt / .srt. Tidak pernah dicatat di tab Incognito.'),
+        toggle('stside', 'Buka riwayat di sisi video otomatis', 'Saat Terjemahan Suara dimulai, riwayat langsung tampil di panel sebelah video (tampilan terpisah)'),
+        toggle('stauto', 'Simpan otomatis saat berhenti', 'Menulis berkas .srt dan .txt ke folder Unduhan → Transkrip Alethra setiap sesi selesai. Mati secara bawaan karena isinya berasal dari video yang Anda tonton.'),
+        button('Riwayat', 'Buka daftar kalimat di sisi video, lengkap dengan tombol salin dan simpan', 'Buka riwayat', () => api('stt.hist'))
+      ]));
       A(el('<p class="sub" style="margin-top:14px;font-size:12.5px">Cara pakai: putar video, buka menu Tools → Terjemahan Suara (atau Ctrl+Alt+S). Audio diambil langsung dari video, jadi video tidak dijeda dan tidak butuh mikrofon. Terbatas untuk video di iframe lintas-situs dan video ber-DRM. Batas Groq gratis: 20 permintaan/menit dan 2.000/hari; bila kena batas, Alethra jeda otomatis.</p>'));
       }
 

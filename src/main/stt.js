@@ -2,6 +2,7 @@
 // atau mesin offline di PC (sherpa-onnx, Whisper Transformers.js, Vosk), diterjemahkan Google Translate atau terjemahan offline (Opus-MT, NLLB-200 600M),
 // lalu ditampilkan di popup (overlay) atau sebagai subtitle layar penuh.
 const { ipcMain } = require('electron');
+const fs = require('fs'), path = require('path');
 const ctx = require('./ctx');
 const SV = require('./services');
 const OFF = require('./offline');
@@ -12,6 +13,73 @@ const pos = { x: 0, y: 0 };       // geseran popup (diseret pengguna)
 let fsMode = false;               // video sedang layar penuh
 let idleT = null;
 
+/* ---------- riwayat (hanya di memori; maks 5 sesi terakhir) ---------- */
+const sessions = [];            // terbaru di depan
+let sessSeq = 0;
+const MAXLOG = 3000;            // kalimat per sesi; yang tertua dibuang
+const pushLog = (sid, entry) => { try { ctx.broadcastPages && ctx.broadcastPages('stt-log', { sid, entry }); } catch {} };
+const pushSess = () => { try { ctx.broadcastPages && ctx.broadcastPages('stt-sess', sessionList()); } catch {} };
+function newSession(tab) {
+  if (tab.incog || SV.setting('sthist') === false) return null;      // Incognito tidak pernah dicatat
+  const ss = { id: ++sessSeq, tabId: tab.id, title: tab.title || tab.url, url: tab.url, started: Date.now(), ended: 0, live: true, entries: [] };
+  sessions.unshift(ss); while (sessions.length > 5) sessions.pop();
+  return ss;
+}
+function sessionList() { return sessions.map(s => ({ id: s.id, title: s.title, url: s.url, started: s.started, live: s.live, n: s.entries.length, tabId: s.tabId })); }
+function logPut(j, patch) {
+  const ss = S && S.sess; if (!ss) return;
+  let e = null;
+  for (let i = ss.entries.length - 1; i >= 0; i--) if (ss.entries[i].seq === j.seq) { e = ss.entries[i]; break; }
+  if (!e) {
+    const durMs = Math.max(300, (j.buf.length - 44) / 32);           // WAV 16-bit mono 16 kHz = 32 byte per ms
+    const we = Math.max(0, j.t - ss.started), ws = Math.max(0, we - durMs);
+    e = { seq: j.seq, ws, we, vs: j.vs == null ? -1 : j.vs, ve: j.ve == null ? -1 : j.ve, lang: '', orig: '', tr: '' };
+    ss.entries.push(e); if (ss.entries.length > MAXLOG) ss.entries.shift();
+  }
+  Object.assign(e, patch, j.lang && !e.lang ? { lang: j.lang } : {});
+  pushLog(ss.id, e);
+}
+const find = (sid) => sessions.find(s => s.id === sid) || sessions[0] || null;
+// waktu tiap kalimat: posisi video bila ada (cocok dengan videonya), kalau tidak waktu sejak sesi dimulai
+const span = (e) => e.vs >= 0 && e.ve >= 0 ? { s: e.vs * 1000, e: e.ve * 1000, video: true } : { s: e.ws, e: e.we, video: false };
+const pad = (n, l) => String(Math.floor(n)).padStart(l || 2, '0');
+function stamp(ms, srt) { ms = Math.max(0, Math.round(ms)); const h = ms / 3600000, m = (ms % 3600000) / 60000, s = (ms % 60000) / 1000; return pad(h) + ':' + pad(m) + ':' + pad(s) + (srt ? ',' + pad(ms % 1000, 3) : ''); }
+const lineOf = (e, mode) => {
+  const o = (e.orig || '').trim(), t = (e.tr || '').trim();
+  if (mode === 'orig') return o; if (mode === 'tr') return t || o;
+  return t && o && t !== o ? t + '\n' + o : (t || o);
+};
+function cuesOf(ss, mode) {
+  const list = ss.entries.map(e => ({ e, t: span(e), text: lineOf(e, mode) })).filter(c => c.text).sort((a, b) => a.t.s - b.t.s);
+  return list;
+}
+// fmt: 'txt' | 'srt'; mode: 'both' | 'orig' | 'tr'; stamps: tambahkan waktu di .txt
+function build(sid, fmt, mode, stamps) {
+  const ss = find(sid); if (!ss) return '';
+  mode = ['both', 'orig', 'tr'].includes(mode) ? mode : 'both';
+  const cues = cuesOf(ss, mode);
+  if (fmt === 'srt') {
+    return cues.map((c, i) => {
+      const nx = cues[i + 1]; let end = Math.max(c.t.e, c.t.s + 800);
+      if (nx && nx.t.s > c.t.s + 300) end = Math.min(end, nx.t.s - 10);
+      if (end <= c.t.s) end = c.t.s + 800;
+      return (i + 1) + '\r\n' + stamp(c.t.s, true) + ' --> ' + stamp(end, true) + '\r\n' + c.text.replace(/\n/g, '\r\n') + '\r\n';
+    }).join('\r\n');
+  }
+  const head = [ss.title, ss.url, new Date(ss.started).toLocaleString('id-ID')].filter(Boolean).join('\n') + '\n\n';
+  return head + cues.map(c => (stamps !== false ? '[' + stamp(c.t.s) + '] ' : '') + c.text.replace(/\n/g, '\n' + (stamps !== false ? '           ' : ''))).join('\n') + '\n';
+}
+const fileBase = (ss) => { let h = ''; try { h = new URL(ss.url).hostname; } catch {} const d = new Date(ss.started), p2 = (n) => String(n).padStart(2, '0'); return ('Transkrip ' + (h || 'video') + ' ' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes())).replace(/[<>:"/\\|?*]/g, '_'); };
+function autosave(ss) {
+  if (!ss || !ss.entries.length || SV.setting('stauto') !== true) return;
+  try {
+    const dir = path.join(SV.dlDir(), 'Transkrip Alethra'); fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, fileBase(ss) + '.srt'), build(ss.id, 'srt', 'both'), 'utf8');
+    fs.writeFileSync(path.join(dir, fileBase(ss) + '.txt'), build(ss.id, 'txt', 'both', true), 'utf8');
+    H.toast('Riwayat disimpan di ' + dir);
+  } catch (e) { H.toast('Gagal menyimpan riwayat: ' + (e && e.message)); }
+}
+
 const HALLUC = ['ご視聴ありがとうございました', 'ご視聴ありがとうございます', 'ご清聴ありがとうございました', 'チャンネル登録', '字幕提供', '最後までご視聴', '请不吝点赞', '感谢观看', '시청해 주셔서 감사합니다', '구독과 좋아요'];
 const COMMON = new Set(['thank you', 'thanks for watching', 'thank you for watching', 'you', 'bye', 'okay', 'terima kasih']);
 const keyOf = () => { const e = ctx.settings.data.stkeyEnc; return e ? SV.dec(e) : ''; };
@@ -21,10 +89,11 @@ const offlineOn = () => ['offline', 'tjs', 'vosk'].includes(SV.setting('stengine
 
 function init(h) {
   H = h;
-  ipcMain.on('stt:chunk', (e, tok, b64, mime) => {
+  ipcMain.on('stt:chunk', (e, tok, b64, mime, t0, t1) => {
     if (!S || tok !== S.tok || e.sender !== S.tab.view.webContents) return;
     if (b64.length > 8e6) return;
-    S.queue.push({ seq: ++S.seq, buf: Buffer.from(b64, 'base64'), mime, t: Date.now() });
+    const vs = Number.isFinite(t0) && t0 >= 0 ? t0 : -1, ve = Number.isFinite(t1) && t1 >= 0 ? t1 : -1;
+    S.queue.push({ seq: ++S.seq, buf: Buffer.from(b64, 'base64'), mime, t: Date.now(), vs, ve });
     if (S.queue.length > 6) { S.queue.shift(); setStatus(offlineOn() ? 'PC kewalahan, melewati sebagian suara… (coba model lebih kecil)' : 'Jaringan lambat, melewati sebagian suara…'); }
     pump();
   });
@@ -53,7 +122,8 @@ function start(tab) {
   if (offlineOn()) {
     if (!OFF.sttReady()) { H.toast('Pasang model suara ke teks offline dulu di Pengaturan > Mesin offline'); H.openSettings('mesinoff'); return; }
   } else if (prov === 'custom' ? !/^https?:\/\//.test(SV.setting('stcurl')) : !keyOf()) { H.toast(prov === 'custom' ? 'Isi alamat server di Pengaturan > Play' : 'Isi Kunci API dulu di Pengaturan > Play > Terjemahan Suara'); H.openSettings('play'); return; }
-  S = { tab, tok: String(Date.now()) + Math.random().toString(36).slice(2, 8), seq: 0, queue: [], busy: 0, cool: 0, ctxTail: '', base: 'Menyiapkan…', lat: '', lines: { cur: null, prev: null }, status: 'Menyiapkan…', gen: 0 };
+  S = { tab, tok: String(Date.now()) + Math.random().toString(36).slice(2, 8), seq: 0, queue: [], busy: 0, cool: 0, ctxTail: '', base: 'Menyiapkan…', lat: '', lines: { cur: null, prev: null }, status: 'Menyiapkan…', gen: 0, sess: newSession(tab) };
+  if (S.sess) pushSess();
   pos.x = 0; pos.y = 0; inject(); H.changed();
   if (offlineOn()) {
     const me = S; setStatus('Memuat model suara…');
@@ -63,7 +133,8 @@ function start(tab) {
 function stop() {
   if (!S) return;
   try { if (!S.tab.view.webContents.isDestroyed()) S.tab.view.webContents.executeJavaScript('window.__alSTT&&window.__alSTT.stop()').catch(() => {}); } catch {}
-  S = null; clearTimeout(idleT); OFF.sttStop(); H.changed();
+  const ss = S.sess; if (ss) { ss.live = false; ss.ended = Date.now(); autosave(ss); }
+  S = null; clearTimeout(idleT); OFF.sttStop(); H.changed(); if (ss) pushSess();
 }
 function refresh() { if (S) { inject(); H.changed(); } }
 // Kesiapan Terjemahan Suara, dibaca sebelum fitur dijalankan (dipakai menu Tools): { ok, short, msg, sec }
@@ -164,12 +235,12 @@ async function run(j) {
   setStatus(null);
   if (!text || noise(text)) return;
   me.ctxTail = (me.ctxTail + ' ' + text).slice(-200);
-  place(j.seq, { orig: text, tr: '' }); touch();
+  place(j.seq, { orig: text, tr: '' }); logPut(j, { orig: text }); touch();
   const tgt = SV.setting('trLang'); let tr = '', trFail = '';
   try { tr = await translateText(text, j.lang, tgt); } catch (e) { trFail = e.message || 'Terjemahan gagal'; }
   if (S !== me) return;
   if (tr && tr.trim() === text.trim()) tr = '';
-  place(j.seq, { tr }); touch();
+  place(j.seq, { tr }); logPut(j, { tr }); touch();
   me.lat = ' · tunda ' + ((Date.now() - j.t) / 1000).toFixed(1) + ' dtk'; setStatus(trFail || null);
 }
 // terjemahan: offline (Opus-MT) bila dipilih, dengan cadangan Google Translate; selain itu Google Translate
@@ -210,10 +281,13 @@ function sanitize(k, o) {
   return o;
 }
 function resetPos() { pos.x = 0; pos.y = 0; H.changed(); }
-function ui(win) {
+// boxOf(tabId) -> { x, y, w, h } panel tempat video berada (koordinat jendela), atau null bila tab tidak terlihat (popup disembunyikan, sesi tetap jalan)
+function ui(win, boxOf) {
   if (!S) return null;
   const f = SV.setting('stf'), b = SV.setting('stb'), fs = fsMode;
-  const [w, h] = win;
+  const box = boxOf ? boxOf(S.tab.id) : { x: 0, y: 0, w: win[0], h: win[1] };
+  if (!box) return null;
+  const w = box.w, h = box.h;
   let rect, cfg;
   if (fs) {
     const px = f.sizepx > 0 ? clampN(f.sizepx, 10, 120, 30) : (FS.size[f.size] || 30);
@@ -236,6 +310,12 @@ function ui(win) {
     cfg = { size: clampN(b.size, 10, 72, 20), bgop: op, bgcol: HEX.test(b.bgcol) ? b.bgcol : '', color: HEX.test(b.color) ? b.color : '', radius: clampN(b.radius, 0, 40, 16),
       bold: b.bold !== false, border: b.border !== false, prev: b.prev !== false, orig: f.orig !== false, shadow: b.shadow === 'on' || (b.shadow !== 'off' && op <= 20) };
   }
-  return { rect, fs, idle: !!S.idle, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg };
+  rect.x += box.x; rect.y += box.y;
+  return { rect, fs, idle: !!S.idle, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg, logOn: !!S.sess };
 }
-module.exports = { init, start, stop, toggle, readiness, prewarm, refresh, active, activeTabId, setFs, drag, ui, sanitize, resetPos };
+// riwayat untuk halaman alethra://transcript dan ekspor
+const sessionsApi = { list: sessionList, entries: (sid) => { const s = find(sid); return s ? s.entries.slice() : []; }, build, fileBase: (sid) => { const s = find(sid); return s ? fileBase(s) : 'Transkrip'; },
+  clear: (sid) => { const s = find(sid); if (!s) return false; s.entries.length = 0; pushSess(); pushLog(s.id, null); return true; },
+  last: () => { const s = find(); const e = s && s.entries.filter(x => x.orig || x.tr).slice(-1)[0]; return e ? lineOf(e, 'both') : ''; },
+  tabOf: (sid) => { const s = find(sid); return s ? s.tabId : null; } };
+module.exports = { init, start, stop, toggle, readiness, prewarm, hist: sessionsApi, refresh, active, activeTabId, setFs, drag, ui, sanitize, resetPos };

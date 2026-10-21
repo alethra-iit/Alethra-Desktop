@@ -1,8 +1,8 @@
 (function () {
-  let tabs = [], S = {}, bms = [], infos = [], dragId = null, selIdx = -1, sugCount = 0, typed = '', omniFocused = false;
+  let tabs = [], groups = [], S = {}, bms = [], infos = [], dragId = null, selIdx = -1, sugCount = 0, typed = '', omniFocused = false;
   const url = $('#url');
   const set = (id, ic) => { $('#' + id).innerHTML = ICON(ic); };
-  set('newtab', 'plus'); set('back', 'back'); set('fwd', 'fwd'); set('home', 'home'); set('star', 'star'); set('trb', 'translate'); set('menub', 'more'); set('toolsb', 'tools'); $('#toolsb').insertAdjacentHTML('beforeend', '<span class="tl">Tools</span>');
+  set('newtab', 'plus'); set('tabsrch', 'search'); set('back', 'back'); set('fwd', 'fwd'); set('home', 'home'); set('star', 'star'); set('trb', 'translate'); set('menub', 'more'); set('toolsb', 'tools'); $('#toolsb').insertAdjacentHTML('beforeend', '<span class="tl">Tools</span>');
   $('#dlb').insertAdjacentHTML('afterbegin', ICON('download')); set('fp', 'up'); set('fn', 'down'); set('fx', 'close');
   $('#reload').innerHTML = ICON('reload');
   const cur = () => tabs.find(t => t.active);
@@ -11,12 +11,35 @@
   syncAria(); new MutationObserver(syncAria).observe($('#toolbar'), { subtree: true, attributes: true, attributeFilter: ['title'] });
 
   /* ---------- tab ---------- */
+  const GHEX = { abu: '#8b8d94', biru: '#4f8df7', merah: '#e5534b', kuning: '#d9a520', hijau: '#3fb950', pink: '#e76bb5', ungu: '#a371f7', sian: '#2fb5c0', jingga: '#f0883e' };
   function renderTabs() {
-    const box = $('#tabs'); box.innerHTML = '';
-    const compact = tabs.length > 7;
-    tabs.forEach(t => {
-      const d = document.createElement('div'); d.className = 'tab' + (t.active ? ' active' : '') + (t.incog ? ' incog' : '') + (compact && !t.active ? ' compact' : '');
-      d.draggable = true; d.title = t.title + '\n' + t.url;
+    const box = $('#tabs'), keepScroll = box.scrollLeft; box.innerHTML = '';
+    const gmap = {}; groups.forEach(g => { gmap[g.id] = g; });
+    const hidden = (t) => { const g = t.group && gmap[t.group]; return !!(g && g.collapsed && !t.active); };
+    // mode ringkas bila tab biasa yang terlihat banyak; tab sematan selalu ringkas dan tidak dihitung
+    const compact = tabs.filter(t => !t.pinned && !hidden(t)).length > 7;
+    let activeEl = null;
+    tabs.forEach((t, idx) => {
+      const g = t.group && gmap[t.group], gcol = g ? (GHEX[g.color] || '#8b8d94') : '';
+      // chip grup: muncul sekali di depan anggota pertama
+      if (g && (idx === 0 || tabs[idx - 1].group !== t.group)) {
+        const n = tabs.filter(z => z.group === g.id).length;
+        const c = document.createElement('div'); c.className = 'gchip' + (g.collapsed ? ' col' : ''); c.style.setProperty('--gc', gcol);
+        c.title = (g.name || 'Grup tanpa nama') + ' · ' + n + ' tab\nKlik untuk ' + (g.collapsed ? 'membentangkan' : 'menciutkan') + ', klik kanan untuk opsi';
+        c.setAttribute('role', 'button'); c.setAttribute('aria-label', 'Grup ' + (g.name || 'tanpa nama') + ', ' + n + ' tab, ' + (g.collapsed ? 'diciutkan' : 'terbuka'));
+        c.textContent = (g.name || '') + (g.collapsed ? (g.name ? ' · ' : '') + n : '');
+        if (!g.name && !g.collapsed) c.classList.add('empty');
+        c.onclick = () => api('group.toggle', g.id); c.oncontextmenu = e => { e.preventDefault(); api('group.menu', g.id); };
+        c.ondragover = e => { if (dragId != null) { e.preventDefault(); c.classList.add('drop'); } };
+        c.ondragleave = () => c.classList.remove('drop');
+        c.ondrop = e => { e.preventDefault(); c.classList.remove('drop'); if (dragId != null) api('tab.togroup', dragId, g.id); dragId = null; };
+        box.appendChild(c);
+      }
+      if (hidden(t)) return;
+      const d = document.createElement('div'); d.className = 'tab' + (t.active ? ' active' : '') + (t.incog ? ' incog' : '') + (t.pane ? ' sp sp-' + t.pane : '') + (t.pinned ? ' pin' : '') + (g ? ' grp' : '') + (compact && !t.active && !t.pinned ? ' compact' : '');
+      if (g) d.style.setProperty('--gc', gcol);
+      d.draggable = true; d.title = (t.pinned ? '📌 ' : '') + t.title + '\n' + t.url + (g ? '\nGrup: ' + (g.name || 'tanpa nama') : '');
+      d.setAttribute('role', 'tab'); d.setAttribute('aria-selected', t.active ? 'true' : 'false');
       const fv = document.createElement('div'); fv.className = 'fv';
       if (t.loading) fv.innerHTML = '<div class="spin"></div>';
       else if (t.incog) fv.innerHTML = ICON('incog');
@@ -26,17 +49,18 @@
       d.appendChild(fv);
       const tt = document.createElement('div'); tt.className = 'tt'; tt.textContent = t.title || t.url || 'Tab baru'; d.appendChild(tt);
       if (t.audible || t.muted) { const a = document.createElement('button'); a.className = 'au'; a.innerHTML = ICON(t.muted ? 'mute' : 'volume'); a.title = t.muted ? 'Aktifkan suara' : 'Bisukan tab'; a.onclick = e => { e.stopPropagation(); api('tab.mute', t.id); }; d.appendChild(a); }
-      const x = document.createElement('button'); x.className = 'x'; x.innerHTML = ICON('close'); x.title = 'Tutup tab'; x.draggable = false; x.onmousedown = e => { e.stopPropagation(); if (e.button === 0) { e.preventDefault(); api('tab.close', t.id); } }; x.onclick = e => e.stopPropagation(); d.appendChild(x);
-      d.onmousedown = e => { if (e.target.closest('.x, .au')) return; if (e.button === 0) api('tab.select', t.id); else if (e.button === 1) { e.preventDefault(); api('tab.close', t.id); } };
+      if (!t.pinned) { const x = document.createElement('button'); x.className = 'x'; x.innerHTML = ICON('close'); x.title = 'Tutup tab'; x.draggable = false; x.onmousedown = e => { e.stopPropagation(); if (e.button === 0) { e.preventDefault(); api('tab.close', t.id); } }; x.onclick = e => e.stopPropagation(); d.appendChild(x); }
+      d.onmousedown = e => { if (e.target.closest('.x, .au')) return; if (e.button === 0) api('tab.select', t.id); else if (e.button === 1) { e.preventDefault(); if (!t.pinned) api('tab.close', t.id); } };   // klik tengah tidak menutup tab sematan
       d.oncontextmenu = e => { e.preventDefault(); api('tab.menu', t.id); };
-      d.ondblclick = () => {};
       d.ondragstart = e => { dragId = t.id; e.dataTransfer.effectAllowed = 'move'; };
       d.ondragover = e => { if (dragId != null) { e.preventDefault(); d.classList.add('drop'); } };
       d.ondragleave = () => d.classList.remove('drop');
       d.ondrop = e => { e.preventDefault(); d.classList.remove('drop'); if (dragId != null && dragId !== t.id) api('tab.move', dragId, tabs.findIndex(z => z.id === t.id)); dragId = null; };
       d.ondragend = () => { dragId = null; };
-      box.appendChild(d);
+      box.appendChild(d); if (t.active) activeEl = d;
     });
+    box.scrollLeft = keepScroll;
+    if (activeEl) { const r = activeEl.getBoundingClientRect(), b = box.getBoundingClientRect(); if (r.left < b.left || r.right > b.right) activeEl.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }   // tab aktif selalu terlihat saat tab sangat banyak
   }
   function shown(u) {
     if (!u || u.startsWith('alethra://')) return '';
@@ -117,6 +141,30 @@
   $('#fp').onclick = () => api('find.next', false); $('#fn').onclick = () => api('find.next', true); $('#fx').onclick = closeFind;
 
   /* ---------- peristiwa dari main ---------- */
+  /* ---- tampilan terpisah ---- */
+  let SG = null, dragging = false, raf = 0, lastPos = 0;
+  const sp = $('#split'), sbar = $('#sbar'), pfs = sp.querySelectorAll('.pf');
+  const box = (el, r) => { el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px'; };
+  alethra.on('split', G => {
+    SG = G && G.on ? G : null; sp.hidden = !SG; if (!SG) return;
+    box(sbar, SG.bar); sbar.className = SG.vertical ? 'v' : 'h';
+    SG.bars.forEach((b, i) => { box(pfs[i], b.r); pfs[i].classList.toggle('on', !!b.on); });
+    sbar.setAttribute('aria-orientation', SG.vertical ? 'horizontal' : 'vertical'); sbar.setAttribute('aria-valuenow', Math.round(SG.ratio * 100));
+  });
+  const sendDrag = () => { raf = 0; if (dragging) api('split.drag', lastPos); };
+  sbar.addEventListener('pointerdown', e => { if (!SG) return; dragging = true; sbar.setPointerCapture(e.pointerId); sbar.classList.add('drag'); document.body.classList.add('splitdrag'); e.preventDefault(); });
+  sbar.addEventListener('pointermove', e => { if (!dragging || !SG) return; lastPos = SG.vertical ? e.clientY : e.clientX; if (!raf) raf = requestAnimationFrame(sendDrag); });
+  const endDrag = () => { if (!dragging) return; dragging = false; sbar.classList.remove('drag'); document.body.classList.remove('splitdrag'); api('split.dragend'); };
+  sbar.addEventListener('pointerup', endDrag); sbar.addEventListener('pointercancel', endDrag); sbar.addEventListener('lostpointercapture', endDrag);
+  sbar.addEventListener('dblclick', () => api('split.reset'));
+  sbar.addEventListener('keydown', e => {
+    if (!SG) return; const k = e.key, dec = SG.vertical ? 'ArrowUp' : 'ArrowLeft', inc = SG.vertical ? 'ArrowDown' : 'ArrowRight';
+    if (k === dec || k === inc) { api('split.nudge', k === inc ? 0.02 : -0.02); e.preventDefault(); } else if (k === 'Home' || k === 'Enter') { api('split.reset'); e.preventDefault(); }
+  });
+  $('#tabsrch').onclick = () => api('tabs.search');
+  // roda mouse di strip tab menggulir ke samping (berguna saat tab sangat banyak)
+  $('#tabs').addEventListener('wheel', e => { const b = $('#tabs'); if (b.scrollWidth > b.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { b.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+  alethra.on('groups', l => { groups = Array.isArray(l) ? l : []; });
   alethra.on('tabs', l => { const prev = cur(); tabs = l; const c = cur(); if (prev && c && prev.id !== c.id) { $('#findbar').hidden = true; } renderTabs(); renderBar(); });
   alethra.on('settings', s => { S = s; applyTheme(s); renderBm(); });
   alethra.on('bookmarks', l => { bms = l; renderBm(); });

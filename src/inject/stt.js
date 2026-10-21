@@ -356,8 +356,11 @@ function quietPoint(all){
   }
   return best;
 }
+// posisi video (detik) untuk riwayat/SRT; -1 untuk siaran langsung (durasi tak hingga) atau bila tidak tersedia
+function vt(){try{if(!curV||!isFinite(curV.duration))return -1;return curV.currentTime}catch(e){return -1}}
 function flush(last,forced){
   lastInt=Date.now();
+  var T=vt(),RT=1,restSec=0;try{RT=(curV&&curV.playbackRate)||1}catch(e){}
   var chunks=seg,len=segLen,v=voiced;
   seg=null;segLen=0;voiced=0;sil=0;pre=last?[last]:[];preLen=last?last.length:0;
   var all=new Float32Array(len),o=0,i;
@@ -366,13 +369,14 @@ function flush(last,forced){
     var cut=quietPoint(all);
     if(cut>RATE*1.5&&cut<len-RATE*0.1){
       // sisa setelah titik senyap dilanjutkan sebagai awal potongan berikutnya (kalimat tidak terbelah di tengah kata)
-      var rest=all.slice(cut);
+      var rest=all.slice(cut);restSec=rest.length/RATE;
       seg=[rest];segLen=rest.length;voiced=segLen*1000/RATE*0.6;sil=0;pre=[];preLen=0;
       all=all.slice(0,cut);
     }
   }
   if(v<MINV)return; // hanya derau singkat (batas dari Pengaturan audio)
-  send(all);
+  var te=T>=0?Math.max(0,T-restSec*RT):-1,ts=te>=0?Math.max(0,te-(all.length/RATE)*RT):-1;
+  send(all,false,ts,te);
 }
 // WAV 16-bit mono 16 kHz langsung ke base64, tanpa Blob dan FileReader (satu lompatan async lebih sedikit)
 function wav(f){
@@ -390,12 +394,12 @@ function b64(u8){
   for(i=0;i<u8.length;i+=CH)s+=String.fromCharCode.apply(null,u8.subarray(i,i+CH));
   return btoa(s);
 }
-function send(f,live){
+function send(f,live,ts,te){
   // suara yang terlalu pelan dinaikkan (maks 6x) supaya pengenal tidak kehilangan konsonan lemah
   var i,p=0,a;
   for(i=0;i<f.length;i++){a=f[i];if(a<0)a=-a;if(a>p)p=a}
   if(!LEG&&p>0.002&&p<0.5){var g=Math.min(AUTO,0.7/p);for(i=0;i<f.length;i++)f[i]*=g}
-  try{if(live)B.partial(tok,b64(wav(f)));else B.chunk(tok,b64(wav(f)),'audio/wav')}catch(e){}
+  try{if(live)B.partial(tok,b64(wav(f)));else B.chunk(tok,b64(wav(f)),'audio/wav',typeof ts==='number'?ts:-1,typeof te==='number'?te:-1)}catch(e){}
 }
 function watch(){
   if(!alive)return;

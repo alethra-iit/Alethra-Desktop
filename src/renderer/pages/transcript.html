@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self' alethra:; img-src * data: blob:; style-src 'self' alethra: 'unsafe-inline'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riwayat Terjemahan Suara</title><link rel="stylesheet" href="alethra://app/shared.css">
+<style>
+/* Halaman ini sering dibuka di panel sempit (tampilan terpisah), jadi semuanya mengalir/menyusut mengikuti lebar */
+body{margin:0}
+.tp{display:flex;flex-direction:column;height:100vh;box-sizing:border-box;padding:14px 16px 0;max-width:none}
+.tp h1{font-size:18px;margin:0 0 2px}
+.tp .sub{margin:0 0 10px;font-size:12.5px}
+.bar{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:8px}
+.bar .grow{flex:1 1 140px;min-width:110px}
+.bar select,.bar input[type=search]{height:30px;border:1px solid var(--line);border-radius:9px;background:var(--surf);color:var(--fg);padding:0 8px;font:inherit;font-size:13px;min-width:0}
+.bar label{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--sub);white-space:nowrap}
+.acts{display:flex;flex-wrap:wrap;gap:6px}
+.acts .btn{height:30px;padding:0 10px;font-size:12.5px}
+#st{font-size:12px;color:var(--sub);margin:2px 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#e5484d;animation:bl 1.2s infinite}@keyframes bl{50%{opacity:.25}}
+#ls{flex:1;overflow:auto;margin:0 -16px;padding:0 16px 16px;scroll-behavior:smooth}
+.it{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;padding:8px 8px;border-radius:10px;align-items:start}
+.it:hover{background:var(--surf2)}
+.it .tm{font:12px ui-monospace,Consolas,monospace;color:var(--sub);background:none;border:0;padding:2px 0;cursor:default;text-align:left}
+.it .tm.go{cursor:pointer;color:var(--acc)}.it .tm.go:hover{text-decoration:underline}
+.it .tx{min-width:0;overflow-wrap:anywhere}
+.it .tr{font-size:15px;line-height:1.4}.it .or{font-size:12.5px;color:var(--sub);line-height:1.35;margin-top:1px}
+.it .cp{opacity:0;border:0;background:none;color:var(--sub);cursor:pointer;border-radius:8px;width:26px;height:26px;display:flex;align-items:center;justify-content:center}
+.it:hover .cp,.it .cp:focus-visible{opacity:1}.it .cp:hover{background:var(--surf)}
+.it.wait .tr{opacity:.55}
+mark{background:color-mix(in srgb,var(--acc) 30%,transparent);color:inherit;border-radius:3px}
+.empty{padding:28px 12px;text-align:center;color:var(--sub);font-size:13.5px;line-height:1.5}
+@media (max-width:520px){.tp{padding:10px 10px 0}#ls{margin:0 -10px;padding:0 10px 12px}.it{grid-template-columns:1fr auto}.it .tm{grid-column:1/-1}.it .tr{font-size:14px}.bar label span{display:none}}
+</style></head><body><div class="tp" id="app"></div>
+<script src="alethra://app/shared.js"></script><script src="alethra://app/pages/transcript.js"></script></body></html>

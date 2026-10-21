@@ -104,3 +104,26 @@ Pilihan sertifikat (cek syarat dan harga terbaru ke masing-masing penyedia):
 - **SignPath Foundation**: gratis untuk proyek open source yang memenuhi syarat.
 
 Catatan: tanda tangan memastikan penerbit tercatat, tetapi reputasi SmartScreen untuk berkas baru tetap perlu waktu dan jumlah unduhan untuk naik, jadi peringatan bisa masih muncul di rilis-rilis awal.
+
+## Tampilan terpisah (split view)
+Dua halaman berdampingan, mis. video di satu sisi dan catatan/chat di sisi lain.
+- **Membuka:** Tools → *Tampilan terpisah* (Ctrl+Alt+V, membuka tab baru di sisi), klik kanan tab → *Tampilan terpisah dengan tab aktif*, atau klik kanan tautan → *Buka tautan di sisi*.
+- **Fokus:** klik panel mana pun, atau Ctrl+Alt+←/→. Omnibox, pintasan, zoom, cari, dan menu selalu bekerja pada panel yang fokus (garis aksen di atasnya).
+- **Ukuran:** seret pembagi, panah ←/→ saat pembagi fokus, klik dua kali untuk 50:50. Rasio diingat.
+- **Responsif:** susunan *otomatis* = berdampingan bila jendela ≥ 900 px, atas-bawah bila lebih sempit (bisa dipaksa di Pengaturan → Tampilan). Tiap panel punya ukuran minimum; jendela < 520 px hanya menampilkan panel fokus (pasangan tetap tersimpan).
+- **Pasangan:** memilih tab di luar pasangan menangguhkan split; memilih salah satu tab pasangan memulihkannya. Menutup salah satu tab membubarkan split. Video layar penuh memakai seluruh jendela.
+- Terjemahan Suara tidak terhenti saat fokus berpindah antar panel; popupnya mengikuti panel video.
+- Split belum disimpan antar-sesi (saat Alethra dibuka ulang, tab kembali biasa).
+
+## Riwayat Terjemahan Suara
+Tools → *Riwayat terjemahan suara* (Ctrl+Alt+H, atau ikon jam di popup) membuka `alethra://transcript` di sisi video.
+- Daftar kalimat (terjemahan + asli) bergulir otomatis, bisa dicari, disalin (semua/per kalimat), dan disimpan sebagai **.txt** atau **.srt**.
+- Waktu mengikuti **posisi video** (halaman mengirim `currentTime` tiap potongan audio), jadi `.srt` cocok dengan videonya; mengklik waktu melompat ke posisi itu di video. Untuk siaran langsung (durasi tak hingga) dipakai waktu sejak sesi dimulai.
+- Privasi: hanya di memori (5 sesi terakhir, maks 3000 kalimat per sesi), tidak pernah dicatat di tab Incognito, bisa dimatikan (Pengaturan → Play → Mesin suara). *Simpan otomatis saat berhenti* (mati bawaan) menulis .srt dan .txt ke Unduhan → Transkrip Alethra. *Buka riwayat di sisi video otomatis* juga tersedia.
+
+## Mengelola banyak tab
+- **Sematkan tab:** klik kanan tab → *Sematkan tab*. Tab sematan hanya berupa ikon di paling kiri, tanpa tombol tutup (klik tengah juga tidak menutupnya), tidak ikut *Tutup tab lain/semua*, dan **selalu dipulihkan saat Alethra dibuka**, walau "Lanjutkan sesi sebelumnya" mati. Menyematkan tab di dalam grup mengeluarkannya dari grup.
+- **Cari tab (Ctrl+Shift+A, tombol kaca pembesar di samping +, atau menu ⋮):** palet yang menyaring tab terbuka berdasarkan judul, alamat, dan nama grup (beberapa kata sekaligus). Urutan awal = yang terakhir dipakai, dengan sorotan di tab sebelumnya (seperti Alt+Tab). ↑↓ memilih, Enter membuka, Del menutup tab yang disorot. Di bawahnya ada tab yang baru ditutup, bisa dibuka lagi.
+- **Tutup massal:** menu ⋮ → *Tutup tab lain* dan *Tutup semua tab* (juga di klik kanan tab, bersama *Tutup tab di kanan*). Tab sematan dilewati; bila tidak ada yang tersisa, dibuatkan tab baru. Penutupan ≥ 5 tab meminta konfirmasi. Tab yang ditutup bisa dibuka lagi dengan Ctrl+Shift+T (50 terakhir).
+- **Kelompok tab berwarna:** klik kanan tab → *Tambahkan ke grup → Grup baru…* (nama opsional + 9 warna). Chip berwarna di depan grup: klik untuk menciutkan/membentangkan, klik kanan untuk ubah nama/warna, tab baru di grup, pisahkan grup, atau tutup grup. Seret tab ke chip untuk memasukkannya; seret keluar dari deretan grup untuk melepasnya. Tab yang dibuka dari tab dalam grup ikut grup itu. Grup disimpan bersama sesi.
+- Puluhan tab: strip tab bisa digulir dengan roda mouse, tab aktif selalu digulirkan ke tampilan, dan Ctrl+Tab melewati grup yang diciutkan.

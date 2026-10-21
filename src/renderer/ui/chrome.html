@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="alethra://app/shared.css"><link rel="stylesheet" href="alethra://app/ui/chrome.css">
 <title>Alethra</title></head><body>
 <div id="bars">
-  <div id="tabstrip"><div id="tabs"></div><button id="newtab" title="Tab baru (Ctrl+T)"></button></div>
+  <div id="tabstrip"><div id="tabs"></div><button id="newtab" title="Tab baru (Ctrl+T)"></button><button id="tabsrch" title="Cari tab (Ctrl+Shift+A)"></button></div>
   <div id="toolbar">
     <button class="tb" id="back" title="Kembali (Alt+←)"></button>
     <button class="tb" id="fwd" title="Maju (Alt+→)"></button>
@@ -19,4 +19,6 @@
   <div id="infobars"></div>
   <div id="findbar" hidden><input id="fi" placeholder="Cari di halaman" spellcheck="false"><span id="fc"></span><button class="tb sm" id="fp"></button><button class="tb sm" id="fn"></button><button class="tb sm" id="fx"></button></div>
 </div>
+<!-- tampilan terpisah: pembagi yang bisa diseret + strip penanda panel fokus (digambar di celah antar panel) -->
+<div id="split" hidden><i class="pf"></i><i class="pf"></i><div id="sbar" role="separator" tabindex="0" aria-label="Pembagi panel: seret atau tekan panah kiri/kanan untuk mengubah lebar, klik dua kali untuk 50:50" title="Seret untuk mengubah ukuran. Klik dua kali: 50:50"><b></b></div></div>
 <script src="alethra://app/shared.js"></script><script src="alethra://app/ui/chrome.js"></script></body></html>

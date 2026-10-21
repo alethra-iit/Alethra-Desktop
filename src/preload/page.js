@@ -20,7 +20,7 @@ if (location.protocol === 'alethra:') {
     });
     // Jembatan Terjemahan Suara (dipakai skrip stt.js; main memeriksa token & tab aktif)
     contextBridge.exposeInMainWorld('AlSTT', {
-      chunk: (tok, b64, mime) => ipcRenderer.send('stt:chunk', String(tok), String(b64), String(mime)),
+      chunk: (tok, b64, mime, t0, t1) => ipcRenderer.send('stt:chunk', String(tok), String(b64), String(mime), Number(t0), Number(t1)),
       status: (tok, t) => ipcRenderer.send('stt:status', String(tok), String(t)),
       partial: () => {}, pcm: () => {}, pcmEnd: () => {}, canPartial: () => false
     });
