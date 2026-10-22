@@ -70,6 +70,8 @@ function handleAlethra(req) {
 }
 
 /* ---------- Sesi ---------- */
+const CHROME_MAJOR = String(CHROME).split('.')[0];
+const CH_BRANDS_HDR = `"Chromium";v="${CHROME_MAJOR}", "Google Chrome";v="${CHROME_MAJOR}", "Not_A Brand";v="24"`;
 const sessionsDone = new Set();
 function tabOfReq(d) { return d.webContentsId ? ctx.tabs.find(t => t.view.webContents.id === d.webContentsId) : null; }
 function setupSession(ses, incog) {
@@ -111,6 +113,10 @@ function setupSession(ses, incog) {
     const h = d.requestHeaders;
     if (!/^https?:/i.test(d.url)) return cb({ requestHeaders: h });
     if (setting('dnt')) { h['DNT'] = '1'; h['Sec-GPC'] = '1'; }
+    // Samakan header Client Hints dengan Chrome asli (Electron tidak menyertakan brand "Google Chrome")
+    for (const k of Object.keys(h)) if (/^sec-ch-ua/i.test(k)) delete h[k];
+    const mob = !!(isMobileSite(U.hostOf(d.url)) || (tabOfReq(d) || {}).emu);
+    h['sec-ch-ua'] = CH_BRANDS_HDR; h['sec-ch-ua-mobile'] = mob ? '?1' : '?0'; h['sec-ch-ua-platform'] = mob ? '"Android"' : '"Windows"';
     const t = tabOfReq(d);
     if (t) {
       const th = U.hostOf(t.url);
@@ -358,6 +364,6 @@ function applyDoh() {
   } catch (e) { console.error('doh', e.message); }
 }
 
-module.exports = { trOne, DEFAULTS, setting, saveSetting, UA, MOBILE_UA, isMobileSite, localOk, offDir, setupSession, getPerm, setPerm, listPerms, PERM_LABEL,
+module.exports = { CHROME_MAJOR, trOne, DEFAULTS, setting, saveSetting, UA, MOBILE_UA, isMobileSite, localOk, offDir, setupSession, getPerm, setPerm, listPerms, PERM_LABEL,
   dlAct, recordSaved, listDownloads, dlSummary, dlPush, dlDir, pwFind, pwPut, dec, enc, initTranslate, saveOffline, exportBookmarksHtml, importBookmarksHtml,
   verifyPin, setPin, hashPin, clearData, applyDoh, EXT };

@@ -9,6 +9,28 @@ if (location.protocol === 'alethra:') {
     on: (name, cb) => { (subs[name] = subs[name] || []).push(cb); }
   });
 } else if (location.protocol === 'http:' || location.protocol === 'https:') {
+  // Samakan identitas browser dengan Chrome asli (dibutuhkan untuk login Google)
+  try {
+    const cv = String(process.versions.chrome), maj = cv.split('.')[0];
+    webFrame.executeJavaScript(`(() => {
+      try {
+        const maj = ${JSON.stringify(maj)}, full = ${JSON.stringify(cv)};
+        const brands = [{ brand: 'Chromium', version: maj }, { brand: 'Google Chrome', version: maj }, { brand: 'Not_A Brand', version: '24' }];
+        const fvl = [{ brand: 'Chromium', version: full }, { brand: 'Google Chrome', version: full }, { brand: 'Not_A Brand', version: '24.0.0.0' }];
+        const mobile = /Mobile/.test(navigator.userAgent);
+        const uad = { brands, mobile, platform: mobile ? 'Android' : 'Windows',
+          getHighEntropyValues: (h) => Promise.resolve({ brands, mobile, platform: mobile ? 'Android' : 'Windows', platformVersion: mobile ? '14.0.0' : '10.0.0', architecture: mobile ? '' : 'x86', bitness: mobile ? '' : '64', model: '', uaFullVersion: full, fullVersionList: fvl, wow64: false }),
+          toJSON: () => ({ brands, mobile, platform: mobile ? 'Android' : 'Windows' }) };
+        Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => uad, configurable: true });
+        if (!window.chrome) window.chrome = {};
+        const c = window.chrome;
+        if (!c.runtime) c.runtime = {};
+        if (!c.app) c.app = { isInstalled: false, InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' }, RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' } };
+        if (!c.csi) c.csi = () => ({});
+        if (!c.loadTimes) c.loadTimes = () => ({});
+      } catch (e) {}
+    })();`).catch(() => {});
+  } catch (e) {}
   try {
     const cfg = ipcRenderer.sendSync('page:init', location.href);
     if (cfg && cfg.js) webFrame.executeJavaScript(cfg.js).catch(() => {});
