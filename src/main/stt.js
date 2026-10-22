@@ -284,7 +284,7 @@ function sanitize(k, o) {
 }
 function resetPos() { pos.x = 0; pos.y = 0; H.changed(); }
 // boxOf(tabId) -> { x, y, w, h } panel tempat video berada (koordinat jendela), atau null bila tab tidak terlihat (popup disembunyikan, sesi tetap jalan)
-function ui(win, boxOf) {
+function ui(win, boxOf, miniOf) {
   if (!S) return null;
   const f = SV.setting('stf'), b = SV.setting('stb'), fs = fsMode;
   const box = boxOf ? boxOf(S.tab.id) : { x: 0, y: 0, w: win[0], h: win[1] };
@@ -313,6 +313,11 @@ function ui(win, boxOf) {
       bold: b.bold !== false, border: b.border !== false, prev: b.prev !== false, orig: f.orig !== false, shadow: b.shadow === 'on' || (b.shadow !== 'off' && op <= 20) };
   }
   rect.x += box.x; rect.y += box.y;
+  // Panel video sedang dalam tampilan terpisah (riwayat / split view): kotak mengecil jadi ikon mic bulat di tepi kanan panel, sejajar dengan bawah kotak
+  if (miniOf && miniOf(S.tab.id)) {
+    const M = 44, mx = Math.max(box.x + 4, box.x + box.w - M - 16), my = Math.max(box.y + 4, Math.min(box.y + box.h - M - 8, rect.y + rect.h - M));
+    return { mini: true, rect: { x: mx, y: my, w: M, h: M }, fs: false, idle: false, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg, logOn: !!S.sess, wasFs: fs };
+  }
   return { rect, fs, idle: !!S.idle, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg, logOn: !!S.sess };
 }
 // riwayat untuk halaman alethra://transcript dan ekspor

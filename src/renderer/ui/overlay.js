@@ -114,6 +114,18 @@
     el.hidden = false;
     const c = t.cfg, cur = t.cur || {}, main = cur.tr || cur.orig || '', sub = (cur.tr && c.orig) ? cur.orig : '';
     const pos = `left:${t.rect.x - s.ox}px;top:${t.rect.y - s.oy}px;width:${t.rect.w}px;height:${t.rect.h}px;`;
+    if (t.mini) {
+      // diminimalkan: ikon mic dengan warna latar & teks sama seperti kotak terjemahan yang sedang aktif
+      const op = Math.max(75, c.bgop);
+      const bg = c.bgcol ? rgba(c.bgcol, op / 100) : `color-mix(in srgb, var(--bg) ${op}%, transparent)`;
+      el.className = 'mini'; el.removeAttribute('style');
+      el.style.cssText = pos + `background:${bg};color:${c.color || 'var(--fg)'};border-radius:${Math.min(c.radius == null ? 16 : c.radius, 22)}px;`;
+      el.title = 'Terjemahan Suara aktif — klik untuk menutup tampilan terpisah dan menampilkan kotak terjemahan';
+      el.innerHTML = `<button aria-label="Tampilkan kotak terjemahan suara">${ICON('mic', 20)}<i></i></button>`;
+      $('button', el).onclick = () => api('stt.restore');
+      return;
+    }
+    el.removeAttribute('title');
     if (t.fs) {
       const bg = c.bgop <= 0 ? 'transparent' : rgba(c.bgcol, c.bgop / 100);
       const sh = c.shadow ? '0 0 4px #000,0 0 8px #000,1px 1px 2px #000' : 'none';

@@ -155,7 +155,7 @@ const paneBox = (id) => { const r = lastGeo && lastGeo.rects[id]; return r ? { x
 function renderOverlay() {
   if (!overlay || !win) return;
   const [w, h] = win.getContentSize();
-  const stt = STT.ui([w, h], paneBox);
+  const stt = STT.ui([w, h], paneBox, (id) => inSplit(id) && !!(lastGeo && lastGeo.rects[partnerOf(id)]));   // mini hanya bila kedua panel split benar-benar terlihat
   const sttShow = stt && !(stt.fs && stt.idle);
   const any = OV.suggest || OV.menu || OV.modal || OV.toast || sttShow;
   if (!any) { overlay.setVisible(false); sendOv('state', {}); return; }
@@ -418,6 +418,15 @@ function openTranscriptSide() {
   if (base.id === tr.id) return selectTab(tr.id);
   split = { a: base.id, b: tr.id }; ratioLive = null;
   if (activeId !== base.id) selectTab(base.id); else { layout(); pushTabs(); }
+}
+// Klik ikon mic (kotak terjemahan yang diminimalkan): tampilan terpisah ditutup, tab riwayat ikut ditutup, kotak terjemahan kembali normal
+function sttRestore() {
+  const id = STT.activeTabId(); if (id == null || !inSplit(id)) return;
+  const pid = partnerOf(id), p = ctx.tabs.find(x => x.id === pid);
+  splitClose();
+  if (p && internalName(p.url) === 'transcript') closeTab(pid);
+  if (ctx.tabs.some(x => x.id === id) && activeId !== id) selectTab(id);
+  renderOverlay();
 }
 /* ================= sematkan tab, grup, tutup massal, cari tab ================= */
 const pinnedCount = () => ctx.tabs.filter(t => t.pinned).length;
@@ -968,7 +977,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'tools.open', 'tr.open']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'tools.open', 'tr.open']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -1023,6 +1032,7 @@ const API = {
   'split.new': () => splitNew(),
   // --- riwayat Terjemahan Suara ---
   'stt.hist': () => openTranscriptSide(),
+  'stt.restore': () => sttRestore(),
   'stt.copylast': () => { const t = STT.hist.last(); if (!t) { ctx.toast('Belum ada kalimat'); return false; } clipboard.writeText(t); ctx.toast('Kalimat terakhir disalin'); return true; },
   'stt.sessions': () => STT.hist.list(),
   'stt.entries': (e, sid) => STT.hist.entries(sid),
