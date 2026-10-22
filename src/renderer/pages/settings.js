@@ -2,7 +2,7 @@
   let built = false, sec = (location.hash || '#umum').slice(1), S = {};
   let busyUI = false; // true saat slider/pemilih warna sedang dipakai, supaya halaman tidak dibangun ulang di tengah geseran
   S = await pageInit(s => { S = s; if (built && !busyUI) renderSec(false); });
-  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['unduhan', 'Unduhan', 'download'], ['tools', 'Tools', 'tools'], ['play', 'Play', 'play'], ['mesinoff', 'Mesin offline', 'mic'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
+  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['widget', 'Widget', 'layout'], ['unduhan', 'Unduhan', 'download'], ['tools', 'Tools', 'tools'], ['play', 'Play', 'play'], ['mesinoff', 'Mesin offline', 'mic'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
   $('#side').innerHTML = '<h2>Pengaturan</h2>'; SECS.forEach(([k, l, ic, hid]) => { if (hid) return; const b = document.createElement('button'); b.dataset.k = k; b.innerHTML = ICON(ic, 18) + esc(l); b.onclick = () => { sec = k; history.replaceState(null, '', '#' + k); renderSec(true); }; $('#side').appendChild(b); });
   const set = (k, v) => api('settings.set', k, v);
   const el = (h) => { const t = document.createElement('div'); t.innerHTML = h.trim(); return t.firstChild; };
@@ -38,6 +38,14 @@
     return row(title, desc, w);
   };
   const flag = (title, desc, val, fn) => { const c = el('<label class="sw"><input type="checkbox"><i></i></label>'); c.firstChild.checked = !!val; c.firstChild.onchange = () => fn(c.firstChild.checked); return row(title, desc, c); };
+  // bagian lipat: klik judul untuk membuka/menutup daftar opsinya; status buka tersimpan selama halaman ini terbuka
+  const openAcc = new Set();
+  const acc = (id, title, desc, rows) => {
+    const w = el('<div class="acc"></div>'), h = el(`<button class="acch" type="button" aria-expanded="false"><span class="tx"><b>${esc(title)}</b>${desc ? `<span class="d">${esc(desc)}</span>` : ''}</span><span class="chv">${ICON('down', 18)}</span></button>`);
+    const sync = () => { const o = openAcc.has(id); w.classList.toggle('open', o); h.setAttribute('aria-expanded', o); };
+    h.onclick = () => { if (openAcc.has(id)) openAcc.delete(id); else openAcc.add(id); sync(); };
+    w.append(h, box(rows)); sync(); return w;
+  };
   const main = $('#main');
 
   const DEFSTA = { pg: 1, min: 0, max: 0, sens: 2.8, dur: 300, ns: 0, gate: 0, hp: 80, lp: 0, auto: 6, minlen: 2, filt: true, meter: false, legacy: false };
@@ -131,6 +139,29 @@
       A(grp('Kunci aplikasi (PIN)')); A(await lockUI());
       A(el('<div class="group" id="perms">Izin situs</div>')); A(await permsUI());
     }
+    if (sec === 'widget') {
+      const C = Object.assign({ c: 'analog', p: 'mid', z: 1, k: 't', al: 'c', d2: 0, h24: true, q: false, y: true, n: true, b: true }, S.clock || {});
+      const sc = (k, v) => { C[k] = v; set('clock', Object.assign({}, C)); };
+      const ck = (k, t, d) => { const c = el(`<label class="sw"><input type="checkbox"><i></i></label>`); c.firstChild.checked = !!C[k]; c.firstChild.onchange = () => sc(k, c.firstChild.checked); return row(t, d, c); };
+      const D = S.stDefs, F = S.fsb || D.fsb, sf = (k, v) => set('fsb', Object.assign({}, F, { [k]: v }));
+      // pratinjau: dua tombol dengan gaya yang sama seperti di layar penuh, di atas latar bergaris supaya transparansi terlihat
+      const pv = el('<div style="display:flex;gap:8px;padding:14px 18px;border-radius:12px;background:repeating-conic-gradient(#8884 0 25%,#fff4 0 50%) 0 0/16px 16px"></div>');
+      const pbg = F.bg || (S.dark ? (S.amoled ? '#000000' : '#0b0b0d') : '#ffffff'), pfg = F.fg || (S.dark ? '#f4f4f5' : '#111113');
+      ['tools', 'more'].forEach(n => { const b = el(`<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);box-shadow:var(--shadow)">${ICON(n, 20)}</div>`); b.style.background = `color-mix(in srgb, ${pbg} ${F.bgop}%, transparent)`; b.style.color = pfg; b.style.opacity = F.op / 100; pv.appendChild(b); });
+      A(acc('fsb', 'Tombol menu layar penuh', 'Warna dan transparansi tombol Tools dan ⋮ yang melayang saat layar penuh', [
+        row('Pratinjau', 'Seret tombolnya di layar penuh untuk memindahkan posisinya', pv),
+        colorRow('Warna tombol', 'Warna latar tombol. "Ikuti tema" memakai warna tema terang/gelap', F.bg, S.dark ? '#0b0b0d' : '#ffffff', v => sf('bg', v), true),
+        colorRow('Warna ikon', 'Warna ikon Tools dan ⋮', F.fg, S.dark ? '#f4f4f5' : '#111113', v => sf('fg', v), true),
+        slider('Transparansi latar', '0% = latar tombol pekat, 100% = latar hilang dan hanya ikon yang terlihat', 0, 100, 1, 100 - F.bgop, v => v + '%', v => sf('bgop', 100 - v)),
+        slider('Transparansi tombol', 'Seberapa pudar seluruh tombol saat tidak disentuh. Saat kursor di atasnya tombol selalu jelas', 0, 90, 1, 100 - F.op, v => v + '%', v => sf('op', 100 - v)),
+        button('Pengaturan bawaan', 'Kembalikan warna dan transparansi tombol', 'Setel ulang', () => set('fsb', D.fsb))]));
+      A(acc('jam', 'Jam', 'Gaya, ukuran, warna, dan format jam di beranda', [select('Gaya jam', '', [['analog', 'Analog + teks'], ['dial', 'Jam dinding'], ['digital', 'Digital'], ['text', 'Teks'], ['bar', 'Bilah'], ['off', 'Mati']], C.c, v => sc('c', v)),
+        select('Perataan', '', [['c', 'Tengah'], ['l', 'Kiri'], ['r', 'Kanan']], C.al, v => sc('al', v)),
+        select('Ukuran', '', [[0, 'Kecil'], [1, 'Sedang'], [2, 'Besar']], C.z, v => sc('z', +v)),
+        select('Warna jam', '', [['t', 'Teks'], ['a', 'Aksen'], ['g', 'Emas'], ['b', 'Biru'], ['h', 'Hijau']], C.k, v => sc('k', v)),
+        select('Format tanggal', '', [[0, 'Lengkap'], [1, 'Singkat'], [2, 'Sembunyikan']], C.d2, v => sc('d2', +v)),
+        ck('h24', 'Format 24 jam'), ck('q', 'Tampilkan detik'), ck('n', 'Angka pada jam analog'), ck('y', 'Tampilkan zona waktu'), ck('b', 'Latar kartu jam')]));
+    }
     if (sec === 'tampilan') {
       A(box([select('Tema', '', [['system', 'Ikuti sistem'], ['light', 'Terang'], ['dark', 'Gelap']], S.theme, v => set('theme', v)), toggle('amoled', 'Mode AMOLED', 'Latar hitam pekat saat tema gelap')]));
       const nh = (v) => { v = String(v || '').trim().replace(/^#?/, '#'); if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + v.slice(1).split('').map(c => c + c).join(''); return /^#[0-9a-f]{6}$/i.test(v) ? v.toUpperCase() : null; };
@@ -147,21 +178,11 @@
       ['', '#2F6BFF', '#7C4DFF', '#E91E63', '#F44336', '#FF9800', '#2E9E5B', '#00A3A3'].forEach(c => { const b = document.createElement('button'); b.className = 'swc' + ((S.accent || '') === c ? ' on' : ''); b.style.background = c || 'linear-gradient(135deg,#fff 50%,#111 50%)'; b.title = c || 'Hitam/putih'; b.onclick = () => set('accent', c); sw.appendChild(b); });
       const ci = document.createElement('input'); ci.className = 'inp'; ci.style.width = '110px'; ci.placeholder = '#RRGGBB'; ci.value = S.accent || ''; ci.onchange = () => set('accent', ci.value.trim().toUpperCase()); sw.appendChild(ci);
       A(grp('Warna aksen')); A(box([row('Warna aksen', 'Dipakai pada tombol, tab Incognito & beranda', sw)]));
-      const C = Object.assign({ c: 'analog', p: 'mid', z: 1, k: 't', al: 'c', d2: 0, h24: true, q: false, y: true, n: true, b: true }, S.clock || {});
-      const sc = (k, v) => { C[k] = v; set('clock', Object.assign({}, C)); };
-      const ck = (k, t, d) => { const c = el(`<label class="sw"><input type="checkbox"><i></i></label>`); c.firstChild.checked = !!C[k]; c.firstChild.onchange = () => sc(k, c.firstChild.checked); return row(t, d, c); };
       A(grp('Beranda'));
       A(box([toggle('logo', 'Tampilkan logo'), toggle('grad', 'Gradasi warna latar'),
         button('Wallpaper', S.wall ? 'Wallpaper aktif' : 'Pilih gambar sebagai latar beranda', 'Pilih gambar…', () => api('wall.pick')),
         S.wall ? button('Hapus wallpaper', '', 'Hapus', () => api('wall.clear'), 'danger') : row('', '', null),
         select('Keburaman wallpaper', '', [[0, 'Tipis'], [1, 'Sedang'], [2, 'Tebal']], S.dim, v => set('dim', +v))].filter(r => r.textContent !== '')));
-      A(grp('Jam')); A(box([
-        select('Gaya jam', '', [['analog', 'Analog + teks'], ['dial', 'Jam dinding'], ['digital', 'Digital'], ['text', 'Teks'], ['bar', 'Bilah'], ['off', 'Mati']], C.c, v => sc('c', v)),
-        select('Perataan', '', [['c', 'Tengah'], ['l', 'Kiri'], ['r', 'Kanan']], C.al, v => sc('al', v)),
-        select('Ukuran', '', [[0, 'Kecil'], [1, 'Sedang'], [2, 'Besar']], C.z, v => sc('z', +v)),
-        select('Warna jam', '', [['t', 'Teks'], ['a', 'Aksen'], ['g', 'Emas'], ['b', 'Biru'], ['h', 'Hijau']], C.k, v => sc('k', v)),
-        select('Format tanggal', '', [[0, 'Lengkap'], [1, 'Singkat'], [2, 'Sembunyikan']], C.d2, v => sc('d2', +v)),
-        ck('h24', 'Format 24 jam'), ck('q', 'Tampilkan detik'), ck('n', 'Angka pada jam analog'), ck('y', 'Tampilkan zona waktu'), ck('b', 'Latar kartu jam')]));
       A(grp('Tampilan terpisah (split view)'));
       A(box([
         select('Susunan panel', 'Otomatis: berdampingan di jendela lebar, atas-bawah di jendela sempit. Buka dari menu Tools → Tampilan terpisah (Ctrl+Alt+V), klik kanan tab, atau klik kanan tautan.', [['auto', 'Otomatis'], ['h', 'Selalu berdampingan'], ['v', 'Selalu atas-bawah']], S.splitMode || 'auto', v => set('splitMode', v)),

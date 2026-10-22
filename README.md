@@ -34,7 +34,8 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Penerjemah halaman + chat live | Ada (Ctrl+Alt+T); chat live juga bisa dinyalakan dari menu ⋮ |
 | **Terjemahan Suara** (terjemahan ucapan video) | Menu Tools → Terjemahan Suara (Ctrl+Alt+S), lihat bagian di bawah |
 | Mode baca + TTS | Ada (Ctrl+Alt+R), memakai suara Windows. Tombol 🌐 di bilah mode baca: pilih **bahasa suara** (Otomatis = dideteksi per paragraf), **jenis suara Pria/Wanita**, dan suara tertentu; pilihan tersimpan. Suara bahasa lain dipasang di Pengaturan Windows → Waktu & bahasa → Ucapan |
-| Tombol layar penuh | Tombol Tools dan ⋮ yang melayang saat layar penuh bisa **digeser** (tahan lalu seret); posisinya tersimpan dan menu terbuka tepat di bawahnya |
+| Tombol layar penuh | Tombol Tools dan ⋮ yang melayang saat layar penuh bisa **digeser** (tahan lalu seret); posisinya tersimpan dan menu terbuka di dekatnya (ke atas bila tombol di bawah). Warna dan transparansinya diatur di **Pengaturan → Widget → Tombol menu layar penuh** |
+| Widget (Pengaturan) | Menu baru berisi bagian lipat: *Tombol menu layar penuh* dan *Jam* (dipindah dari Tampilan) |
 | Kualitas video | Menu Tools → Kualitas video… |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
 | Izin situs | Bilah izin + manajer di Pengaturan |

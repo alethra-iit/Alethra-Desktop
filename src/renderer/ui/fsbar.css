@@ -1,6 +1,6 @@
 html,body{background:transparent!important;overflow:hidden;height:100%;margin:0;user-select:none}
 #bar{display:flex;gap:6px;justify-content:flex-end;align-items:center;height:100%;padding:0 2px;box-sizing:border-box}
-#bar button{width:40px;height:40px;padding:0;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--bg) 82%,transparent);color:var(--fg);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow);opacity:.6;transition:opacity .15s,background .15s}
-#bar button:hover,#bar button.on,#bar button:focus-visible{opacity:1}#bar button.on{background:var(--surf2)}
+#bar button{width:40px;height:40px;padding:0;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--fb-bg,var(--bg)) var(--fb-bgop,82%),transparent);color:var(--fb-fg,var(--fg));display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow);opacity:var(--fb-op,.6);transition:opacity .15s,background .15s}
+#bar button:hover,#bar button.on,#bar button:focus-visible{opacity:1}#bar button.on{background:color-mix(in srgb,var(--fb-bg,var(--surf2)) var(--fb-bgop,82%),transparent);filter:brightness(1.12)}
 #bar button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 #bar{touch-action:none}#bar.drag,#bar.drag button{cursor:grabbing}#bar.drag button{opacity:1}

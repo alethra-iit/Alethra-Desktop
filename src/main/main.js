@@ -63,14 +63,15 @@ function applyTheme() {
   if (win) { const c = barColors(); try { win.setTitleBarOverlay({ color: c.color, symbolColor: c.symbolColor, height: 40 }); } catch {} win.setBackgroundColor(c.color); }
   const st = publicSettings();
   ctx.sendChrome('settings', st); sendOv('settings', st); ctx.broadcastPages('settings', st);
+  if (fsBar && alive(fsBar.webContents)) sendTo(fsBar.webContents, 'settings', st);
   try { renderOverlay(); } catch {}
 }
 function publicSettings() {
   const s = Object.assign({}, ctx.settings.data);
   const l = s.lock || {}; s.lock = { mode: l.mode || 'off', parts: l.parts || [], grace: l.grace == null ? 60000 : l.grace, hasPin: !!l.hash };
   delete s.stkeyEnc; { const e = ctx.settings.data.stkeyEnc; const k = e ? SV.dec(e) : ''; s.stkeyMask = k ? '••••' + k.slice(-4) : ''; }
-  for (const k of ['sta', 'stf', 'stb', 'tools']) s[k] = SV.setting(k);
-  s.stDefs = { stf: SV.DEFAULTS.stf, stb: SV.DEFAULTS.stb, tools: SV.DEFAULTS.tools };
+  for (const k of ['sta', 'stf', 'stb', 'tools', 'fsb']) s[k] = SV.setting(k);
+  s.stDefs = { stf: SV.DEFAULTS.stf, stb: SV.DEFAULTS.stb, tools: SV.DEFAULTS.tools, fsb: SV.DEFAULTS.fsb };
   s.barpal = U.barPalette(s.barcol);
   s.dark = isDark(); s.engines = U.ENGINES; s.doh_list = U.DOH; s.trLangs = U.TR_LANGS; s.dlDirShown = SV.dlDir(); s.version = app.getVersion();
   for (const k of Object.keys(SV.DEFAULTS)) if (s[k] === undefined && k !== 'lock') s[k] = SV.DEFAULTS[k];
@@ -158,6 +159,11 @@ const FSB = { w: 96, h: 44 };
 // tombol layar penuh mengirim jarak dari tepi kanan tombol ke tepi kanan bilahnya; tambahkan posisi bilah sekarang
 const fsRight = (e, right) => (fsBar && e.sender === fsBar.webContents ? fsbarPos().r + (right | 0) : right);
 let fsDrag = null;
+// menu dari tombol layar penuh: turun ke bawah bila ruang di bawah tombol lebih luas, kalau tidak naik ke atas
+function fsMenuPlace(h) {
+  const p = fsDrag ? fsDrag.cur : fsbarPos(), below = h - (p.y + FSB.h) - 14, above = p.y - 14;
+  return below >= above ? { up: false, edge: p.y + FSB.h + 6, max: Math.max(120, below) } : { up: true, edge: h - p.y + 6, max: Math.max(120, above) };
+}
 function fsbarPos() {
   const p = setting('fsbarpos') || {}, [w, h] = win.getContentSize();
   return { r: Math.max(0, Math.min(w - FSB.w, +p.r >= 0 ? +p.r : 12)), y: Math.max(0, Math.min(h - FSB.h, +p.y >= 0 ? +p.y : 12)) };
@@ -201,7 +207,7 @@ function renderOverlayCore() {
   }
   overlay.setBounds(b); overlay.setVisible(true);
   win.contentView.addChildView(overlay);
-  sendOv('state', { suggest: OV.suggest, menu: OV.menu, modal: OV.modal && { type: OV.modal.type, data: OV.modal.data }, toast: OV.toast, iconMenu: !!setting('iconMenu'), fsUi: fsActive(), fsTop: fsActive() ? fsbarPos().y + FSB.h + 6 : 0, dark: isDark(), stt: sttShow ? stt : null, ox: b.x, oy: b.y, tw: b.width });
+  sendOv('state', { suggest: OV.suggest, menu: OV.menu, modal: OV.modal && { type: OV.modal.type, data: OV.modal.data }, toast: OV.toast, iconMenu: !!setting('iconMenu'), fsUi: fsActive(), fs: fsActive() ? fsMenuPlace(h) : null, dark: isDark(), stt: sttShow ? stt : null, ox: b.x, oy: b.y, tw: b.width });
 }
 let toastT = null;
 ctx.toast = (msg) => { OV.toast = msg; renderOverlay(); clearTimeout(toastT); toastT = setTimeout(() => { OV.toast = null; renderOverlay(); }, 2600); };
@@ -1157,6 +1163,11 @@ const API = {
     if (k === 'barstyle' && !['abu', 'biru', 'hangat', 'putih'].includes(v)) return false;
     if (k === 'barcol' && v && !/^#[0-9a-f]{6}$/i.test(v)) return false;
     if (k === 'doh' && !U.DOH[v]) return false;
+    if (k === 'fsb') {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+      const hx = (c, dflt) => (c === '' || /^#[0-9a-f]{6}$/i.test(c)) ? c : dflt, cl = (n, a, b, dflt) => Number.isFinite(+n) ? Math.max(a, Math.min(b, Math.round(+n))) : dflt;
+      v = { bg: hx(v.bg, ''), fg: hx(v.fg, ''), bgop: cl(v.bgop, 0, 100, d.bgop), op: cl(v.op, 10, 100, d.op) };
+    }
     if (['clock', 'sta', 'stf', 'stb', 'tools'].includes(k)) { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = (k === 'stf' || k === 'stb') ? STT.sanitize(k, o) : o; }
     if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;
     if (k === 'stengine' && !['cloud', 'offline', 'tjs', 'vosk'].includes(v)) return false;

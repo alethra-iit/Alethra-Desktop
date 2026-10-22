@@ -8,6 +8,8 @@ const DEFAULTS = {
   theme: 'system', amoled: false, barstyle: 'abu', barcol: '', accent: '', engine: 'google', customEngine: '', httpsOnly: false, suggest: true,
   restore: true, adblock: true, sadblock: true, sadoff: [], tpc: false, dnt: false, doh: 'off', dohcustom: '',
   iconMenu: false, bmbar: true, dlAsk: false, dlDir: '', trLang: 'id', tr: false, trhide: false, rdsize: 18, rdtheme: '', rdvoice: { lang: 'auto', gender: 'auto', name: '' }, fsbarpos: { r: 12, y: 12 },
+  // tombol melayang layar penuh. bg/fg '' = ikut tema. bgop = keburaman latar tombol (%), op = keburaman tombol saat tidak disentuh (%)
+  fsb: { bg: '', fg: '', bgop: 82, op: 60 },
   zoomMap: {}, mobileSites: [], shortcuts: [
     { n: 'Google', u: 'https://www.google.com' }, { n: 'YouTube', u: 'https://www.youtube.com' },
     { n: 'Wikipedia', u: 'https://id.wikipedia.org' }, { n: 'GitHub', u: 'https://github.com' }],

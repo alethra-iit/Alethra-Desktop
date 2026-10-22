@@ -6,8 +6,15 @@
   $('#fsT').onclick = () => api('tools.open', 48);
   $('#fsM').onclick = () => api('menu.open', 2);
   alethra.on('fsbar', s => { $('#fsT').classList.toggle('on', !!s && s.menu === 'tools'); $('#fsM').classList.toggle('on', !!s && s.menu === 'main'); });
-  alethra.on('settings', s => applyTheme(s));
-  api('settings.get').then(s => s && applyTheme(s));
+  // warna & transparansi tombol (Pengaturan → Widget → Tombol menu layar penuh)
+  const look = s => {
+    const R = document.documentElement, f = s && s.fsb; if (!f) return;
+    const set = (k, v) => v ? R.style.setProperty(k, v) : R.style.removeProperty(k);
+    set('--fb-bg', f.bg); set('--fb-fg', f.fg);
+    R.style.setProperty('--fb-bgop', f.bgop + '%'); R.style.setProperty('--fb-op', String(f.op / 100));
+  };
+  alethra.on('settings', s => { applyTheme(s); look(s); });
+  api('settings.get').then(s => { if (s) { applyTheme(s); look(s); } });
 
   const bar = $('#bar'); let d = null, moved = false;
   bar.addEventListener('pointerdown', e => {
