@@ -4,6 +4,28 @@
   const catcher = $('#catch');
   catcher.addEventListener('mousedown', () => api('ov.close'));
   const hide = (id, v) => { $('#' + id).hidden = !v; };
+  // Mode ikon: item menu tampil sebagai ikon SVG; namanya muncul di pojok kanan bawah panel saat kursor di atasnya
+  const ICMAP = {
+    'tab.new': 'plus', 'tab.incog': 'incog', 'tab.reopen': 'undo', 'tabs.search': 'search', 'menu.tabs': 'tabs',
+    'open.bookmarks': 'star', 'open.history': 'clock', 'open.downloads': 'download', 'open.offline': 'offline', 'open.passwords': 'key',
+    'fullscreen': 'fullscreen', 'devtools': 'code', 'open.settings': 'settings', 'open.about': 'info', 'quit': 'power',
+    'find': 'search', 'print': 'print', 'pdf': 'file', 'offline.save': 'download', 'translate': 'translate', 'chat': 'chat', 'stt': 'mic',
+    'reader': 'reader', 'transcript.side': 'clock', 'split.new': 'split', 'split.close': 'split', 'split.swap': 'swap', 'split.mode': 'layout',
+    'split.reset': 'equal', 'vq': 'video', 'pip': 'pip', 'mobile': 'phone', 'emu': 'desktop', 'adsite': 'shield', 'tools.config': 'sliders', 'tools.iconmode': 'grid',
+    'tm.reload': 'reload', 'tm.dup': 'copy', 'tm.mute': 'volume', 'tm.pin': 'pin', 'menu.tabgroup': 'group', 'tm.ungroup': 'ungroup', 'tm.split': 'split',
+    'tm.close': 'close', 'tm.closeother': 'closeother', 'tm.closeright': 'closeright', 'tabs.closeall': 'closeall'
+  };
+  function iconBtn(it, host) {
+    const d = document.createElement('div');
+    d.className = 'mi ib' + (it.off ? ' off' : '') + (it.dim ? ' dim' : '') + (it.check ? ' chk' : '') + (it.on ? ' on' : '');
+    d.innerHTML = ICON(it.ic || ICMAP[it.id] || 'more', 20);
+    d.setAttribute('role', 'button'); d.setAttribute('aria-label', it.label);
+    const tip = () => host.querySelector('.mtip');
+    d.onmouseenter = () => { const t = tip(); if (t) t.innerHTML = `<b>${esc(it.label)}</b>` + (it.note ? ` <span>${esc(it.note)}</span>` : it.key ? ` <span>${esc(it.key)}</span>` : ''); };
+    d.onmouseleave = () => { const t = tip(); if (t) t.textContent = ''; };
+    d.onclick = () => { if (!it.off) api('ov.menu', it.id); };
+    return d;
+  }
   function render() {
     const s = st;
     catcher.style.display = (s.suggest || s.menu) ? '' : 'none';
@@ -20,7 +42,8 @@
     } else hide('sug', false);
     // menu utama
     if (s.menu) {
-      const el = $('#menu'); el.hidden = false; el.innerHTML = ''; el.style.right = (s.menu.right != null ? s.menu.right : 8) + 'px';
+      const iconMode = !!s.iconMenu && (s.menu.kind === 'main' || s.menu.kind === 'tools');
+      const el = $('#menu'); el.hidden = false; el.innerHTML = ''; el.className = iconMode ? 'ic' : ''; el.style.right = (s.menu.right != null ? s.menu.right : 8) + 'px';
       if (s.menu.kind !== lastMk) { lastMk = s.menu.kind; mq = ''; }
       let fin = null;
       s.menu.items.forEach(it => {
@@ -37,21 +60,41 @@
           const z = document.createElement('div'); z.className = 'zr'; z.innerHTML = `<span class="l">Zoom</span><button data-d="-1">−</button><span class="v">${it.zoom}%</span><button data-d="1">+</button><button data-d="0" title="Setel ulang">⟲</button>`;
           $$('button', z).forEach(b => b.onclick = () => api('ov.zoom', +b.dataset.d)); el.appendChild(z); return;
         }
-        const d = document.createElement('div'); d.className = 'mi' + (it.off ? ' off' : '') + (it.dim ? ' dim' : '');
+        if (iconMode) { el.appendChild(iconBtn(it, el)); return; }
+        const d = document.createElement('div'); d.className = 'mi' + (it.off ? ' off' : '') + (it.dim ? ' dim' : '') + (it.on ? ' on' : '');
         // dim = item tidak bisa dipakai sekarang, tapi tetap bisa diklik untuk membuka pengaturan yang menyebabkannya; note = alasannya
-        d.innerHTML = `<span class="ck">${it.check ? ICON('check', 16) : ''}</span><span class="l">${esc(it.label)}</span>${it.note ? `<span class="nt">${esc(it.note)}</span>` : `<span class="k">${it.arrow ? '›' : esc(it.key || '')}</span>`}`;
+        d.innerHTML = `<span class="ck">${it.check ? ICON('check', 16) : ''}</span><span class="l">${esc(it.label)}</span>${it.note ? `<span class="nt">${esc(it.note)}</span>` : `<span class="k">${it.arrow ? (it.arrow === 'l' ? '‹' : '›') : esc(it.key || '')}</span>`}`;
         if (it.note) d.title = it.note + ' — klik untuk membuka pengaturan';
         if (it.q) d.dataset.q = it.q;
         d.onclick = () => api('ov.menu', it.id); el.appendChild(d);
       });
+      if (iconMode) el.insertAdjacentHTML('beforeend', '<div class="mtip"></div>');
       function applyF() {
         const f = mq.trim().toLowerCase();
         $$('#menu .mhd, #menu .msep').forEach(x => x.classList.toggle('x', !!f));
         $$('#menu .mi').forEach(x => x.classList.toggle('x', !!f && !(x.dataset.q || '').includes(f)));
       }
       applyF();
+      // panel samping (Atur tab / grup): di kiri menu utama
+      const sd = $('#menu2');
+      if (s.menu.side) {
+        const sIcons = iconMode && s.menu.side.kind === 'tabs';
+        sd.hidden = false; sd.innerHTML = ''; sd.className = sIcons ? 'ic c4' : '';
+        sd.style.width = sIcons ? 'auto' : '270px'; sd.style.right = '8px';
+        s.menu.side.items.forEach(it => {
+          if (it.sep) { sd.insertAdjacentHTML('beforeend', '<div class="msep"></div>'); return; }
+          if (it.head) { sd.insertAdjacentHTML('beforeend', `<div class="mhd">${esc(it.head)}</div>`); return; }
+          if (sIcons) { sd.appendChild(iconBtn(it, sd)); return; }
+          const d = document.createElement('div'); d.className = 'mi' + (it.off ? ' off' : '');
+          d.innerHTML = `<span class="ck">${it.check ? ICON('check', 16) : ''}</span><span class="l">${esc(it.label)}</span><span class="k">${it.arrow ? '›' : esc(it.key || '')}</span>`;
+          d.onclick = () => api('ov.menu', it.id); sd.appendChild(d);
+        });
+        if (sIcons) sd.insertAdjacentHTML('beforeend', '<div class="mtip"></div>');
+        const base = (s.menu.right != null ? s.menu.right : 8) + el.offsetWidth + 6;
+        sd.style.right = Math.max(8, Math.min(base, (s.tw || 9999) - sd.offsetWidth - 4)) + 'px';
+      } else sd.hidden = true;
       if (fin) setTimeout(() => { fin.focus(); const n = fin.value.length; try { fin.setSelectionRange(n, n); } catch {} }, 20);
-    } else hide('menu', false);
+    } else { hide('menu', false); hide('menu2', false); }
     // modal
     const m = s.modal, md = $('#modal');
     if (m) {

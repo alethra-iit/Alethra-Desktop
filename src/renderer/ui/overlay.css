@@ -56,3 +56,16 @@ html,body{background:transparent!important;overflow:hidden;height:100%;user-sele
 .mc button.gs{width:28px;height:28px;padding:0;border-radius:50%;background:var(--c);border:2px solid transparent;box-shadow:inset 0 0 0 2px var(--bg)}.mc button.gs.on{border-color:var(--fg)}.mc button.gs:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .mflt{position:sticky;top:-6px;z-index:1;background:var(--bg);padding:6px 0 6px;margin:-6px 0 0}.mflt input{width:100%;box-sizing:border-box;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--surf2);color:inherit;padding:0 10px;font:inherit;font-size:13px;outline:none}.mflt input:focus{border-color:var(--acc)}
 #menu .x{display:none}
+#menu2{position:fixed;top:2px;max-height:calc(100vh - 8px);overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px}
+.mi.on{background:var(--surf2)}
+
+/* Mode ikon */
+#menu.ic,#menu2.ic{display:grid;grid-template-columns:repeat(6,42px);gap:4px;width:auto;padding:8px;justify-content:start;align-content:start}
+#menu2.ic.c4{grid-template-columns:repeat(4,42px)}
+.ic .msep{grid-column:1/-1;margin:2px 0}.ic .mhd{display:none}.ic .zr{grid-column:1/-1;padding:0 2px}
+.mi.ib{width:42px;height:42px;padding:0;justify-content:center;border-radius:10px;position:relative}
+.mi.ib svg.i{width:20px;height:20px}
+.mi.ib.off{pointer-events:auto}.mi.ib.off:hover{background:transparent}
+.mi.ib.chk::after{content:"";position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.ic .mtip{grid-column:1/-1;position:sticky;bottom:-8px;min-height:22px;line-height:22px;padding:0 4px;margin-top:2px;text-align:right;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--bg)}
+.ic .mtip b{font-weight:600}.ic .mtip span{color:var(--sub);margin-left:6px;font-size:11.5px}

@@ -171,7 +171,7 @@ function renderOverlay() {
   }
   overlay.setBounds(b); overlay.setVisible(true);
   win.contentView.addChildView(overlay);
-  sendOv('state', { suggest: OV.suggest, menu: OV.menu, modal: OV.modal && { type: OV.modal.type, data: OV.modal.data }, toast: OV.toast, dark: isDark(), stt: sttShow ? stt : null, ox: b.x, oy: b.y, tw: b.width });
+  sendOv('state', { suggest: OV.suggest, menu: OV.menu, modal: OV.modal && { type: OV.modal.type, data: OV.modal.data }, toast: OV.toast, iconMenu: !!setting('iconMenu'), dark: isDark(), stt: sttShow ? stt : null, ox: b.x, oy: b.y, tw: b.width });
 }
 let toastT = null;
 ctx.toast = (msg) => { OV.toast = msg; renderOverlay(); clearTimeout(toastT); toastT = setTimeout(() => { OV.toast = null; renderOverlay(); }, 2600); };
@@ -764,9 +764,7 @@ function mainMenuSpec() {
     { head: 'Tab' },
     I('tab.new', 'Tab baru', { key: 'Ctrl+T' }), I('tab.incog', 'Tab Incognito baru', { key: 'Ctrl+Shift+N' }), I('tab.reopen', 'Buka tab tertutup', { key: 'Ctrl+Shift+T', off: !closed.length }),
     I('tabs.search', 'Cari tab…', { key: 'Ctrl+Shift+A', off: ctx.tabs.length < 2 && !closed.length }),
-    I('menu.tabs', 'Atur tab', { arrow: true, off: !t }),
-    { sep: 1 },
-    I('tabs.closeother', 'Tutup tab lain', { off: !ctx.tabs.some(t => t.id !== activeId && !t.pinned) }), I('tabs.closeall', 'Tutup semua tab', { off: !ctx.tabs.some(t => !t.pinned) }),
+    I('menu.tabs', 'Atur tab', { arrow: 'l', on: !!(OV.menu && OV.menu.side), off: !t }),
     { sep: 1 }, { head: 'Pustaka' },
     I('open.bookmarks', 'Bookmark', { key: 'Ctrl+Shift+O' }), I('open.history', 'Histori', { key: 'Ctrl+H' }), I('open.downloads', 'Unduhan', { key: 'Ctrl+J' }), I('open.offline', 'Halaman offline'), I('open.passwords', 'Kata sandi'),
     { sep: 1 }, { head: 'Tampilan halaman' },
@@ -776,23 +774,20 @@ function mainMenuSpec() {
     I('open.settings', 'Pengaturan', { key: 'Ctrl+,' }), I('open.about', 'Tentang Alethra'), I('quit', 'Keluar')
   ];
 }
-/* ================= submenu "Atur tab" (isi sama dengan klik kanan tab; berlaku untuk tab aktif) ================= */
+/* ================= submenu "Atur tab" (urutan sama dengan klik kanan tab; berlaku untuk tab aktif). "Cari tab…" hanya di menu utama & klik kanan. ================= */
 function tabsMenuSpec() {
-  const t = curTab(); if (!t) return [{ head: 'Atur tab' }, { id: 'menu.main', label: '‹ Menu utama' }];
+  const t = curTab(); if (!t) return [{ head: 'Atur tab' }];
   const I = (id, label, o = {}) => Object.assign({ id, label }, o);
   const i = ctx.tabs.indexOf(t), closable = (l) => l.some(x => !x.pinned);
   return [
-    I('menu.main', '‹ Menu utama'),
     { head: 'Atur tab · ' + ((t.title || t.url || 'Tab').slice(0, 28)) },
-    I('tm.reload', 'Muat ulang'), I('tm.dup', 'Duplikat tab'), I('tm.mute', t.muted ? 'Aktifkan suara tab' : 'Bisukan tab'),
-    { sep: 1 },
+    I('tm.reload', 'Muat ulang'), I('tm.dup', 'Duplikat tab'), I('tm.mute', t.muted ? 'Aktifkan suara tab' : 'Bisukan tab', { ic: t.muted ? 'mute' : 'volume' }),
+    { sep: 1 }, { head: 'Susunan' },
     I('tm.pin', t.pinned ? 'Lepas sematan tab' : 'Sematkan tab'),
     !t.pinned && I('menu.tabgroup', 'Tambahkan ke grup', { arrow: true }),
     t.group && I('tm.ungroup', 'Keluarkan dari grup'),
-    I('tabs.search', 'Cari tab…', { key: 'Ctrl+Shift+A', off: ctx.tabs.length < 2 && !closed.length }),
-    { sep: 1 },
     inSplit(t.id) ? I('tm.split', 'Tutup tampilan terpisah') : I('tm.split', 'Tampilan terpisah (tab baru)'),
-    { sep: 1 },
+    { sep: 1 }, { head: 'Tutup' },
     I('tm.close', 'Tutup tab'),
     I('tm.closeother', 'Tutup tab lain', { off: !closable(ctx.tabs.filter(x => x.id !== t.id)) }),
     I('tm.closeright', 'Tutup tab di kanan', { off: !closable(ctx.tabs.slice(i + 1)) }),
@@ -859,9 +854,9 @@ function toolsMenuSpec() {
      on('print') && I('print', 'Cetak…', { key: 'Ctrl+P', off: !web }),
      on('pdf') && I('pdf', 'Simpan sebagai PDF', { off: !web }),
      on('offline') && I('offline.save', 'Simpan halaman offline', { key: 'Ctrl+S', off: !web })],
-    [on('translate') && (setting('ptr') !== false ? I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }) : I('goto.play', 'Terjemahkan halaman', { dim: true, note: 'Dimatikan di Play' })),
+    [on('translate') && (setting('ptr') !== false ? I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }) : I('goto.play', 'Terjemahkan halaman', { dim: true, ic: 'translate', note: 'Dimatikan di Play' })),
      on('chat') && I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
-     on('stt') && (rd.ok ? I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web }) : I('goto.' + rd.sec, 'Terjemahan Suara', { dim: true, note: rd.short })),
+     on('stt') && (rd.ok ? I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web }) : I('goto.' + rd.sec, 'Terjemahan Suara', { dim: true, ic: 'mic', note: rd.short })),
      on('reader') && I('reader', 'Mode baca', { key: 'Ctrl+Alt+R', off: !web }),
      on('transcript') && I('transcript.side', 'Riwayat terjemahan suara', { key: 'Ctrl+Alt+H' })],
     // Tampilan terpisah: item berubah sesuai keadaan (belum split / sedang split)
@@ -876,8 +871,10 @@ function toolsMenuSpec() {
   ].map(g => g.filter(Boolean)).filter(g => g.length);
   const out = [];
   groups.forEach((g, i) => { if (i) out.push({ sep: 1 }); out.push(...g); });
-  if (!out.length) out.push(I('tools.config', 'Belum ada alat. Atur di Pengaturan → Tools'));
-  else { out.push({ sep: 1 }); out.push(I('tools.config', 'Atur menu Tools…')); }
+  const im = !!setting('iconMenu');
+  const modeItem = I('tools.iconmode', im ? 'Kembali ke mode daftar' : 'Mode ikon', { ic: im ? 'reader' : 'grid', check: im });
+  if (!out.length) out.push(I('tools.config', 'Belum ada alat. Atur di Pengaturan → Tools'), modeItem);
+  else { out.push({ sep: 1 }); out.push(modeItem, I('tools.config', 'Atur menu Tools…')); }
   return out;
 }
 let trRight = 8;
@@ -889,17 +886,26 @@ function openMenu(kind, right) {
     : kind === 'tabs' ? { kind, items: tabsMenuSpec() }
     : kind === 'tabgroup' ? { kind, items: tabGroupMenuSpec() }
     : kind === 'trlang' || kind === 'trsrc' ? { kind, items: kind === 'trlang' ? trPickSpec() : trSrcSpec(), right: Math.max(8, (right == null ? trRight : right) | 0) }
-    : { kind: 'main', items: mainMenuSpec() };
+    : (() => { const side = OV.menu && OV.menu.kind === 'main' ? OV.menu.side : null; const m = { kind: 'main', side, items: [] }; const old = OV.menu; OV.menu = m; m.items = mainMenuSpec(); if (side) m.side = sideSpec(side.kind); OV.menu = old; return m; })();
   renderOverlay();
   if (kind === 'trlang' || kind === 'trsrc') setTimeout(() => { try { overlay.webContents.focus(); } catch {} }, 30);
+}
+/* panel samping menu utama ("Atur tab" dan submenu grup): muncul di kiri menu utama, menu utama tetap terbuka */
+function sideSpec(kind) { return { kind, items: kind === 'tabgroup' ? tabGroupMenuSpec() : tabsMenuSpec() }; }
+function openMenuSide(kind) {
+  if (!OV.menu || OV.menu.kind !== 'main') openMenu('main');
+  OV.menu.side = kind ? sideSpec(kind) : null;
+  OV.menu.items = mainMenuSpec();
+  renderOverlay();
 }
 function menuAction(id) {
   // navigasi antar panel menu: menu tidak ditutup
   if (id === 'menu.main') return openMenu('main');
-  if (id === 'menu.tabs') return openMenu('tabs');
-  if (id === 'menu.tabgroup') return openMenu('tabgroup');
+  if (id === 'menu.tabs') return openMenuSide(OV.menu && OV.menu.side && OV.menu.side.kind === 'tabs' ? null : 'tabs');
+  if (id === 'menu.tabgroup') return openMenuSide('tabgroup');
   if (id === 'menu.trsrc') return openMenu('trsrc');
   if (id === 'menu.trlang') return openMenu('trlang');
+  if (id === 'tools.iconmode') { saveSetting('iconMenu', !setting('iconMenu')); const m = OV.menu; return openMenu(m ? m.kind : 'tools', m && m.right); }   // menu tetap terbuka, hanya berganti tampilan
   OV.menu = null; renderOverlay();
   const t = curTab(), wc = curWC();
   if (t && id.startsWith('tm.group:')) return addToGroup(t.id, +id.slice(9));
@@ -998,14 +1004,14 @@ const API = {
       { label: t.pinned ? 'Lepas sematan tab' : 'Sematkan tab', click: () => pinTab(id, !t.pinned) },
       t.pinned ? null : { label: 'Tambahkan ke grup', submenu: [...groupItems, ...(groupItems.length ? [{ type: 'separator' }] : []), { label: 'Grup baru…', click: () => newGroupFor(id) }] },
       t.group ? { label: 'Keluarkan dari grup', click: () => removeFromGroup(id) } : null,
-      { label: 'Cari tab…', accelerator: 'Ctrl+Shift+A', registerAccelerator: false, click: openTabSearch },
-      { type: 'separator' },
       inSplit(id) ? { label: 'Tutup tampilan terpisah', click: splitClose } : (id !== activeId ? { label: 'Tampilan terpisah dengan tab aktif', click: () => splitPair(id, false) } : { label: 'Tampilan terpisah (tab baru)', click: () => splitNew() }),
       { type: 'separator' },
       { label: 'Tutup tab', click: () => closeTab(id) },
       { label: 'Tutup tab lain', enabled: closable(ctx.tabs.filter(x => x.id !== id)), click: () => closeMany(ctx.tabs.filter(x => x.id !== id).map(x => x.id), 'Tutup tab lain') },
       { label: 'Tutup tab di kanan', enabled: closable(ctx.tabs.slice(i + 1)), click: () => closeMany(ctx.tabs.slice(i + 1).map(x => x.id), 'Tutup tab di kanan') },
-      { label: 'Tutup semua tab', enabled: closable(ctx.tabs), click: closeAllTabs }
+      { label: 'Tutup semua tab', enabled: closable(ctx.tabs), click: closeAllTabs },
+      { type: 'separator' },
+      { label: 'Cari tab…', accelerator: 'Ctrl+Shift+A', registerAccelerator: false, click: openTabSearch }
     ].filter(Boolean)).popup({ window: win });
   },
   // --- tampilan terpisah (pembagi digambar halaman chrome; posisi pointer dikirim ke sini) ---

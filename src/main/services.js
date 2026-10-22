@@ -7,7 +7,7 @@ const ctx = require('./ctx');
 const DEFAULTS = {
   theme: 'system', amoled: false, barstyle: 'abu', barcol: '', accent: '', engine: 'google', customEngine: '', httpsOnly: false, suggest: true,
   restore: true, adblock: true, sadblock: true, sadoff: [], tpc: false, dnt: false, doh: 'off', dohcustom: '',
-  bmbar: true, dlAsk: false, dlDir: '', trLang: 'id', tr: false, trhide: false, rdsize: 18, rdtheme: '',
+  iconMenu: false, bmbar: true, dlAsk: false, dlDir: '', trLang: 'id', tr: false, trhide: false, rdsize: 18, rdtheme: '',
   zoomMap: {}, mobileSites: [], shortcuts: [
     { n: 'Google', u: 'https://www.google.com' }, { n: 'YouTube', u: 'https://www.youtube.com' },
     { n: 'Wikipedia', u: 'https://id.wikipedia.org' }, { n: 'GitHub', u: 'https://github.com' }],

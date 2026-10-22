@@ -1,5 +1,12 @@
 (function () {
   const P = {
+    chat: 'M4 5h16v11H9l-5 4z', split: 'M3 5h18v14H3zM12 5v14', swap: 'M7 8h13M16 4l4 4-4 4M17 16H4M8 12l-4 4 4 4',
+    video: 'M3 6h12v12H3zM15 10l6-3v10l-6-3', phone: 'M8 3h8v18H8zM11 18h2', undo: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
+    tabs: 'M3 9h18v11H3zM3 9V6h7l2 3', fullscreen: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', code: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16',
+    info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5h.01', power: 'M12 3v9M6.5 6.5a8 8 0 1 0 11 0',
+    layout: 'M3 5h18v14H3zM3 10h18M9 10v9', equal: 'M5 9h14M5 15h14', grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+    pin: 'M9 4h6l-1 6 3 3H7l3-3zM12 13v8', group: 'M4 5h10v10H4zM10 9h10v10H10z', ungroup: 'M4 5h10v10H4zM17 13l4 4M21 13l-4 4',
+    closeother: 'M3 6h8v12H3zM15 9l6 6M21 9l-6 6', closeright: 'M3 6h8v12H3zM15 12h6M18 9l3 3-3 3', closeall: 'M4 4h16v16H4zM9 9l6 6M15 9l-6 6',
     back: 'M15 18l-6-6 6-6', fwd: 'M9 18l6-6-6-6', reload: 'M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5', close: 'M18 6L6 18M6 6l12 12',
     home: 'M3 11l9-8 9 8M5 10v10h14V10', star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
     download: 'M12 4v11M7 11l5 5 5-5M5 20h14', more: 'M5 12h.01M12 12h.01M19 12h.01', lock: 'M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3',
