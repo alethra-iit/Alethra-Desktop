@@ -77,3 +77,7 @@ html,body{background:transparent!important;overflow:hidden;height:100%;user-sele
 #stt.mini button:hover{background:rgba(128,128,128,.22)}#stt.mini button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 #stt.mini button i{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--acc);animation:sttp 1.6s ease-in-out infinite}
 @keyframes sttp{50%{opacity:.35}}
+
+.maddr{display:flex;flex-direction:column;gap:6px;padding:4px 4px 2px}.ic .maddr{grid-column:1/-1}
+.maddr input{width:100%;box-sizing:border-box;height:36px;border:1px solid var(--line);border-radius:10px;background:var(--surf2);color:inherit;padding:0 12px;font:inherit;font-size:13px;outline:none;user-select:text}.maddr input:focus{border-color:var(--acc)}
+.maddr .ab{display:flex;gap:5px}.maddr .ab button{flex:1;min-width:0;height:30px;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:inherit;font-size:12px;cursor:pointer;white-space:nowrap;padding:0 4px}.maddr .ab button:hover{background:var(--surf2)}.maddr .ab button.pri{background:var(--acc);color:var(--onacc);border-color:transparent}

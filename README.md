@@ -35,6 +35,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | **Terjemahan Suara** (terjemahan ucapan video) | Menu Tools → Terjemahan Suara (Ctrl+Alt+S), lihat bagian di bawah |
 | Mode baca + TTS | Ada (Ctrl+Alt+R), memakai suara Windows. Tombol 🌐 di bilah mode baca: pilih **bahasa suara** (Otomatis = dideteksi per paragraf), **jenis suara Pria/Wanita**, dan suara tertentu; pilihan tersimpan. Suara bahasa lain dipasang di Pengaturan Windows → Waktu & bahasa → Ucapan |
 | Tombol layar penuh | Tombol Tools dan ⋮ yang melayang saat layar penuh bisa **digeser** (tahan lalu seret); posisinya tersimpan dan menu terbuka di dekatnya (ke atas bila tombol di bawah). Warna dan transparansinya diatur di **Pengaturan → Widget → Tombol menu layar penuh** |
+| Alamat di layar penuh | Menu Tools (tombol melayang) punya kotak alamat/pencarian di paling atas dengan tombol **Salin / Tempel / Hapus / Buka**, lalu Cari di halaman, Cetak, Simpan sebagai PDF, dan Simpan offline. Ctrl+L / F6 membukanya langsung |
 | Widget (Pengaturan) | Menu baru berisi bagian lipat: *Tombol menu layar penuh* dan *Jam* (dipindah dari Tampilan) |
 | Kualitas video | Menu Tools → Kualitas video… |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |

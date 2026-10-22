@@ -326,7 +326,9 @@ function openInternal(name) {
   if (ex) return selectTab(ex.id);
   createTab('alethra://' + name);
 }
-function focusOmni(sel = true) { if (!alive(chromeWC)) return; chromeWC.focus(); sendTo(chromeWC, 'focus-omni', sel); }
+function focusOmni(sel = true) {
+  if (fsActive() && win && !win.isDestroyed()) { closePopups(); return openMenu('tools', fsbarPos().r + 48); }   // layar penuh: bilah alamat tersembunyi, pakai kotak alamat di menu Tools
+  if (!alive(chromeWC)) return; chromeWC.focus(); sendTo(chromeWC, 'focus-omni', sel); }
 
 function addHistory(t, url) {
   if (t.incog || !/^https?:/.test(url)) return;
@@ -949,6 +951,8 @@ function toolsMenuSpec() {
      on('adsite') && I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web })]
   ].map(g => g.filter(Boolean)).filter(g => g.length);
   const out = [];
+  // layar penuh: bilah alamat tersembunyi, jadi kotak alamat/pencarian (+ salin, tempel, hapus) ada di paling atas menu Tools
+  if (fsActive()) { out.push({ addr: t && !/^alethra:\/\/(home|newtab)/.test(t.url) ? t.url : '' }); if (groups.length) out.push({ sep: 1 }); }
   groups.forEach((g, i) => { if (i) out.push({ sep: 1 }); out.push(...g); });
   const im = !!setting('iconMenu');
   const modeItem = I('tools.iconmode', im ? 'Kembali ke mode daftar' : 'Mode ikon', { ic: im ? 'reader' : 'grid', check: im });
@@ -967,7 +971,7 @@ function openMenu(kind, right) {
     : kind === 'trlang' || kind === 'trsrc' ? { kind, items: kind === 'trlang' ? trPickSpec() : trSrcSpec(), right: Math.max(8, (right == null ? trRight : right) | 0) }
     : (() => { const side = OV.menu && OV.menu.kind === 'main' ? OV.menu.side : null; const m = { kind: 'main', side, items: [], right: right != null ? Math.max(8, right | 0) : (OV.menu && OV.menu.kind === 'main' ? OV.menu.right : undefined) }; const old = OV.menu; OV.menu = m; m.items = mainMenuSpec(); if (side) m.side = sideSpec(side.kind); OV.menu = old; return m; })();
   renderOverlay();
-  if (kind === 'trlang' || kind === 'trsrc') setTimeout(() => { try { overlay.webContents.focus(); } catch {} }, 30);
+  if (kind === 'trlang' || kind === 'trsrc' || (kind === 'tools' && fsActive())) setTimeout(() => { try { overlay.webContents.focus(); } catch {} }, 30);
 }
 /* panel samping menu utama ("Atur tab" dan submenu grup): muncul di kiri menu utama, menu utama tetap terbuka */
 function sideSpec(kind) { return { kind, items: kind === 'tabgroup' ? tabGroupMenuSpec() : tabsMenuSpec() }; }
@@ -1046,7 +1050,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -1197,6 +1201,7 @@ const API = {
   'oe.test': async (e, text, s, t, mode) => { try { return { ok: true, text: (await OFF.translateBy(mode === 'nllb' ? 'nllb' : 'offline', String(text || '').slice(0, 300), String(s), String(t))) || String(text) }; } catch (err) { return { ok: false, err: err.message }; } },
   'oe.dir': () => OFF.openDir(),
   'oe.ping': () => OFF.ping(),
+  'clip.read': () => clipboard.readText().slice(0, 4000),
   'clip.write': (e, t) => { clipboard.writeText(String(t == null ? '' : t).slice(0, 20000)); return true; },
   'stt.stop': () => STT.stop(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),

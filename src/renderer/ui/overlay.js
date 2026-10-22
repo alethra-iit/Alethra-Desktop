@@ -5,7 +5,7 @@
     m.style.top = f ? (f.up ? 'auto' : f.edge + 'px') : ''; m.style.bottom = f && f.up ? f.edge + 'px' : '';
     m.style.maxHeight = f ? f.max + 'px' : '';
   };
-  let st = {}, lastModal = null, lastMk = null, mq = '';
+  let st = {}, lastModal = null, lastMk = null, mq = '', aq = null;   // aq = teks kotak alamat yang sedang diketik (null = alamat tab sekarang)
   const SIC = { go: 'search', bm: 'star', hist: 'clock' };
   const catcher = $('#catch');
   catcher.addEventListener('mousedown', () => api('ov.close'));
@@ -60,6 +60,23 @@
           inp.onkeydown = (ev) => { if (ev.key === 'Enter') { if (!mq.trim()) return; const f = $$('#menu .mi[data-q]').find(x => !x.classList.contains('x')); if (f) f.click(); } else if (ev.key === 'Escape') api('ov.close'); };
           el.appendChild(w); return;
         }
+        if (it.addr != null) {   // kotak alamat/pencarian di layar penuh: ketik lalu Enter, atau salin / tempel / hapus
+          const w = document.createElement('div'); w.className = 'maddr';
+          w.innerHTML = '<input type="text" autocomplete="off" spellcheck="false" placeholder="Ketik alamat atau pencarian"><div class="ab"><button data-a="copy">' + ICON('copy', 15) + 'Salin</button><button data-a="paste">' + ICON('file', 15) + 'Tempel</button><button data-a="clear">' + ICON('trash', 15) + 'Hapus</button><button data-a="go" class="pri">' + ICON('search', 15) + 'Buka</button></div>';
+          const inp = $('input', w), fresh = aq === null;
+          inp.value = aq === null ? it.addr : aq; if (fresh) inp.dataset.sel = '1'; fin = inp;
+          inp.oninput = () => { aq = inp.value; };
+          inp.onkeydown = (ev) => { if (ev.key === 'Enter') { if (inp.value.trim()) api('omni.go', inp.value.trim(), -1); } else if (ev.key === 'Escape') api('ov.close'); };
+          const flash = (b, t) => { const o = b.innerHTML; b.textContent = t; setTimeout(() => { b.innerHTML = o; }, 900); };
+          $$('button', w).forEach(b => b.onclick = async () => {
+            const a = b.dataset.a;
+            if (a === 'copy') { if (inp.value) { await api('clip.write', inp.value); flash(b, 'Tersalin ✓'); } }
+            else if (a === 'paste') { const t = await api('clip.read'); if (t) { const x = t.replace(/[\r\n]+/g, ' '); inp.setRangeText(x, inp.selectionStart, inp.selectionEnd, 'end'); aq = inp.value; } inp.focus(); }
+            else if (a === 'clear') { inp.value = ''; aq = ''; inp.focus(); }
+            else if (a === 'go') { if (inp.value.trim()) api('omni.go', inp.value.trim(), -1); }
+          });
+          el.appendChild(w); return;
+        }
         if (it.sep) { el.insertAdjacentHTML('beforeend', '<div class="msep"></div>'); return; }
         if (it.head) { el.insertAdjacentHTML('beforeend', `<div class="mhd">${esc(it.head)}</div>`); return; }
         if (it.zoom) {
@@ -100,8 +117,8 @@
         const base = (parseInt(el.style.right, 10) || 8) + el.offsetWidth + 6;
         sd.style.right = Math.max(8, Math.min(base, (s.tw || 9999) - sd.offsetWidth - 4)) + 'px';
       } else sd.hidden = true;
-      if (fin) setTimeout(() => { fin.focus(); const n = fin.value.length; try { fin.setSelectionRange(n, n); } catch {} }, 20);
-    } else { hide('menu', false); hide('menu2', false); }
+      if (fin) setTimeout(() => { fin.focus(); if (fin.dataset.sel) fin.select(); else { const n = fin.value.length; try { fin.setSelectionRange(n, n); } catch {} } }, 20);
+    } else { hide('menu', false); hide('menu2', false); aq = null; }
     // modal
     const m = s.modal, md = $('#modal');
     if (m) {
