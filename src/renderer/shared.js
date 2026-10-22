@@ -1,5 +1,6 @@
 (function () {
   const P = {
+    exitfs: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5',
     chat: 'M4 5h16v11H9l-5 4z', split: 'M3 5h18v14H3zM12 5v14', swap: 'M7 8h13M16 4l4 4-4 4M17 16H4M8 12l-4 4 4 4',
     video: 'M3 6h12v12H3zM15 10l6-3v10l-6-3', phone: 'M8 3h8v18H8zM11 18h2', undo: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
     tabs: 'M3 9h18v11H3zM3 9V6h7l2 3', fullscreen: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', code: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16',

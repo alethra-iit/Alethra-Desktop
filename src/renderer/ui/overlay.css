@@ -72,7 +72,8 @@ html,body{background:transparent!important;overflow:hidden;height:100%;user-sele
 
 /* Kotak Terjemahan Suara diminimalkan (saat tampilan terpisah / riwayat terbuka) */
 #stt.mini{display:block;border:1px solid var(--line);box-shadow:var(--shadow);overflow:visible}
-#stt.mini button{position:relative;width:100%;height:100%;border:0;background:none;color:inherit;display:flex;align-items:center;justify-content:center;border-radius:inherit;cursor:pointer}
+#stt.mini button{cursor:grab;position:relative;width:100%;height:100%;border:0;background:none;color:inherit;display:flex;align-items:center;justify-content:center;border-radius:inherit}
+#stt.mini button:active{cursor:grabbing}
 #stt.mini button:hover{background:rgba(128,128,128,.22)}#stt.mini button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 #stt.mini button i{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--acc);animation:sttp 1.6s ease-in-out infinite}
 @keyframes sttp{50%{opacity:.35}}

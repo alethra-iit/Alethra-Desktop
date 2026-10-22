@@ -169,6 +169,8 @@ function setStatus(msg) {
 function touch() { if (!fsMode) return; S.idle = false; clearTimeout(idleT); idleT = setTimeout(() => { if (S) { S.idle = true; H.changed(); } }, 8000); }
 function setFs(v) { fsMode = !!v; if (S) { S.idle = false; if (v) touch(); H.changed(); } }
 function drag(dx, dy) { pos.x += dx | 0; pos.y += dy | 0; H.changed(); }
+const miniPos = { x: 0, y: 0 };   // geseran ikon mic (mode diminimalkan) dari posisi bawaan
+function dragMini(dx, dy) { miniPos.x += dx | 0; miniPos.y += dy | 0; H.changed(); }
 
 /* ---------- filter teks ---------- */
 function noise(t, checkCtx = true) {
@@ -315,7 +317,9 @@ function ui(win, boxOf, miniOf) {
   rect.x += box.x; rect.y += box.y;
   // Panel video sedang dalam tampilan terpisah (riwayat / split view): kotak mengecil jadi ikon mic bulat di tepi kanan panel, sejajar dengan bawah kotak
   if (miniOf && miniOf(S.tab.id)) {
-    const M = 44, mx = Math.max(box.x + 4, box.x + box.w - M - 16), my = Math.max(box.y + 4, Math.min(box.y + box.h - M - 8, rect.y + rect.h - M));
+    const M = 44, bx = Math.max(box.x + 4, box.x + box.w - M - 16), by = Math.max(box.y + 4, Math.min(box.y + box.h - M - 8, rect.y + rect.h - M));
+    const mx = Math.max(box.x + 4, Math.min(box.x + box.w - M - 4, bx + miniPos.x)), my = Math.max(box.y + 4, Math.min(box.y + box.h - M - 4, by + miniPos.y));
+    miniPos.x = mx - bx; miniPos.y = my - by;      // tetap di dalam panel video
     return { mini: true, rect: { x: mx, y: my, w: M, h: M }, fs: false, idle: false, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg, logOn: !!S.sess, wasFs: fs };
   }
   return { rect, fs, idle: !!S.idle, status: S.status, cur: S.lines.cur, prev: S.lines.prev, cfg, logOn: !!S.sess };
@@ -325,4 +329,4 @@ const sessionsApi = { list: sessionList, entries: (sid) => { const s = find(sid)
   clear: (sid) => { const s = find(sid); if (!s) return false; s.entries.length = 0; pushSess(); pushLog(s.id, null); return true; },
   last: () => { const s = find(); const e = s && s.entries.filter(x => x.orig || x.tr).slice(-1)[0]; return e ? lineOf(e, 'both') : ''; },
   tabOf: (sid) => { const s = find(sid); return s ? s.tabId : null; } };
-module.exports = { init, start, stop, toggle, readiness, prewarm, hist: sessionsApi, refresh, active, activeTabId, setFs, drag, ui, sanitize, resetPos };
+module.exports = { init, start, stop, toggle, readiness, prewarm, hist: sessionsApi, refresh, active, activeTabId, setFs, drag, dragMini, ui, sanitize, resetPos };

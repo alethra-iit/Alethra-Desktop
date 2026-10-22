@@ -43,7 +43,7 @@
     // menu utama
     if (s.menu) {
       const iconMode = !!s.iconMenu && (s.menu.kind === 'main' || s.menu.kind === 'tools');
-      const el = $('#menu'); el.hidden = false; el.innerHTML = ''; el.className = iconMode ? 'ic' : ''; el.style.right = (s.menu.right != null ? s.menu.right : 8) + 'px';
+      const el = $('#menu'); el.hidden = false; el.innerHTML = ''; el.className = iconMode ? 'ic' : ''; el.style.right = (s.menu.right != null ? s.menu.right : 8) + 'px'; el.style.top = s.fsUi ? (s.fsTop || 62) + 'px' : ''; el.style.maxHeight = s.fsUi ? 'calc(100vh - ' + ((s.fsTop || 62) + 8) + 'px)' : '';
       if (s.menu.kind !== lastMk) { lastMk = s.menu.kind; mq = ''; }
       let fin = null;
       s.menu.items.forEach(it => {
@@ -75,12 +75,13 @@
         $$('#menu .mi').forEach(x => x.classList.toggle('x', !!f && !(x.dataset.q || '').includes(f)));
       }
       applyF();
+      el.style.right = Math.max(8, Math.min(s.menu.right != null ? s.menu.right : 8, (s.tw || 9999) - el.offsetWidth - 4)) + 'px';   // jangan keluar jendela saat tombol digeser ke kiri
       // panel samping (Atur tab / grup): di kiri menu utama
       const sd = $('#menu2');
       if (s.menu.side) {
         const sIcons = iconMode && s.menu.side.kind === 'tabs';
         sd.hidden = false; sd.innerHTML = ''; sd.className = sIcons ? 'ic c4' : '';
-        sd.style.width = sIcons ? 'auto' : '270px'; sd.style.right = '8px';
+        sd.style.width = sIcons ? 'auto' : '270px'; sd.style.right = '8px'; sd.style.top = s.fsUi ? (s.fsTop || 62) + 'px' : ''; sd.style.maxHeight = s.fsUi ? 'calc(100vh - ' + ((s.fsTop || 62) + 8) + 'px)' : '';
         s.menu.side.items.forEach(it => {
           if (it.sep) { sd.insertAdjacentHTML('beforeend', '<div class="msep"></div>'); return; }
           if (it.head) { sd.insertAdjacentHTML('beforeend', `<div class="mhd">${esc(it.head)}</div>`); return; }
@@ -90,7 +91,7 @@
           d.onclick = () => api('ov.menu', it.id); sd.appendChild(d);
         });
         if (sIcons) sd.insertAdjacentHTML('beforeend', '<div class="mtip"></div>');
-        const base = (s.menu.right != null ? s.menu.right : 8) + el.offsetWidth + 6;
+        const base = (parseInt(el.style.right, 10) || 8) + el.offsetWidth + 6;
         sd.style.right = Math.max(8, Math.min(base, (s.tw || 9999) - sd.offsetWidth - 4)) + 'px';
       } else sd.hidden = true;
       if (fin) setTimeout(() => { fin.focus(); const n = fin.value.length; try { fin.setSelectionRange(n, n); } catch {} }, 20);
@@ -120,9 +121,15 @@
       const bg = c.bgcol ? rgba(c.bgcol, op / 100) : `color-mix(in srgb, var(--bg) ${op}%, transparent)`;
       el.className = 'mini'; el.removeAttribute('style');
       el.style.cssText = pos + `background:${bg};color:${c.color || 'var(--fg)'};border-radius:${Math.min(c.radius == null ? 16 : c.radius, 22)}px;`;
-      el.title = 'Terjemahan Suara aktif — klik untuk menutup tampilan terpisah dan menampilkan kotak terjemahan';
+      el.title = 'Terjemahan Suara aktif — klik: tutup tampilan terpisah & tampilkan kotak terjemahan · tarik: pindahkan ikon';
       el.innerHTML = `<button aria-label="Tampilkan kotak terjemahan suara">${ICON('mic', 20)}<i></i></button>`;
-      $('button', el).onclick = () => api('stt.restore');
+      $('button', el).onmousedown = e => {
+        if (e.button !== 0) return;
+        let lx = e.screenX, ly = e.screenY, moved = 0;
+        const mv = ev => { const dx = ev.screenX - lx, dy = ev.screenY - ly; lx = ev.screenX; ly = ev.screenY; moved += Math.abs(dx) + Math.abs(dy); if (moved > 4) api('stt.minidrag', dx, dy); };
+        const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); if (moved <= 4) api('stt.restore'); };
+        document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up); e.preventDefault();
+      };
       return;
     }
     el.removeAttribute('title');

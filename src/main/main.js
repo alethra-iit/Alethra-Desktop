@@ -23,7 +23,7 @@ process.on('unhandledRejection', e => log('unhandledRejection', e));
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) { log('instance lain sudah berjalan'); app.quit(); process.exit(0); }
 
-let win, chromeWC, overlay, chromeH = 84, pageId = 0;
+let win, chromeWC, overlay, fsBar, chromeH = 84, pageId = 0;
 const closed = [];
 /* Kelompok tab berwarna. Anggota satu grup selalu berurutan di ctx.tabs; tab yang disematkan selalu di paling kiri dan tidak bisa masuk grup. */
 ctx.groups = []; let groupSeq = 0;
@@ -152,7 +152,37 @@ function layout() {
 }
 // panel tempat sebuah tab berada (koordinat jendela); null bila tab tidak sedang terlihat
 const paneBox = (id) => { const r = lastGeo && lastGeo.rects[id]; return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
-function renderOverlay() {
+// Layar penuh: toolbar tersembunyi, jadi dua tombol melayang (Tools & titik tiga) di pojok kanan atas membuka menu dari overlay
+const fsActive = () => !!htmlFs;
+const FSB = { w: 96, h: 44 };
+// tombol layar penuh mengirim jarak dari tepi kanan tombol ke tepi kanan bilahnya; tambahkan posisi bilah sekarang
+const fsRight = (e, right) => (fsBar && e.sender === fsBar.webContents ? fsbarPos().r + (right | 0) : right);
+let fsDrag = null;
+function fsbarPos() {
+  const p = setting('fsbarpos') || {}, [w, h] = win.getContentSize();
+  return { r: Math.max(0, Math.min(w - FSB.w, +p.r >= 0 ? +p.r : 12)), y: Math.max(0, Math.min(h - FSB.h, +p.y >= 0 ? +p.y : 12)) };
+}
+function renderFsBar() {
+  if (!fsBar || !win || win.isDestroyed()) return;
+  if (!fsActive() || OV.modal) { fsBar.setVisible(false); return; }
+  const [w] = win.getContentSize(), p = fsDrag ? fsDrag.cur : fsbarPos();
+  fsBar.setBounds({ x: Math.max(0, w - p.r - FSB.w), y: p.y, width: FSB.w, height: FSB.h });
+  fsBar.setVisible(true);
+  win.contentView.addChildView(fsBar);          // selalu paling atas, di atas overlay menu
+  sendTo(fsBar.webContents, 'fsbar', { menu: OV.menu ? OV.menu.kind : null });
+}
+// Seret tombol melayang: ph = 'start' | 'move' | 'end'; dx, dy = selisih posisi layar sejak awal seretan
+function fsbarDrag(ph, dx, dy) {
+  if (!win || !fsActive()) return;
+  if (ph === 'start') { closePopups(); fsDrag = { base: fsbarPos(), cur: fsbarPos() }; return; }
+  if (!fsDrag) return;
+  const [w, h] = win.getContentSize();
+  fsDrag.cur = { r: Math.round(Math.max(0, Math.min(w - FSB.w, fsDrag.base.r - (+dx || 0)))), y: Math.round(Math.max(0, Math.min(h - FSB.h, fsDrag.base.y + (+dy || 0)))) };
+  renderFsBar();
+  if (ph === 'end') { saveSetting('fsbarpos', fsDrag.cur); fsDrag = null; renderFsBar(); }
+}
+function renderOverlay() { renderOverlayCore(); renderFsBar(); }
+function renderOverlayCore() {
   if (!overlay || !win) return;
   const [w, h] = win.getContentSize();
   const stt = STT.ui([w, h], paneBox, (id) => inSplit(id) && !!(lastGeo && lastGeo.rects[partnerOf(id)]));   // mini hanya bila kedua panel split benar-benar terlihat
@@ -161,7 +191,7 @@ function renderOverlay() {
   if (!any) { overlay.setVisible(false); sendOv('state', {}); return; }
   let b;
   if (OV.modal) b = { x: 0, y: 0, width: w, height: h };
-  else if (OV.suggest || OV.menu) b = { x: 0, y: chromeH, width: w, height: Math.max(0, h - chromeH) };
+  else if (OV.suggest || OV.menu) { const ty = fsActive() ? 0 : chromeH; b = { x: 0, y: ty, width: w, height: Math.max(0, h - ty) }; }
   else {
     const rs = [];
     if (OV.toast) rs.push({ x: Math.floor(w / 2 - 230), y: h - 70, width: 460, height: 56 });
@@ -171,7 +201,7 @@ function renderOverlay() {
   }
   overlay.setBounds(b); overlay.setVisible(true);
   win.contentView.addChildView(overlay);
-  sendOv('state', { suggest: OV.suggest, menu: OV.menu, modal: OV.modal && { type: OV.modal.type, data: OV.modal.data }, toast: OV.toast, iconMenu: !!setting('iconMenu'), dark: isDark(), stt: sttShow ? stt : null, ox: b.x, oy: b.y, tw: b.width });
+  sendOv('state', { suggest: OV.suggest, menu: OV.menu, modal: OV.modal && { type: OV.modal.type, data: OV.modal.data }, toast: OV.toast, iconMenu: !!setting('iconMenu'), fsUi: fsActive(), fsTop: fsActive() ? fsbarPos().y + FSB.h + 6 : 0, dark: isDark(), stt: sttShow ? stt : null, ox: b.x, oy: b.y, tw: b.width });
 }
 let toastT = null;
 ctx.toast = (msg) => { OV.toast = msg; renderOverlay(); clearTimeout(toastT); toastT = setTimeout(() => { OV.toast = null; renderOverlay(); }, 2600); };
@@ -677,12 +707,19 @@ function zoomBy(d) {
   if (h && !t.url.startsWith('alethra://')) { const zm = Object.assign({}, setting('zoomMap')); if (f === 1) delete zm[h]; else zm[h] = f; saveSetting('zoomMap', zm); }
   ctx.toast('Zoom ' + Math.round(f * 100) + '%'); pushTabs();
 }
+function exitFullscreen() {
+  const t = fsId != null ? ctx.tabs.find(x => x.id === fsId) : null;
+  if (t) { try { t.view.webContents.executeJavaScript('document.fullscreenElement&&document.exitFullscreen()').catch(() => {}); } catch {} }
+  if (!t || userFs) return setFullscreen(false);
+  setTimeout(() => { if (htmlFs && win && !win.isDestroyed()) { htmlFs = false; fsId = null; win.setFullScreen(false); ctx.sendChrome('fullscreen', false); layout(); } }, 500);   // cadangan bila halaman menolak keluar
+}
+const toggleFullscreen = () => (win.isFullScreen() || htmlFs ? exitFullscreen() : setFullscreen(true));
 function setFullscreen(v) { userFs = v; win.setFullScreen(v); htmlFs = v; ctx.sendChrome('fullscreen', v); layout(); }
 function shortcut(e, i) {
   if (i.type !== 'keyDown') return false;
   const k = (i.key || '').toLowerCase(), c = i.control || i.meta, s = i.shift, a = i.alt;
   const run = (f) => { f(); return true; };
-  if (k === 'f11') return run(() => setFullscreen(!win.isFullScreen()));
+  if (k === 'f11') return run(toggleFullscreen);
   if (k === 'escape' && userFs && !a && !c) return run(() => setFullscreen(false));
   if (k === 'f5' || (c && k === 'r' && !s && !a)) return run(() => (c && i.shift ? curWC().reloadIgnoringCache() : curWC().reload()));
   if ((c && s && k === 'r') || (c && k === 'f5')) return run(() => curWC().reloadIgnoringCache());
@@ -737,14 +774,40 @@ function sendBm() { ctx.sendChrome('bookmarks', ctx.bm.data.slice(0, 60)); ctx.b
 async function clearDataDialog() { openInternal('settings'); setTimeout(() => ctx.broadcastPages('open-clear', null), 400); }
 
 /* ================= mode baca ================= */
+const RDLANG = /^(auto|[a-z]{2,3}(-[A-Za-z0-9]{2,8})*)$/;
+function readerVoice() {
+  const v = setting('rdvoice') || {};
+  return { lang: RDLANG.test(v.lang) ? v.lang : 'auto', gender: ['auto', 'male', 'female'].includes(v.gender) ? v.gender : 'auto', name: typeof v.name === 'string' ? v.name.slice(0, 160) : '' };
+}
+// ambil pilihan ukuran/tema/suara yang diubah pengguna di halaman mode baca
+async function saveReaderPrefs(wc) {
+  try {
+    const pr = await wc.executeJavaScript('window.__alRdPref||""'); if (!pr) return;
+    const o = JSON.parse(pr);
+    if (o.size) saveSetting('rdsize', Math.max(14, Math.min(28, o.size | 0)));
+    if (['light', 'sepia', 'dark'].includes(o.theme)) saveSetting('rdtheme', o.theme);
+    if (o.voice && typeof o.voice === 'object') {
+      const v = o.voice, cur = readerVoice(), nv = { lang: RDLANG.test(v.lang) ? v.lang : cur.lang, gender: ['auto', 'male', 'female'].includes(v.gender) ? v.gender : cur.gender, name: typeof v.name === 'string' ? v.name.slice(0, 160) : '' };
+      if (JSON.stringify(nv) !== JSON.stringify(cur)) saveSetting('rdvoice', nv);
+    }
+  } catch {}
+}
 async function readerMode() {
   const t = curTab(); if (!t || !/^https?:/.test(t.url)) return ctx.toast('Buka sebuah situs dulu');
   const wc = t.view.webContents;
-  try { const pr = await wc.executeJavaScript('window.__alRdPref||""'); if (pr) { const o = JSON.parse(pr); saveSetting('rdsize', o.size); saveSetting('rdtheme', o.theme); } } catch {}
+  await saveReaderPrefs(wc);
   const th = ['light', 'sepia', 'dark'].includes(setting('rdtheme')) ? setting('rdtheme') : (isDark() ? 'dark' : 'light');
-  const js = injectScript('reader.js').replace('__SIZE__', Math.max(14, Math.min(28, setting('rdsize') | 0 || 18))).replace("'__THEME__'", JSON.stringify(th)).replace('__RATE__', '1');
+  const js = injectScript('reader.js').replace('__SIZE__', Math.max(14, Math.min(28, setting('rdsize') | 0 || 18))).replace("'__THEME__'", () => JSON.stringify(th)).replace('__RATE__', '1').replace('__VOICE__', () => JSON.stringify(readerVoice()));
   const r = await wc.executeJavaScript(js, true).catch(() => 'no');
-  if (r === 'no') ctx.toast('Halaman ini tidak cocok untuk mode baca');
+  if (r === 'no') return ctx.toast('Halaman ini tidak cocok untuk mode baca');
+  if (r === 'ok') {   // simpan perubahan segera (tidak menunggu mode baca dibuka lagi) selama halaman masih membuka mode baca
+    const iv = setInterval(async () => {
+      if (!alive(wc)) return clearInterval(iv);
+      const open = await wc.executeJavaScript('!!document.getElementById("__alrd")').catch(() => false);
+      await saveReaderPrefs(wc);
+      if (!open) clearInterval(iv);
+    }, 2000);
+  }
 }
 
 /* ================= video: kualitas & PiP ================= */
@@ -769,7 +832,9 @@ function mainMenuSpec() {
   const t = curTab(), st = t ? tabState().find(x => x.id === t.id) : {};
   const I = (id, label, o = {}) => Object.assign({ id, label }, o);
   // Kelompok: Tab | Pustaka | Tampilan halaman | Aplikasi. "Hapus data penjelajahan" ada di Pengaturan → Privasi & Keamanan (pintasan Ctrl+Shift+Del tetap jalan).
+  const fsOn = fsActive();
   return [
+    ...(fsOn ? [I('fullscreen', 'Keluar dari layar penuh', { key: 'F11', ic: 'exitfs' }), { sep: 1 }] : []),
     { head: 'Tab' },
     I('tab.new', 'Tab baru', { key: 'Ctrl+T' }), I('tab.incog', 'Tab Incognito baru', { key: 'Ctrl+Shift+N' }), I('tab.reopen', 'Buka tab tertutup', { key: 'Ctrl+Shift+T', off: !closed.length }),
     I('tabs.search', 'Cari tab…', { key: 'Ctrl+Shift+A', off: ctx.tabs.length < 2 && !closed.length }),
@@ -778,10 +843,10 @@ function mainMenuSpec() {
     I('open.bookmarks', 'Bookmark', { key: 'Ctrl+Shift+O' }), I('open.history', 'Histori', { key: 'Ctrl+H' }), I('open.downloads', 'Unduhan', { key: 'Ctrl+J' }), I('open.offline', 'Halaman offline'), I('open.passwords', 'Kata sandi'),
     { sep: 1 }, { head: 'Tampilan halaman' },
     { zoom: st.zoom || 100 },
-    I('fullscreen', 'Layar penuh', { key: 'F11' }), I('devtools', 'Alat pengembang', { key: 'F12' }),
+    !fsOn && I('fullscreen', 'Layar penuh', { key: 'F11' }), I('devtools', 'Alat pengembang', { key: 'F12' }),
     { sep: 1 },
     I('open.settings', 'Pengaturan', { key: 'Ctrl+,' }), I('open.about', 'Tentang Alethra'), I('quit', 'Keluar')
-  ];
+  ].filter(Boolean);
 }
 /* ================= submenu "Atur tab" (urutan sama dengan klik kanan tab; berlaku untuk tab aktif). "Cari tab…" hanya di menu utama & klik kanan. ================= */
 function tabsMenuSpec() {
@@ -874,7 +939,6 @@ function toolsMenuSpec() {
       : [I('split.new', 'Tampilan terpisah', { key: 'Ctrl+Alt+V' })]) : [],
     [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
-     on('mobile') && I('mobile', 'Tampilan situs seluler', { check: !!st.mobile, off: !web }),
      on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
      on('adsite') && I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web })]
   ].map(g => g.filter(Boolean)).filter(g => g.length);
@@ -895,7 +959,7 @@ function openMenu(kind, right) {
     : kind === 'tabs' ? { kind, items: tabsMenuSpec() }
     : kind === 'tabgroup' ? { kind, items: tabGroupMenuSpec() }
     : kind === 'trlang' || kind === 'trsrc' ? { kind, items: kind === 'trlang' ? trPickSpec() : trSrcSpec(), right: Math.max(8, (right == null ? trRight : right) | 0) }
-    : (() => { const side = OV.menu && OV.menu.kind === 'main' ? OV.menu.side : null; const m = { kind: 'main', side, items: [] }; const old = OV.menu; OV.menu = m; m.items = mainMenuSpec(); if (side) m.side = sideSpec(side.kind); OV.menu = old; return m; })();
+    : (() => { const side = OV.menu && OV.menu.kind === 'main' ? OV.menu.side : null; const m = { kind: 'main', side, items: [], right: right != null ? Math.max(8, right | 0) : (OV.menu && OV.menu.kind === 'main' ? OV.menu.right : undefined) }; const old = OV.menu; OV.menu = m; m.items = mainMenuSpec(); if (side) m.side = sideSpec(side.kind); OV.menu = old; return m; })();
   renderOverlay();
   if (kind === 'trlang' || kind === 'trsrc') setTimeout(() => { try { overlay.webContents.focus(); } catch {} }, 30);
 }
@@ -958,10 +1022,9 @@ function menuAction(id) {
     case 'vq': return videoQuality();
     case 'pip': return pip();
     case 'emu': return emuCycle(t);
-    case 'mobile': { const h = U.hostOf(t.url); if (!h) return; const l = new Set(setting('mobileSites')); l.has(h) ? l.delete(h) : l.add(h); saveSetting('mobileSites', [...l]); wc.setUserAgent(l.has(h) ? SV.MOBILE_UA : SV.UA); wc.reloadIgnoringCache(); return; }
     case 'adsite': { const h = U.hostOf(t.url); if (!h) return; let l = (setting('sadoff') || []).slice(); const on = l.some(d => h === d || h.endsWith('.' + d)); if (on) l = l.filter(d => !(h === d || h.endsWith('.' + d))); else l.push(h); saveSetting('sadoff', l); if (!setting('sadblock')) saveSetting('sadblock', true); ctx.toast(on ? 'Blokir iklan dimatikan untuk ' + h : 'Blokir iklan aktif untuk ' + h); wc.reload(); return; }
     case 'clear': return clearDataDialog();
-    case 'fullscreen': return setFullscreen(!win.isFullScreen());
+    case 'fullscreen': return toggleFullscreen();
     case 'devtools': return wc.openDevTools({ mode: 'right' });
     case 'quit': return app.quit();
     default: if (id.startsWith('open.')) return openInternal(id.slice(5));
@@ -977,7 +1040,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'tools.open', 'tr.open']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -1033,6 +1096,7 @@ const API = {
   // --- riwayat Terjemahan Suara ---
   'stt.hist': () => openTranscriptSide(),
   'stt.restore': () => sttRestore(),
+  'stt.minidrag': (e, dx, dy) => STT.dragMini(+dx || 0, +dy || 0),
   'stt.copylast': () => { const t = STT.hist.last(); if (!t) { ctx.toast('Belum ada kalimat'); return false; } clipboard.writeText(t); ctx.toast('Kalimat terakhir disalin'); return true; },
   'stt.sessions': () => STT.hist.list(),
   'stt.entries': (e, sid) => STT.hist.entries(sid),
@@ -1063,9 +1127,11 @@ const API = {
   'omni.go': (e, text, i) => { const it = OV.suggest && OV.suggest.items[i]; closePopups(); navigateInput(it ? it.target : text); },
   'ov.pick': (e, i) => { const it = OV.suggest && OV.suggest.items[i]; closePopups(); if (it) navigateInput(it.target); },
   'ov.close': () => { closePopups(); sendTo(chromeWC, 'omni-blur'); },
-  'menu.open': () => { if (OV.menu && OV.menu.kind === 'main') { closePopups(); return; } openMenu('main'); },
+  'fsbar.drag': (e, ph, dx, dy) => fsbarDrag(String(ph), dx, dy),
+  'fsbar.pos': () => fsbarPos(),
+  'menu.open': (e, right) => { right = fsRight(e, right); if (OV.menu && OV.menu.kind === 'main') { closePopups(); return; } openMenu('main', right); },
   'tr.open': (e, right) => { if (OV.menu && (OV.menu.kind === 'trlang' || OV.menu.kind === 'trsrc')) { closePopups(); return; } const t = curTab(); if (!t || !/^https?:/.test(t.url)) return ctx.toast('Buka sebuah situs dulu untuk menerjemahkan'); openMenu('trlang', right); },
-  'tools.open': (e, right) => { if (OV.menu && OV.menu.kind === 'tools') { closePopups(); return; } openMenu('tools', right); },
+  'tools.open': (e, right) => { right = fsRight(e, right); if (OV.menu && OV.menu.kind === 'tools') { closePopups(); return; } openMenu('tools', right); },
   'ov.menu': (e, id) => menuAction(id),
   'ov.zoom': (e, d) => { zoomBy(d); openMenu('main'); },
   'modal.result': (e, v) => endModal(v),
@@ -1218,7 +1284,7 @@ async function needAuthStrict() {
 }
 ipcMain.handle('api', async (e, name, ...args) => {
   if (!isInternalSender(e)) return null;
-  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && name !== 'dl.open') return null;
+  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && name !== 'dl.open') return null;
   const f = API[name]; if (!f) return null;
   try { return await f(e, ...args); } catch (err) { console.error('api', name, err); return null; }
 });
@@ -1240,6 +1306,11 @@ function createWindow() {
   overlay.webContents.on('before-input-event', (e, input) => { if (input.type === 'keyDown' && input.key === 'Escape' && !OV.modal) { closePopups(); e.preventDefault(); } else if (shortcut(e, input)) e.preventDefault(); });
   win.contentView.addChildView(overlay); overlay.setVisible(false);
   overlay.webContents.loadURL('alethra://app/ui/overlay.html');
+  fsBar = new WebContentsView({ webPreferences: { preload: path.join(__dirname, '..', 'preload', 'internal.js'), sandbox: true, contextIsolation: true } });
+  fsBar.setBackgroundColor('#00000000');
+  fsBar.webContents.on('before-input-event', (e, input) => { if (shortcut(e, input)) e.preventDefault(); });
+  win.contentView.addChildView(fsBar); fsBar.setVisible(false);
+  fsBar.webContents.loadURL('alethra://app/ui/fsbar.html');
   chromeWC.loadURL('alethra://app/ui/chrome.html');
   win.once('ready-to-show', () => win.show());
   setTimeout(() => { if (win && !win.isDestroyed() && !win.isVisible()) { log('ready-to-show tidak muncul, memaksa tampil'); win.show(); } }, 4000);

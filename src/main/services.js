@@ -7,7 +7,7 @@ const ctx = require('./ctx');
 const DEFAULTS = {
   theme: 'system', amoled: false, barstyle: 'abu', barcol: '', accent: '', engine: 'google', customEngine: '', httpsOnly: false, suggest: true,
   restore: true, adblock: true, sadblock: true, sadoff: [], tpc: false, dnt: false, doh: 'off', dohcustom: '',
-  iconMenu: false, bmbar: true, dlAsk: false, dlDir: '', trLang: 'id', tr: false, trhide: false, rdsize: 18, rdtheme: '',
+  iconMenu: false, bmbar: true, dlAsk: false, dlDir: '', trLang: 'id', tr: false, trhide: false, rdsize: 18, rdtheme: '', rdvoice: { lang: 'auto', gender: 'auto', name: '' }, fsbarpos: { r: 12, y: 12 },
   zoomMap: {}, mobileSites: [], shortcuts: [
     { n: 'Google', u: 'https://www.google.com' }, { n: 'YouTube', u: 'https://www.youtube.com' },
     { n: 'Wikipedia', u: 'https://id.wikipedia.org' }, { n: 'GitHub', u: 'https://github.com' }],
@@ -20,7 +20,7 @@ const DEFAULTS = {
   // kotak terjemahan suara di luar layar penuh. Kosong ('') = ikut tema terang/gelap.
   stb: { bgop: 100, bgcol: '', color: '', size: 20, bold: true, width: 720, height: 168, radius: 16, border: true, prev: true, shadow: 'auto' },
   // item menu Tools yang ditampilkan
-  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, mobile: true, adsite: true, split: true, transcript: true },
+  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, adsite: true, split: true, transcript: true },
   lock: { mode: 'off', parts: [], grace: 60000, hash: '', salt: '' }
 };
 const S = () => ctx.settings.data;
@@ -35,7 +35,7 @@ function saveSetting(k, v) { S()[k] = v; ctx.settings.save(); }
 const CHROME = process.versions.chrome;
 const UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME} Safari/537.36`;
 const MOBILE_UA = `Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME} Mobile Safari/537.36`;
-const isMobileSite = (h) => !!h && (setting('mobileSites') || []).includes(h);
+const isMobileSite = (h) => false;   // fitur "Tampilan situs seluler" dihapus (digantikan Mode perangkat); daftar lama di pengaturan diabaikan
 
 /* ---------- Proteksi file lokal ---------- */
 const offDir = () => path.join(ctx.dataDir, 'offline');
