@@ -39,7 +39,15 @@ jobs:
           if [ -n "$WIN_CSC_LINK" ]; then echo "Build ditandatangani (sertifikat dari secret)."; else echo "::notice::Build TIDAK ditandatangani (secret WIN_CSC_LINK kosong). SmartScreen akan menampilkan peringatan."; fi
 
       - name: Build installer + portable
-        run: npx electron-builder --win --x64 --publish never --config.extraMetadata.version=1.0.${{ github.run_number }}
+        # publish.* hanya membuat latest.yml + app-update.yml untuk pembaruan otomatis (--publish never: unggahan dilakukan langkah "Rilis di GitHub").
+        # alethraRepo dibaca aplikasi untuk mengecek rilis terbaru (dipakai juga oleh versi portable).
+        run: >
+          npx electron-builder --win --x64 --publish never
+          --config.extraMetadata.version=1.0.${{ github.run_number }}
+          --config.extraMetadata.alethraRepo=${{ github.repository }}
+          --config.publish.provider=github
+          --config.publish.owner=${{ github.repository_owner }}
+          --config.publish.repo=${{ github.event.repository.name }}
 
       - name: Unggah artefak
         uses: actions/upload-artifact@v4
@@ -47,7 +55,9 @@ jobs:
           name: Alethra-Windows
           path: |
             dist/Alethra-Setup-*.exe
+            dist/Alethra-Setup-*.exe.blockmap
             dist/Alethra-Portable-*.exe
+            dist/latest.yml
           if-no-files-found: error
 
       - name: Rilis di GitHub
@@ -56,6 +66,10 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: Alethra v1.0.${{ github.run_number }}
+          make_latest: true
+          # latest.yml + .blockmap WAJIB ikut: dari sinilah pembaruan otomatis membaca versi terbaru dan mengunduh selisihnya
           files: |
             dist/Alethra-Setup-*.exe
+            dist/Alethra-Setup-*.exe.blockmap
             dist/Alethra-Portable-*.exe
+            dist/latest.yml

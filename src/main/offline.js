@@ -451,11 +451,11 @@ class Worker {
     const p = cp.fork(path.join(__dirname, this.file), [], { serialization: 'advanced', windowsHide: true, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], env: Object.assign({}, process.env, { ELECTRON_RUN_AS_NODE: '1' }) });
     this.p = p; this.err = '';
     p.stderr.on('data', d => { this.err = (this.err + d).slice(-1500); });
-    p.on('message', m => { const q = this.pending.get(m.id); if (!q) return; this.pending.delete(m.id); clearTimeout(q.t); m.ok ? q.res(m) : q.rej(new Error(m.err || 'Kesalahan mesin offline')); });
+    p.on('message', m => { if (m && m.rss) this.rss = m.rss; const q = this.pending.get(m.id); if (!q) return; this.pending.delete(m.id); clearTimeout(q.t); m.ok ? q.res(m) : q.rej(new Error(m.err || 'Kesalahan mesin offline')); });
     p.on('exit', (code) => {
       if (this.p === p) this.p = null;
       const why = new Error(this.label + ' berhenti tiba-tiba' + (this.err ? ': ' + this.err.split('\n').filter(Boolean).pop() : ''));
-      for (const [id, q] of this.pending) { clearTimeout(q.t); q.rej(why); } this.pending.clear();
+      for (const [id, q] of this.pending) if (q.p === p) { clearTimeout(q.t); q.rej(why); this.pending.delete(id); }      // hanya permintaan milik proses ini, bukan proses baru penggantinya
       if (this.onexit) this.onexit();
     });
     p.on('error', () => {});
@@ -465,7 +465,7 @@ class Worker {
       try { this.ensure(); } catch (e) { return rej(e); }
       const id = ++this.seq;
       const t = setTimeout(() => { this.pending.delete(id); rej(new Error(this.label + ' tidak merespons')); this.kill(); }, timeout || 60000);
-      this.pending.set(id, { res, rej, t });
+      this.pending.set(id, { res, rej, t, p: this.p });
       try { this.p.send(Object.assign({ id }, msg)); } catch (e) { clearTimeout(t); this.pending.delete(id); rej(e); }
     });
   }
@@ -623,6 +623,46 @@ async function translateNllb(text, src, tgt) {
 const translateBy = (mode, text, src, tgt) => mode === 'nllb' ? translateNllb(text, src, tgt) : FAMS[mode] ? translateFam(mode, text, src, tgt) : translate(text, src, tgt);
 const mtReady = (src, tgt) => { const p = plan(src, tgt); return Array.isArray(p) && p.length === 0; };
 
+/* ================= uji kecepatan mesin terjemahan ================= */
+const BENCH_TEXT = {
+  en: 'The weather is very nice today, so we are going to the park.', id: 'Cuaca hari ini sangat bagus, jadi kami pergi ke taman.',
+  ja: '今日はとても天気がいいので、私たちは公園に行きます。', zh: '今天天气很好，所以我们去公园。', ko: '오늘은 날씨가 아주 좋아서 우리는 공원에 갑니다.',
+  es: 'Hoy hace muy buen tiempo, así que vamos al parque.', fr: 'Il fait très beau aujourd\'hui, alors nous allons au parc.', de: 'Heute ist das Wetter sehr schön, deshalb gehen wir in den Park.',
+  ru: 'Сегодня очень хорошая погода, поэтому мы идём в парк.', it: 'Oggi il tempo è molto bello, quindi andiamo al parco.', nl: 'Het weer is vandaag erg mooi, dus we gaan naar het park.',
+  tr: 'Bugün hava çok güzel, bu yüzden parka gidiyoruz.', vi: 'Hôm nay thời tiết rất đẹp nên chúng tôi đi công viên.', th: 'วันนี้อากาศดีมาก เราจึงไปสวนสาธารณะ',
+  ar: 'الطقس جميل جدًا اليوم، لذلك سنذهب إلى الحديقة.', hi: 'आज मौसम बहुत अच्छा है, इसलिए हम पार्क जा रहे हैं।'
+};
+const BENCH_ENGINES = [['offline', 'Opus-MT (onnxruntime)', mtW], ['ct2', 'CTranslate2', ct2W], ['bergamot', 'Bergamot', bgW], ['nllb', 'NLLB-200 600M', mtW]];
+let benchBusy = false;
+// Jalankan satu kalimat di setiap mesin terjemahan yang sudah siap untuk src → tgt. Tiap mesin dimulai dari keadaan dingin
+// (proses pekerjanya dimatikan dulu) supaya waktu muat model ikut terukur, lalu 3 kali terjemah untuk rata-rata.
+async function bench(src, tgt, text) {
+  const s = norm(src), t = norm(tgt);
+  if (!s || !t || s === t) return { ok: false, err: 'Pilih dua bahasa yang berbeda' };
+  const sample = String(text || '').trim().slice(0, 300) || BENCH_TEXT[s];
+  if (!sample) return { ok: false, err: 'Tidak ada kalimat contoh untuk bahasa ini' };
+  if (benchBusy) return { ok: false, err: 'Uji kecepatan sedang berjalan' };
+  benchBusy = true; used();
+  const rows = [];
+  try {
+    for (const [mode, name, w] of BENCH_ENGINES) {
+      const row = { mode, name };
+      if (mode === 'nllb') { if (!nllbInstalled()) row.state = 'belum terpasang'; else if (!nllbCode(src) || !nllbCode(tgt)) row.state = 'bahasa tidak didukung'; }
+      else { const p = planFam(mode, s, t); if (p === null) row.state = mode === 'bergamot' ? 'belum terpasang' : 'pasangan tidak didukung'; else if (p.length) row.state = 'belum terpasang'; }
+      if (row.state) { rows.push(row); continue; }
+      try {
+        mtW.kill(); ct2W.kill(); bgW.kill(); loaded.mt = ''; w.rss = 0;           // mulai dingin
+        let t0 = Date.now(); const first = await translateBy(mode, sample, s, t); row.firstMs = Date.now() - t0;     // termasuk memuat model
+        const ms = []; let out = first;
+        for (let i = 0; i < 3; i++) { t0 = Date.now(); out = await translateBy(mode, sample, s, t); ms.push(Date.now() - t0); }
+        row.avgMs = Math.round(ms.reduce((a, b) => a + b, 0) / ms.length); row.text = out || first; row.ramMB = w.rss ? Math.round(w.rss / 1048576) : 0;
+      } catch (e) { row.err = String((e && e.message) || e).slice(0, 200); }
+      rows.push(row);
+    }
+  } finally { mtW.kill(); ct2W.kill(); bgW.kill(); loaded.mt = ''; benchBusy = false; }
+  return { ok: true, sample, src: s, tgt: t, threads: threads(), rows };
+}
+
 /* ================= untuk halaman Pengaturan ================= */
 async function list() {
   // daftar Bergamot hanya diambil dari server bila mesin itu yang dipilih; selain itu cukup model yang sudah terpasang
@@ -641,4 +681,4 @@ async function list() {
 const openDir = () => { fs.mkdirSync(root(), { recursive: true }); shell.openPath(root()); };
 const validModel = (id, key) => !id || (() => { const m = sttFind(id); return !!m && (!key || KEY[m.engine] === key); })();
 
-module.exports = { list, download, cancel, pause, resume, remove, plan, planAsync, translate, translateNllb, translateBy, transcribe, warm, sttReady, nllbReady: nllbInstalled, ping, mtReady, sttStop, shutdown, openDir, validModel, selected, norm, langFromName, Missing, LANG, jobInfo };
+module.exports = { list, download, cancel, pause, resume, remove, plan, planAsync, bench, translate, translateNllb, translateBy, transcribe, warm, sttReady, nllbReady: nllbInstalled, ping, mtReady, sttStop, shutdown, openDir, validModel, selected, norm, langFromName, Missing, LANG, jobInfo };

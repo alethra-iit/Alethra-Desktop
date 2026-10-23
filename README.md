@@ -70,6 +70,7 @@ Terjemahan Suara (pengenalan ucapan dan penerjemahannya) bisa berjalan di PC tan
 - **Opus-MT** (±85 MB per arah, lewat Inggris bila tidak ada pasangan langsung): Jepang, Mandarin, Korea, Vietnam, Thai, Rusia, Arab, Hindi, Turki, Spanyol, Prancis, Jerman, Italia, Belanda, Indonesia.
 - **CTranslate2** (±80–155 MB per arah): model Opus-MT yang sama, dijalankan mesin native `ctranslate2`, jadi lebih cepat dan hemat memori. Model diambil dari repo `manancode/…-ctranslate2-android` (int8), cadangan `gaudi/…-ctranslate2`; pasangan yang repo-nya tidak lengkap akan menampilkan galat.
 - **Bergamot** (mesin terjemahan Firefox, ±15–45 MB per arah): Marian int8 WASM (`@browsermt/bergamot-translator`). Daftar model dibaca dari Mozilla Remote Settings (cache 6 jam), berkas diperiksa sha256. Tidak semua pasangan bahasa tersedia; unduhan Bergamot tidak ikut pengaturan cermin Hugging Face.
+- **Uji kecepatan** (Pengaturan → Mesin offline): menjalankan satu kalimat di Opus-MT, CTranslate2, Bergamot, dan NLLB yang sudah terpasang untuk pasangan bahasa pilihan, lalu menampilkan waktu (rata-rata 3 kali), waktu muat pertama, RAM, dan teks hasilnya.
 - **Jeda / Lanjut**: semua unduhan model (suara dan terjemahan) bisa dijeda dan dilanjutkan dari byte terakhir (berkas `.part` disimpan).
 - **NLLB-200 distilled 600M** (Transformers.js, ±900 MB unduhan, ±1,5 GB RAM): satu model untuk semua pasangan bahasa (±40 bahasa tujuan tersedia di Alethra), tanpa lewat Inggris.
 - Cadangan Google Translate bisa dimatikan.
@@ -96,6 +97,13 @@ Tombol "Tools" di toolbar (antara Unduhan dan ⋮) berisi: cari di halaman, ceta
 Model sherpa-onnx diunduh dari Hugging Face dan tersebar di beberapa akun (`csukuangfj`, `csukuangfj2`, `k2-fsa`). Alethra mencoba semuanya berurutan. Hugging Face menjawab HTTP 401 untuk repo yang tidak ada, jadi 401 berarti nama repo tidak ditemukan, bukan butuh login. Bila Hugging Face diblokir atau lambat, ganti **Sumber unduhan model** di Pengaturan → Mesin offline (pilih `hf-mirror.com` atau isi alamat sendiri, lalu tekan *Uji*). Bila unduhan gagal, tombol **Salin detail error** menyalin versi aplikasi, sumber, tahap, dan pesan galat untuk laporan.
 
 Daftar model di Pengaturan > Mesin offline hanya menampilkan mesin suara dan mode terjemahan yang sedang dipilih.
+
+## Pembaruan otomatis
+- **Installer (`Alethra-Setup-*.exe`)**: Alethra mengecek rilis terbaru di GitHub 20 detik setelah dibuka lalu tiap 6 jam, mengunduhnya di latar (hanya selisihnya bila bisa), dan memasangnya saat Alethra ditutup atau saat menekan **Mulai ulang & pasang** di Pengaturan → Tentang → Pembaruan. Bisa dimatikan lewat *Periksa dan unduh otomatis* (tombol *Periksa sekarang* tetap bisa dipakai).
+- **Portable**: tidak bisa memasang sendiri. Alethra hanya memberi tahu ada versi baru dan membuka halaman rilis.
+- **`npm start` / build lokal tanpa publish**: pembaruan tidak aktif (ditampilkan di Tentang).
+- Syarat: repo GitHub **publik** (repo privat butuh token). Workflow `build.yml` sudah mengisi pengaturan publish dan mengunggah `latest.yml` serta `.blockmap` bersama installer; tanpa dua berkas itu, pembaruan otomatis tidak berfungsi. Nomor versi = `1.0.<nomor run>`, jadi tiap build baru dianggap lebih baru.
+- Opsional: bila build ditandatangani, isi `win.publisherName` (nama pada sertifikat) di `package.json` agar electron-updater ikut memverifikasi tanda tangan installer pembaruan.
 
 ## Penandatanganan kode (Windows)
 Workflow `build.yml` otomatis menandatangani installer dan portable **bila** dua secret berikut diisi di GitHub (Settings → Secrets and variables → Actions). Bila kosong, build tetap jalan tanpa tanda tangan seperti sebelumnya.

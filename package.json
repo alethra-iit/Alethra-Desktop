@@ -90,6 +90,7 @@
     "vosk-koffi": "^1.1.1",
     "fflate": "^0.8.2",
     "ctranslate2": "1.0.0",
-    "@browsermt/bergamot-translator": "0.4.9"
+    "@browsermt/bergamot-translator": "0.4.9",
+    "electron-updater": "^6.8.0"
   }
 }

@@ -7,6 +7,7 @@ const SV = require('./services');
 const { setting, saveSetting } = SV;
 const STT = require('./stt');
 const OFF = require('./offline');
+const UPD = require('./updater');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'alethra', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName('Alethra');
@@ -1201,7 +1202,14 @@ const API = {
   'oe.del': async (e, id) => { const ok = await OFF.remove(String(id)); applyTheme(); return ok; },
   'oe.plan': (e, s, t, eng) => OFF.planAsync(String(s), String(t), String(eng || 'offline')),
   'oe.test': async (e, text, s, t, mode) => { try { return { ok: true, text: (await OFF.translateBy(['nllb', 'ct2', 'bergamot'].includes(mode) ? mode : 'offline', String(text || '').slice(0, 300), String(s), String(t))) || String(text) }; } catch (err) { return { ok: false, err: err.message }; } },
+  'oe.bench': (e, text, s, t) => OFF.bench(String(s), String(t), String(text || '')),
   'oe.dir': () => OFF.openDir(),
+  /* pembaruan aplikasi */
+  'up.state': () => UPD.state(),
+  'up.check': () => UPD.check(),
+  'up.download': () => UPD.download(),
+  'up.install': () => UPD.install(),
+  'up.releases': () => UPD.openReleases(),
   'oe.ping': () => OFF.ping(),
   'clip.read': () => clipboard.readText().slice(0, 4000),
   'clip.write': (e, t) => { clipboard.writeText(String(t == null ? '' : t).slice(0, 20000)); return true; },
@@ -1392,5 +1400,6 @@ app.whenReady().then(() => {
   nativeTheme.themeSource = setting('theme');
   nativeTheme.on('updated', () => applyTheme());
   createWindow();
+  try { UPD.init(); } catch (e) { console.error('updater', e); }
 });
 API['nav.search'] = (e, text) => { const t = tabByWc(e.sender); if (t) go(t, U.toUrl(text, engineUrl(), true)); };

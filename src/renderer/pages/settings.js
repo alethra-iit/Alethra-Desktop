@@ -107,6 +107,10 @@
     }
   });
 
+  // pembaruan aplikasi (Pengaturan > Tentang): kotak diisi ulang tiap status berubah
+  let upFill = null;
+  alethra.on('up', (u) => { if (sec === 'tentang' && upFill) upFill(u); });
+
   async function renderSec(scroll) {
     busyUI = false;
     $$('#side button').forEach(b => b.classList.toggle('on', b.dataset.k === sec));
@@ -457,6 +461,36 @@
 
       }
 
+      /* ----- uji kecepatan ----- */
+      A(grp('Uji kecepatan terjemahan'));
+      {
+        const out = el('<div class="list" style="display:none;margin-top:10px"></div>'), note = el('<p class="sub" style="font-size:12.5px;margin:8px 0 0;display:none"></p>');
+        const bb = document.createElement('button'); bb.className = 'btn sm pri'; bb.textContent = 'Mulai uji';
+        const show = (r) => {
+          out.innerHTML = ''; out.style.display = ''; note.style.display = '';
+          if (!r || !r.ok) { out.appendChild(row('Uji gagal', (r && r.err) || 'Tidak ada jawaban dari aplikasi', null)); note.style.display = 'none'; return; }
+          const done = r.rows.filter(x => x.avgMs != null).sort((a, b) => a.avgMs - b.avgMs), rest = r.rows.filter(x => x.avgMs == null), max = Math.max(1, ...done.map(x => x.avgMs));
+          done.forEach((x, i) => {
+            const w = Math.max(4, Math.round(x.avgMs * 100 / max));
+            out.appendChild(el(`<div class="set"><div class="tx"><div>${esc(x.name)}${i === 0 && done.length > 1 ? ' <span style="font-size:11px;padding:2px 8px;border-radius:9px;background:var(--acc);color:var(--onacc);margin-left:6px">Tercepat</span>' : ''}</div>
+              <div class="d">${x.avgMs} ms per kalimat · muat pertama ${x.firstMs} ms${x.ramMB ? ' · RAM ±' + x.ramMB + ' MB' : ''}</div>
+              <div class="prog"><i style="width:${w}%"></i></div><div class="d" style="color:var(--text, inherit)">${esc(x.text || '')}</div></div></div>`));
+          });
+          rest.forEach(x => out.appendChild(row(x.name, x.err ? 'Gagal: ' + x.err : 'Dilewati: ' + x.state, null)));
+          if (!done.length) out.appendChild(row('Belum ada mesin yang siap', 'Unduh model untuk pasangan bahasa ini di salah satu mesin di atas, lalu coba lagi.', null));
+          note.textContent = `Kalimat uji (${LN[r.src] || r.src} → ${LN[r.tgt] || r.tgt}, ${r.threads} thread): "${r.sample}". Waktu = rata-rata 3 kali terjemah setelah model dimuat. Mutu terjemahan tidak diukur otomatis, bandingkan sendiri teks hasilnya.`;
+        };
+        bb.onclick = async () => {
+          bb.disabled = true; bb.textContent = 'Menguji…'; out.style.display = 'none'; note.style.display = 'none';
+          const r = await api('oe.bench', benchText.value, mtS, mtT); bb.disabled = false; bb.textContent = 'Mulai uji'; show(r);
+        };
+        const benchText = document.createElement('input'); benchText.className = 'inp'; benchText.style.width = '320px'; benchText.placeholder = 'Kosong = kalimat contoh bawaan';
+        A(box([select('Dari bahasa', 'Bahasa kalimat uji', opts, mtS, v => { mtS = v; }), select('Ke bahasa', 'Bahasa terjemahan', opts, mtT, v => { mtT = v; }),
+          row('Kalimat uji', 'Opsional. Ketik kalimat sendiri dalam bahasa asal.', benchText),
+          row('Bandingkan mesin terjemahan', 'Menjalankan satu kalimat di semua mesin yang sudah terpasang untuk pasangan bahasa di atas (Opus-MT, CTranslate2, Bergamot, NLLB), lalu menampilkan waktu, RAM, dan hasilnya. Matikan Terjemahan Suara dan tutup aplikasi berat lain dulu agar adil. Bisa sampai satu menit.', bb)]));
+        A(out); A(note);
+      }
+
       /* ----- kinerja & penyimpanan ----- */
       A(grp('Kinerja dan penyimpanan'));
       A(box([
@@ -487,6 +521,33 @@
     if (sec === 'tentang') {
       const a = await api('about');
       A(box([row('Alethra', 'Versi ' + a.version, null), row('Mesin', `Chromium ${a.chrome} · Electron ${a.electron}`, null), row('Folder data', a.data, null)]));
+      A(grp('Pembaruan'));
+      {
+        const upBox = el('<div class="list"></div>'); A(upBox);
+        const when = (t) => t ? new Date(t).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+        upFill = (u) => {
+          upBox.innerHTML = '';
+          const ver = u.version || a.version, nv = u.newVersion ? 'Versi ' + u.newVersion : 'Versi baru', manual = u.mode === 'manual';
+          const text = {
+            idle: 'Versi ' + ver + '. Belum diperiksa.', checking: 'Memeriksa pembaruan…', none: 'Sudah versi terbaru (' + ver + ').' + (u.last ? ' Diperiksa ' + when(u.last) + '.' : ''),
+            available: nv + ' tersedia' + (manual ? '. Versi portable tidak bisa memasang sendiri: unduh dari halaman rilis.' : '.'),
+            downloading: 'Mengunduh ' + nv.toLowerCase() + '… ' + (u.pct || 0) + '%', ready: nv + ' sudah diunduh. Dipasang saat Alethra ditutup, atau mulai ulang sekarang.',
+            error: 'Gagal: ' + (u.err || 'tidak diketahui'), unsupported: u.err || 'Pembaruan tidak tersedia di build ini.'
+          }[u.state] || '';
+          const ctl = document.createElement('div'); ctl.style.cssText = 'display:flex;gap:6px;flex:none';
+          const b = (t, fn, cls, off) => { const x = document.createElement('button'); x.className = 'btn sm ' + (cls || ''); x.textContent = t; x.disabled = !!off; x.onclick = fn; ctl.appendChild(x); };
+          if (u.state === 'ready') b('Mulai ulang & pasang', () => api('up.install'), 'pri');
+          else if (u.state === 'available') b(manual ? 'Buka halaman rilis' : 'Unduh', () => api('up.download'), 'pri');
+          if (u.state !== 'unsupported') b(u.state === 'error' ? 'Coba lagi' : 'Periksa sekarang', () => api('up.check'), u.state === 'error' ? 'pri' : '', u.state === 'checking' || u.state === 'downloading');
+          const r = row('Pembaruan Alethra', text, ctl); const d = r.querySelector('.d'); if (d && u.state === 'error') d.style.color = 'var(--danger)';
+          upBox.appendChild(r);
+          if (u.state === 'downloading') upBox.appendChild(el(`<div class="set"><div class="tx"><div class="prog"><i style="width:${u.pct || 0}%"></i></div></div></div>`));
+          if (u.notes && (u.state === 'available' || u.state === 'ready')) upBox.appendChild(el(`<div class="set"><div class="tx"><div class="d" style="white-space:pre-wrap">${esc(u.notes.slice(0, 600))}</div></div></div>`));
+          upBox.appendChild(toggle('upauto', 'Periksa dan unduh otomatis', 'Mengecek rilis baru di GitHub tiap beberapa jam, mengunduhnya di latar, lalu memasangnya saat Alethra ditutup. Versi portable hanya memberi tahu.'));
+          if (u.repo) upBox.appendChild(button('Semua rilis', u.repo, 'Buka GitHub', () => api('up.releases')));
+        };
+        upFill(await api('up.state') || { state: 'idle', version: a.version });
+      }
       A(el('<p class="sub" style="margin-top:16px">Pintasan: Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+L alamat · Ctrl+F cari · Ctrl+D bookmark · Ctrl+H histori · Ctrl+J unduhan · F11 layar penuh · Ctrl+Alt+R mode baca · Ctrl+Alt+T terjemah.</p>'));
     }
     if (!scroll) window.scrollTo(0, keep);

@@ -39,7 +39,7 @@ const ops = {
 
 process.on('message', async (m) => {
   let out;
-  try { out = Object.assign({ id: m.id, ok: true }, await ops[m.op](m)); }
+  try { const r = await ops[m.op](m); out = Object.assign({ id: m.id, ok: true }, r, { rss: process.memoryUsage().rss }); }
   catch (e) { out = { id: m.id, ok: false, err: String((e && e.message) || e) }; }
   try { process.send(out); } catch {}
 });
