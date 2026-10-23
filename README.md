@@ -68,6 +68,9 @@ Terjemahan Suara (pengenalan ucapan dan penerjemahannya) bisa berjalan di PC tan
 
 **Terjemahan** (*Terjemahan hasil suara*):
 - **Opus-MT** (±85 MB per arah, lewat Inggris bila tidak ada pasangan langsung): Jepang, Mandarin, Korea, Vietnam, Thai, Rusia, Arab, Hindi, Turki, Spanyol, Prancis, Jerman, Italia, Belanda, Indonesia.
+- **CTranslate2** (±80–155 MB per arah): model Opus-MT yang sama, dijalankan mesin native `ctranslate2`, jadi lebih cepat dan hemat memori. Model diambil dari repo `manancode/…-ctranslate2-android` (int8), cadangan `gaudi/…-ctranslate2`; pasangan yang repo-nya tidak lengkap akan menampilkan galat.
+- **Bergamot** (mesin terjemahan Firefox, ±15–45 MB per arah): Marian int8 WASM (`@browsermt/bergamot-translator`). Daftar model dibaca dari Mozilla Remote Settings (cache 6 jam), berkas diperiksa sha256. Tidak semua pasangan bahasa tersedia; unduhan Bergamot tidak ikut pengaturan cermin Hugging Face.
+- **Jeda / Lanjut**: semua unduhan model (suara dan terjemahan) bisa dijeda dan dilanjutkan dari byte terakhir (berkas `.part` disimpan).
 - **NLLB-200 distilled 600M** (Transformers.js, ±900 MB unduhan, ±1,5 GB RAM): satu model untuk semua pasangan bahasa (±40 bahasa tujuan tersedia di Alethra), tanpa lewat Inggris.
 - Cadangan Google Translate bisa dimatikan.
 

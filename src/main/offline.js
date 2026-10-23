@@ -1,4 +1,4 @@
-// Mesin offline untuk PC. Suara ke teks: sherpa-onnx, Whisper (Transformers.js), atau Vosk. Terjemahan: Opus-MT atau NLLB-200 600M (Transformers.js).
+// Mesin offline untuk PC. Suara ke teks: sherpa-onnx, Whisper (Transformers.js), atau Vosk. Terjemahan: Opus-MT, CTranslate2, Bergamot atau NLLB-200 600M.
 // Mesin suara dan mesin terjemahan bebas dikombinasikan.
 // Model diunduh sekali dari Hugging Face ke %APPDATA%\Alethra\models, lalu dijalankan di proses terpisah
 // (offline-stt-worker.js / offline-asr-worker.js / offline-vosk-worker.js / offline-mt-worker.js) supaya jendela browser tidak tersendat dan memori bisa dilepas.
@@ -78,6 +78,74 @@ const NLLB_CODES = { en: 'eng_Latn', id: 'ind_Latn', ja: 'jpn_Jpan', zh: 'zho_Ha
 const nllbCode = (l) => /^zh[-_](tw|hk|hant)/i.test(String(l || '')) ? 'zho_Hant' : (NLLB_CODES[norm(l)] || '');
 const sttFind = (id) => STT_MODELS.find(m => m.id === id);
 
+// CTranslate2: model Opus-MT yang sudah dikonversi (int8/fp16), jalan lewat binding native: lebih cepat dari onnxruntime.
+// Repo dicoba berurutan; yang dipakai adalah yang berkasnya lengkap. Pasangan bahasa sama dengan Opus-MT di atas.
+const CT2_FILES = ['config.json', 'model.bin', 'shared_vocabulary.json', 'source.spm', 'target.spm'];
+const CT2_PAIRS = MT_PAIRS.map(p => { const r = p.repo.replace('Xenova/opus-mt-', ''); return { id: `ct2-${p.src}-${p.tgt}`, src: p.src, tgt: p.tgt, mb: 80, repos: [`manancode/opus-mt-${r}-ctranslate2-android`, `gaudi/opus-mt-${r}-ctranslate2`] }; });
+const ct2Find = (id) => CT2_PAIRS.find(p => p.id === id);
+
+// Bergamot (mesin terjemahan Firefox): model kecil (±15-45 MB per arah) dari Mozilla Remote Settings. Daftarnya dibaca saat dipakai,
+// karena nama berkas model ada di server Mozilla. Hanya pasangan dengan bahasa yang ada di LANG yang ditampilkan.
+const RS_BASE = 'https://firefox.settings.services.mozilla.com/v1';
+const BG = { pairs: [], ts: 0, err: '', failTs: 0, busy: null };
+const bgCacheFile = () => path.join(root(), 'bergamot-catalog.json');
+const bgInstalledIds = () => { try { return fs.readdirSync(path.join(root(), 'mt')).filter(n => n.startsWith('bg-') && manifest(mtDir(n))); } catch { return []; } };
+const bgInstalled = () => bgInstalledIds().map(id => { const m = manifest(mtDir(id)) || {}; return { id, src: m.src, tgt: m.tgt, mb: 0 }; }).filter(p => p.src && p.tgt);
+const verNum = (v) => String(v || '0').split('.').map(x => parseInt(x, 10) || 0);
+const verCmp = (a, b) => { const x = verNum(a), y = verNum(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
+function bgBuild(recs, attBase) {
+  const by = new Map();
+  for (const r of recs) {
+    const a = r.attachment; if (!a || !a.location) continue;
+    const from = norm(r.fromLang), to = norm(r.toLang), type = r.fileType || String(r.name || '').split('.')[0];
+    if (!from || !to || from === to || !LANG[from] || !LANG[to]) continue;
+    const k = from + '>' + to, v = String(r.version || '0'); let g = by.get(k); if (!g) by.set(k, g = { from, to, vers: new Map() });
+    if (!g.vers.has(v)) g.vers.set(v, {}); g.vers.get(v)[type] = { url: attBase + a.location, size: a.size || 0, hash: a.hash || '' };
+  }
+  const out = [];
+  for (const g of by.values()) {
+    const vs = [...g.vers.keys()].sort(verCmp).reverse(), stable = vs.filter(v => !/[a-z]/i.test(v));
+    for (const v of (stable.length ? stable : vs)) {
+      const f = g.vers.get(v); if (!f.model || !f.lex || !(f.vocab || (f.srcvocab && f.trgvocab))) continue;
+      const files = f.vocab ? { model: f.model, lex: f.lex, vocab: f.vocab } : { model: f.model, lex: f.lex, srcvocab: f.srcvocab, trgvocab: f.trgvocab };
+      out.push({ id: `bg-${g.from}-${g.to}`, src: g.from, tgt: g.to, mb: Math.max(1, Math.round(Object.values(files).reduce((n, x) => n + x.size, 0) / 1e6)), files }); break;
+    }
+  }
+  return out;
+}
+async function bgFetch(signal) {
+  const sv = await net.fetch(RS_BASE + '/', { signal }); if (!sv.ok) throw new Error(`Server Mozilla tidak bisa dijangkau (HTTP ${sv.status})`);
+  const att = (((await sv.json()).capabilities || {}).attachments || {}).base_url; if (!att) throw new Error('Alamat berkas model Bergamot tidak ditemukan di server Mozilla');
+  const recs = []; let url = `${RS_BASE}/buckets/main/collections/translations-models/records`;
+  for (let i = 0; url && i < 30; i++) {
+    const r = await net.fetch(url, { signal }); if (!r.ok) throw new Error(`Daftar model Bergamot gagal dimuat (HTTP ${r.status})`);
+    recs.push(...((await r.json()).data || [])); url = r.headers.get('next-page') || '';
+  }
+  return bgBuild(recs, att.replace(/\/*$/, '/'));
+}
+// daftar model Bergamot: memori → berkas cache (6 jam) → server Mozilla; bila server gagal, pakai cache lama
+async function bgCatalog(signal, soft) {
+  const fresh = () => BG.pairs.length && Date.now() - BG.ts < 6 * 3600e3;
+  if (fresh()) return BG.pairs;
+  if (!BG.pairs.length) { try { const c = JSON.parse(fs.readFileSync(bgCacheFile(), 'utf8')); if (Array.isArray(c.pairs)) { BG.pairs = c.pairs; BG.ts = c.ts || 0; } } catch {} }
+  if (fresh()) return BG.pairs;
+  if (soft && Date.now() - BG.failTs < 60000) return BG.pairs;
+  if (!BG.busy) BG.busy = (async () => {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), soft ? 8000 : 30000);
+    signal && signal.addEventListener('abort', () => ctl.abort(), { once: true });
+    try {
+      const p = await bgFetch(ctl.signal); if (!p.length) throw new Error('Daftar model Bergamot kosong');
+      BG.pairs = p; BG.ts = Date.now(); BG.err = ''; BG.failTs = 0;
+      try { fs.mkdirSync(root(), { recursive: true }); fs.writeFileSync(bgCacheFile(), JSON.stringify({ ts: BG.ts, pairs: p })); } catch {}
+    } catch (e) { BG.err = (e && e.name === 'AbortError') ? 'Server Mozilla tidak menjawab' : String((e && e.message) || e); BG.failTs = Date.now(); }
+    finally { clearTimeout(to); BG.busy = null; }
+  })();
+  await BG.busy;
+  if (!BG.pairs.length && !soft) throw new Error(BG.err || 'Daftar model Bergamot tidak tersedia');
+  return BG.pairs;
+}
+const bgFind = (id) => BG.pairs.find(p => p.id === id) || bgInstalled().find(p => p.id === id);
+
 const MT_ROOT_FILES = ['config.json', 'generation_config.json', 'special_tokens_map.json', 'tokenizer.json', 'tokenizer_config.json'];
 const MT_ONNX = ['onnx/encoder_model_quantized.onnx', 'onnx/decoder_model_merged_quantized.onnx'];
 const TJS_ONNX = MT_ONNX;
@@ -87,6 +155,7 @@ const manifest = (dir) => { try { return JSON.parse(fs.readFileSync(path.join(di
 const sttInstalled = (m) => !!manifest(sttDir(m.id));
 const mtInstalled = (p) => !!manifest(mtDir(p.id));
 const nllbInstalled = () => !!manifest(mtDir(NLLB.id));
+const mtAnyInstalled = (id) => !!manifest(mtDir(id));      // Opus-MT, CTranslate2 dan Bergamot: satu folder per model di models/mt
 function dirSize(d) { let n = 0; try { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); n += f.isDirectory() ? dirSize(p) : fs.statSync(p).size; } } catch {} return n; }
 
 /* ================= unduhan ================= */
@@ -96,7 +165,7 @@ function push() {
   if (pushT) return;
   pushT = setTimeout(() => { pushT = null; ctx.broadcastPages && ctx.broadcastPages('oe', jobInfo()); }, 250);
 }
-function jobInfo() { const o = {}; for (const j of jobs.values()) o[j.id] = { done: j.done, total: j.total, error: j.error || '', detail: j.detail || '', busy: !j.finished, phase: j.phase }; return o; }
+function jobInfo() { const o = {}; for (const j of jobs.values()) o[j.id] = { done: j.done, total: j.total, error: j.error || '', detail: j.detail || '', busy: !j.finished, phase: j.phase, paused: !!j.paused, canPause: !j.finished && !j.noPause }; return o; }
 // teks lengkap yang bisa disalin pengguna (untuk laporan atau pencarian solusi)
 function errDetail(job, e) {
   return ['Alethra ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch,
@@ -212,25 +281,33 @@ async function unzipModel(zipPath, dir) {
   if (!fs.existsSync(path.join(base, 'conf')) && !fs.existsSync(path.join(base, 'am'))) throw new Error('Isi model Vosk tidak lengkap');
 }
 
-async function runJob(job, plan) {
-  try {
-    job.phase = 'Membaca daftar berkas…'; push();
-    const { files, meta, dir, after } = await plan(job.ctl.signal);
-    job.total = files.reduce((a, f) => a + (f.size || 0), 0) || job.total;
-    job.phase = 'Mengunduh…';
-    for (const f of files) {
-      if (job.ctl.signal.aborted) throw new Error('dibatalkan');
-      await fetchTo(f.url, path.join(dir, f.name), f.size, job);
-    }
-    if (after) { job.phase = 'Mengekstrak…'; push(); await after(dir, job); }
-    fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(Object.assign({ ts: Date.now() }, meta)));
-    job.finished = true; job.phase = 'Selesai';
-    onInstalled(job);
-  } catch (e) {
-    job.finished = true;
-    if (job.cancelled) { job.error = ''; jobs.delete(job.id); }
-    else { job.error = (e && e.name === 'AbortError') ? 'Dibatalkan' : String((e && e.message) || e); job.detail = errDetail(job, e); }
-  } finally { push(); }
+// Satu kali jalan unduhan. Bisa dijeda: jeda membatalkan permintaan yang sedang berjalan tetapi berkas .part dibiarkan,
+// sehingga "lanjut" meneruskan dari byte terakhir (Range). Daftar berkas (job.planned) disimpan agar lanjut tidak perlu internet untuk membaca daftar lagi.
+function runJob(job) {
+  job.run = (async () => {
+    try {
+      job.phase = 'Membaca daftar berkas…'; job.done = 0; push();
+      if (!job.planned) job.planned = await job.plan(job.ctl.signal);
+      const { files, meta, dir, after } = job.planned;
+      job.total = files.reduce((a, f) => a + (f.size || 0), 0) || job.total;
+      job.phase = 'Mengunduh…'; push();
+      for (const f of files) {
+        if (job.ctl.signal.aborted) throw new Error('dibatalkan');
+        await fetchTo(f.url, path.join(dir, f.name), f.size, job);
+      }
+      job.noPause = true;
+      if (after) { job.phase = 'Memproses…'; push(); await after(dir, job); }
+      fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(Object.assign({ ts: Date.now() }, meta)));
+      job.finished = true; job.paused = false; job.phase = 'Selesai';
+      onInstalled(job);
+    } catch (e) {
+      if (job.paused && !job.cancelled && !job.noPause) { job.phase = 'Dijeda'; return; }
+      job.finished = true; job.paused = false;
+      if (job.cancelled) { job.error = ''; jobs.delete(job.id); }
+      else { job.error = (e && e.name === 'AbortError') ? 'Dibatalkan' : String((e && e.message) || e); job.detail = errDetail(job, e); }
+    } finally { push(); }
+  })();
+  return job.run;
 }
 function onInstalled(job) {
   if (job.kind === 'stt') { const m = sttFind(job.id), k = m && KEY[m.engine]; if (k && !SV.setting(k)) SV.saveSetting(k, job.id); }
@@ -239,9 +316,24 @@ function onInstalled(job) {
   if (ctx.refreshSettings) ctx.refreshSettings();
 }
 function startJob(kind, id, mb, plan) {
-  const cur = jobs.get(id); if (cur && !cur.finished) return false;
-  const job = { id, kind, done: 0, total: (mb || 0) * 1e6, error: '', finished: false, cancelled: false, phase: '', ctl: new AbortController() };
-  jobs.set(id, job); runJob(job, plan); return true;
+  const cur = jobs.get(id);
+  if (cur && !cur.finished) { if (cur.paused) resume(id); return cur.paused ? true : false; }
+  const job = { id, kind, done: 0, total: (mb || 0) * 1e6, error: '', finished: false, cancelled: false, paused: false, noPause: false, phase: '', plan, planned: null, run: null, ctl: new AbortController() };
+  jobs.set(id, job); runJob(job); return true;
+}
+// jeda: hentikan jaringan, simpan berkas .part
+function pause(id) {
+  const j = jobs.get(id); if (!j || j.finished || j.paused || j.noPause) return false;
+  j.paused = true; j.phase = 'Dijeda'; try { j.ctl.abort(); } catch {} push(); return true;
+}
+// lanjut: tunggu proses lama benar-benar selesai menulis berkas .part, baru mulai lagi dari byte terakhir
+function resume(id) {
+  const j = jobs.get(id); if (!j || j.finished || !j.paused) return false;
+  (j.run || Promise.resolve()).then(() => {
+    if (!j.paused || j.finished || j.cancelled) return;
+    j.paused = false; j.ctl = new AbortController(); j.phase = 'Melanjutkan…'; push(); runJob(j);
+  });
+  return true;
 }
 function download(id) {
   const m = sttFind(id);
@@ -275,6 +367,44 @@ function download(id) {
       return { dir: mtDir(id), meta: { id, engine: 'nllb' }, files: root.concat(ox).map(f => ({ name: f.name, size: f.size, url: `${hfBase()}/${NLLB.repo}/resolve/main/${f.name}` })) };
     });
   }
+  const c2 = ct2Find(id);
+  if (c2) {
+    if (mtAnyInstalled(id)) return true;
+    return startJob('mt', id, c2.mb, async (signal) => {
+      let found = null; const tried = [];
+      for (const repo of c2.repos) {
+        try {
+          const all = await hfList(repo, '', signal);
+          if (CT2_FILES.every(n => all.some(f => f.name === n))) { found = { repo, all }; break; }
+          tried.push(repo + ' (berkas tidak lengkap)');
+        } catch (e) { if (!(e && e.miss)) throw e; tried.push(repo); }
+      }
+      if (!found) throw new Error(`Model CTranslate2 ${LANG[c2.src]} → ${LANG[c2.tgt]} tidak ditemukan atau tidak lengkap di Hugging Face (dicoba: ${tried.join(', ')}). Coba Opus-MT atau Bergamot untuk pasangan ini.`);
+      return { dir: mtDir(id), meta: { id, engine: 'ct2', src: c2.src, tgt: c2.tgt, repo: found.repo }, files: CT2_FILES.map(n => ({ name: n, size: found.all.find(f => f.name === n).size, url: `${hfBase()}/${found.repo}/resolve/main/${n}` })) };
+    });
+  }
+  if (id.startsWith('bg-')) {
+    if (mtAnyInstalled(id)) return true;
+    return startJob('mt', id, (bgFind(id) || {}).mb || 30, async (signal) => {
+      const bp = (await bgCatalog(signal)).find(x => x.id === id);
+      if (!bp) throw new Error('Model Bergamot untuk pasangan ini tidak ada di daftar Mozilla');
+      const F = bp.files, names = { model: 'model.bin', lex: 'lex.bin', vocab: 'vocab.spm', srcvocab: 'srcvocab.spm', trgvocab: 'trgvocab.spm' };
+      const list = Object.keys(F).map(k => ({ name: names[k], size: F[k].size, url: F[k].url, hash: F[k].hash }));
+      const vocabs = F.vocab ? [names.vocab] : [names.srcvocab, names.trgvocab];
+      return {
+        dir: mtDir(id), meta: { id, engine: 'bergamot', src: bp.src, tgt: bp.tgt, model: names.model, lex: names.lex, vocabs }, files: list,
+        // periksa sha256 (dari server Mozilla), lalu buka gzip bila berkasnya dikirim terkompresi
+        after: async (dir) => {
+          const crypto = require('crypto'), zlib = require('zlib');
+          for (const f of list) {
+            const fp = path.join(dir, f.name); let buf = fs.readFileSync(fp);
+            if (f.hash && crypto.createHash('sha256').update(buf).digest('hex') !== String(f.hash).toLowerCase()) { try { fs.unlinkSync(fp); } catch {} throw new Error(`Berkas ${f.name} rusak (sha256 tidak cocok). Coba unduh lagi.`); }
+            if (buf.length > 2 && buf[0] === 0x1f && buf[1] === 0x8b) fs.writeFileSync(fp, zlib.gunzipSync(buf));
+          }
+        }
+      };
+    });
+  }
   const p = mtFind(id);
   if (p) {
     if (mtInstalled(p)) return true;
@@ -288,7 +418,15 @@ function download(id) {
   }
   return false;
 }
-function cancel(id) { const j = jobs.get(id); if (j && !j.finished) { j.cancelled = true; j.ctl.abort(); setTimeout(() => rmDir(sttFind(id) ? sttDir(id) : mtDir(id)), 400); } push(); }
+function cancel(id) {
+  const j = jobs.get(id);
+  if (j && !j.finished) {
+    const wasPaused = j.paused; j.cancelled = true; j.paused = false; try { j.ctl.abort(); } catch {}
+    if (wasPaused) { j.finished = true; jobs.delete(id); }      // sedang dijeda: tidak ada proses yang akan membersihkan
+    setTimeout(() => rmDir(sttFind(id) ? sttDir(id) : mtDir(id)), 400);
+  }
+  push();
+}
 function rmDir(d) { try { fs.rmSync(d, { recursive: true, force: true }); } catch {} }
 async function remove(id) {
   const j = jobs.get(id); if (j && !j.finished) return false;
@@ -298,7 +436,9 @@ async function remove(id) {
     if (SV.setting(k) === id) { SV.saveSetting(k, ''); }
     W[m.engine].kill(); loaded[m.engine] = '';
     rmDir(sttDir(id));
-  } else if (mtFind(id) || id === NLLB.id) { mtW.kill(); rmDir(mtDir(id)); }
+  } else if (mtFind(id) || id === NLLB.id) { mtW.kill(); loaded.mt = ''; rmDir(mtDir(id)); }
+  else if (ct2Find(id)) { ct2W.kill(); rmDir(mtDir(id)); }
+  else if (id.startsWith('bg-')) { bgW.kill(); rmDir(mtDir(id)); }
   else return false;
   push(); return true;
 }
@@ -335,12 +475,14 @@ const sttW = new Worker('offline-stt-worker.js', 'Mesin suara ke teks offline (s
 const asrW = new Worker('offline-asr-worker.js', 'Mesin Whisper (Transformers.js)');
 const voskW = new Worker('offline-vosk-worker.js', 'Mesin Vosk');
 const mtW = new Worker('offline-mt-worker.js', 'Mesin terjemahan offline');
+const ct2W = new Worker('offline-ct2-worker.js', 'Mesin terjemahan CTranslate2');
+const bgW = new Worker('offline-bergamot-worker.js', 'Mesin terjemahan Bergamot');
 const W = { sherpa: sttW, tjs: asrW, vosk: voskW };
 const loaded = { sherpa: '', tjs: '', vosk: '', mt: '' };
 sttW.onexit = () => { loaded.sherpa = ''; }; asrW.onexit = () => { loaded.tjs = ''; }; voskW.onexit = () => { loaded.vosk = ''; }; mtW.onexit = () => { loaded.mt = ''; };
 let idleT = null;
 const used = () => { clearTimeout(idleT); idleT = null; };
-const killAll = () => { sttW.kill(); asrW.kill(); voskW.kill(); mtW.kill(); loaded.sherpa = loaded.tjs = loaded.vosk = loaded.mt = ''; };
+const killAll = () => { sttW.kill(); asrW.kill(); voskW.kill(); mtW.kill(); ct2W.kill(); bgW.kill(); loaded.sherpa = loaded.tjs = loaded.vosk = loaded.mt = ''; };
 // lepas memori bila mesin tidak dipakai beberapa saat
 function releaseSoon(ms) { clearTimeout(idleT); idleT = setTimeout(killAll, ms || 45000); }
 function shutdown() { clearTimeout(idleT); killAll(); }
@@ -416,33 +558,54 @@ function sttStop() { releaseSoon(45000); }
 
 /* ================= terjemahan ================= */
 class Missing extends Error { constructor(m) { super(m); this.missing = true; } }
-function route(s, t) {
-  const have = MT_PAIRS.filter(mtInstalled);
+// Tiga keluarga model per-pasangan: Opus-MT (onnx), CTranslate2 dan Bergamot. Semuanya "lewat Inggris" bila tidak ada pasangan langsung.
+const FAMS = {
+  offline: { name: 'Opus-MT', all: () => MT_PAIRS, pfx: 'opus', worker: mtW },
+  ct2: { name: 'CTranslate2', all: () => CT2_PAIRS, pfx: 'ct2', worker: ct2W },
+  bergamot: { name: 'Bergamot', all: () => { const o = BG.pairs.slice(); for (const p of bgInstalled()) if (!o.some(x => x.id === p.id)) o.push(p); return o; }, pfx: 'bg', worker: bgW }
+};
+const famPair = (fam, s, t) => FAMS[fam].all().find(p => p.id === `${FAMS[fam].pfx}-${s}-${t}`);
+const famHave = (fam) => FAMS[fam].all().filter(p => mtAnyInstalled(p.id));
+function routeFam(fam, s, t) {
+  const have = famHave(fam);
   const d = have.find(p => p.src === s && p.tgt === t); if (d) return [d];
   const a = have.find(p => p.src === s && p.tgt === 'en'), b = have.find(p => p.src === 'en' && p.tgt === t);
   return a && b ? [a, b] : null;
 }
+const route = (s, t) => routeFam('offline', s, t);
 // model yang masih perlu diunduh agar src → tgt bisa berjalan ([] bila sudah siap, null bila tidak didukung)
-function plan(src, tgt) {
+function planFam(fam, src, tgt) {
   const s = norm(src), t = norm(tgt); if (!s || !t || s === t) return [];
-  const d = mtFind(`opus-${s}-${t}`); if (d) return mtInstalled(d) ? [] : [d.id];
-  const a = mtFind(`opus-${s}-en`), b = mtFind(`opus-en-${t}`); if (!a || !b) return null;
-  return [a, b].filter(p => !mtInstalled(p)).map(p => p.id);
+  const d = famPair(fam, s, t); if (d) return mtAnyInstalled(d.id) ? [] : [d.id];
+  const a = famPair(fam, s, 'en'), b = famPair(fam, 'en', t); if (!a || !b) return null;
+  return [a, b].filter(p => !mtAnyInstalled(p.id)).map(p => p.id);
 }
-async function translate(text, src, tgt) {
+const plan = (src, tgt) => planFam('offline', src, tgt);
+async function planAsync(src, tgt, fam) {
+  fam = FAMS[fam] ? fam : 'offline';
+  if (fam === 'bergamot') await bgCatalog(null, true);
+  return planFam(fam, src, tgt);
+}
+async function translateFam(fam, text, src, tgt) {
   const s = norm(src), t = norm(tgt);
   if (!s) throw new Missing('Bahasa ucapan tidak diketahui, pilih Bahasa ucapan video di Pengaturan > Play');
   if (s === t) return '';
-  const steps = route(s, t);
-  if (!steps) throw new Missing(`Model terjemahan ${LANG[s] || s} → ${LANG[t] || t} belum terpasang`);
+  const steps = routeFam(fam, s, t), F = FAMS[fam];
+  if (!steps) throw new Missing(`Model ${F.name} ${LANG[s] || s} → ${LANG[t] || t} belum terpasang`);
   used();
+  const mtRoot = path.join(root(), 'mt');
+  if (fam === 'bergamot') {       // pivot (bila perlu) dikerjakan di dalam mesinnya
+    const r = await bgW.call({ op: 'run', root: mtRoot, models: steps.map(p => p.id), text }, 120000);
+    return String(r.text || '').trim();
+  }
   let cur = text;
   for (const p of steps) {
-    const r = await mtW.call({ op: 'run', root: path.join(root(), 'mt'), model: p.id, text: cur, threads: threads() }, 90000);
+    const r = await F.worker.call({ op: 'run', root: mtRoot, model: p.id, text: cur, threads: threads() }, 90000);
     cur = String(r.text || '').trim(); if (!cur) break;
   }
   return cur;
 }
+const translate = (text, src, tgt) => translateFam('offline', text, src, tgt);
 async function translateNllb(text, src, tgt) {
   const s = norm(src), t = norm(tgt);
   if (!s) throw new Missing('Bahasa ucapan tidak diketahui, pilih Bahasa ucapan video di Pengaturan > Play');
@@ -456,21 +619,26 @@ async function translateNllb(text, src, tgt) {
   loaded.mt = NLLB.id;
   return String(r.text || '').trim();
 }
-// mode: 'offline' = Opus-MT, 'nllb' = NLLB-200 600M
-const translateBy = (mode, text, src, tgt) => mode === 'nllb' ? translateNllb(text, src, tgt) : translate(text, src, tgt);
+// mode: 'offline' = Opus-MT, 'ct2' = CTranslate2, 'bergamot' = Bergamot, 'nllb' = NLLB-200 600M
+const translateBy = (mode, text, src, tgt) => mode === 'nllb' ? translateNllb(text, src, tgt) : FAMS[mode] ? translateFam(mode, text, src, tgt) : translate(text, src, tgt);
 const mtReady = (src, tgt) => { const p = plan(src, tgt); return Array.isArray(p) && p.length === 0; };
 
 /* ================= untuk halaman Pengaturan ================= */
-function list() {
+async function list() {
+  // daftar Bergamot hanya diambil dari server bila mesin itu yang dipilih; selain itu cukup model yang sudah terpasang
+  const wantBg = SV.setting('trmode') === 'bergamot'; if (wantBg) await bgCatalog(null, true);
+  const bgAll = FAMS.bergamot.all();
   return {
     langs: LANG, groups: GROUPS.map(g => [g, GROUP_NAME[g]]), engines: ENG_NAME, selected: { sherpa: SV.setting('stmodel'), tjs: SV.setting('stwmodel'), vosk: SV.setting('stvmodel') }, root: root(), jobs: jobInfo(),
     nllb: { id: NLLB.id, title: NLLB.title, mb: NLLB.mb, installed: nllbInstalled(), bytes: nllbInstalled() ? dirSize(mtDir(NLLB.id)) : 0 },
     stt: STT_MODELS.map(m => ({ id: m.id, engine: m.engine, title: m.title, note: m.note, lang: m.lang, mb: m.mb, installed: sttInstalled(m), bytes: sttInstalled(m) ? dirSize(sttDir(m.id)) : 0 })),
     mt: MT_PAIRS.map(p => ({ id: p.id, src: p.src, tgt: p.tgt, mb: p.mb, installed: mtInstalled(p), bytes: mtInstalled(p) ? dirSize(mtDir(p.id)) : 0 })),
+    ct2: CT2_PAIRS.map(p => ({ id: p.id, src: p.src, tgt: p.tgt, mb: p.mb, installed: mtAnyInstalled(p.id), bytes: mtAnyInstalled(p.id) ? dirSize(mtDir(p.id)) : 0 })),
+    bg: { loaded: BG.pairs.length > 0, err: wantBg ? BG.err : '', pairs: bgAll.map(p => ({ id: p.id, src: p.src, tgt: p.tgt, mb: p.mb || 0, installed: mtAnyInstalled(p.id), bytes: mtAnyInstalled(p.id) ? dirSize(mtDir(p.id)) : 0 })) },
     total: dirSize(root())
   };
 }
 const openDir = () => { fs.mkdirSync(root(), { recursive: true }); shell.openPath(root()); };
 const validModel = (id, key) => !id || (() => { const m = sttFind(id); return !!m && (!key || KEY[m.engine] === key); })();
 
-module.exports = { list, download, cancel, remove, plan, translate, translateNllb, translateBy, transcribe, warm, sttReady, nllbReady: nllbInstalled, ping, mtReady, sttStop, shutdown, openDir, validModel, selected, norm, langFromName, Missing, LANG, jobInfo };
+module.exports = { list, download, cancel, pause, resume, remove, plan, planAsync, translate, translateNllb, translateBy, transcribe, warm, sttReady, nllbReady: nllbInstalled, ping, mtReady, sttStop, shutdown, openDir, validModel, selected, norm, langFromName, Missing, LANG, jobInfo };

@@ -1175,7 +1175,7 @@ const API = {
     if (['clock', 'sta', 'stf', 'stb', 'tools'].includes(k)) { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = (k === 'stf' || k === 'stb') ? STT.sanitize(k, o) : o; }
     if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;
     if (k === 'stengine' && !['cloud', 'offline', 'tjs', 'vosk'].includes(v)) return false;
-    if (k === 'trmode' && !['online', 'offline', 'nllb'].includes(v)) return false;
+    if (k === 'trmode' && !['online', 'offline', 'nllb', 'ct2', 'bergamot'].includes(v)) return false;
     if (['stmodel', 'stwmodel', 'stvmodel'].includes(k) && !OFF.validModel(v, k)) return false;
     if (k === 'ofthreads' && !(Number.isInteger(v) && v >= 0 && v <= 16)) return false;
     if (k === 'stspeed' && !['fast', 'bal', 'eco'].includes(v)) return false;
@@ -1196,9 +1196,11 @@ const API = {
   'oe.list': () => OFF.list(),
   'oe.dl': (e, id) => OFF.download(String(id)),
   'oe.cancel': (e, id) => OFF.cancel(String(id)),
+  'oe.pause': (e, id) => OFF.pause(String(id)),
+  'oe.resume': (e, id) => OFF.resume(String(id)),
   'oe.del': async (e, id) => { const ok = await OFF.remove(String(id)); applyTheme(); return ok; },
-  'oe.plan': (e, s, t) => OFF.plan(String(s), String(t)),
-  'oe.test': async (e, text, s, t, mode) => { try { return { ok: true, text: (await OFF.translateBy(mode === 'nllb' ? 'nllb' : 'offline', String(text || '').slice(0, 300), String(s), String(t))) || String(text) }; } catch (err) { return { ok: false, err: err.message }; } },
+  'oe.plan': (e, s, t, eng) => OFF.planAsync(String(s), String(t), String(eng || 'offline')),
+  'oe.test': async (e, text, s, t, mode) => { try { return { ok: true, text: (await OFF.translateBy(['nllb', 'ct2', 'bergamot'].includes(mode) ? mode : 'offline', String(text || '').slice(0, 300), String(s), String(t))) || String(text) }; } catch (err) { return { ok: false, err: err.message }; } },
   'oe.dir': () => OFF.openDir(),
   'oe.ping': () => OFF.ping(),
   'clip.read': () => clipboard.readText().slice(0, 4000),

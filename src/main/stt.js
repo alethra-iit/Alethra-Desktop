@@ -247,11 +247,11 @@ async function run(j) {
   place(j.seq, { tr }); logPut(j, { tr }); touch();
   me.lat = ' · tunda ' + ((Date.now() - j.t) / 1000).toFixed(1) + ' dtk'; setStatus(trFail || null);
 }
-// terjemahan: offline (Opus-MT) bila dipilih, dengan cadangan Google Translate; selain itu Google Translate
+// terjemahan: offline (Opus-MT, CTranslate2, Bergamot atau NLLB) bila dipilih, dengan cadangan Google Translate; selain itu Google Translate
 async function translateText(text, src, tgt) {
   text = text.slice(0, 500);
   const mode = SV.setting('trmode');
-  if (mode === 'offline' || mode === 'nllb') {
+  if (mode === 'offline' || mode === 'nllb' || mode === 'ct2' || mode === 'bergamot') {
     const stl = SV.setting('stlang'), sl = src || (stl && stl.split('-')[0]);
     try { return await OFF.translateBy(mode, text, sl, tgt); }
     catch (e) { if (SV.setting('mtfb') === false) throw new Error(e && e.missing ? e.message : 'Terjemahan offline gagal: ' + (e && e.message)); }
