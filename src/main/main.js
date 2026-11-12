@@ -1075,7 +1075,7 @@ function toolsMenuSpec() {
   if (fsActive()) { out.push({ addr: t && !/^alethra:\/\/(home|newtab)/.test(t.url) ? t.url : '' }); if (groups.length) out.push({ sep: 1 }); }
   groups.forEach((g, i) => { if (i) out.push({ sep: 1 }); out.push(...g); });
   const im = !!setting('iconMenu');
-  const modeItem = I('tools.iconmode', im ? 'Kembali ke mode daftar' : 'Mode ikon', { ic: im ? 'reader' : 'grid', check: im });
+  const modeItem = I('tools.iconmode', im ? 'Kembali ke mode daftar' : 'Mode ikon', { ic: im ? 'list' : 'grid', check: im });
   if (!out.length) out.push(I('tools.config', 'Belum ada alat. Atur di Pengaturan → Tools'), modeItem);
   else { out.push({ sep: 1 }); out.push(modeItem, I('tools.config', 'Atur menu Tools…')); }
   return out;

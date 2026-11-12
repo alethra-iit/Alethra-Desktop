@@ -13,9 +13,9 @@
   // Mode ikon: item menu tampil sebagai ikon SVG; namanya muncul di pojok kanan bawah panel saat kursor di atasnya
   const ICMAP = {
     'tab.new': 'plus', 'tab.incog': 'incog', 'tab.reopen': 'undo', 'tabs.search': 'search', 'menu.tabs': 'tabs',
-    'open.bookmarks': 'star', 'open.history': 'clock', 'open.downloads': 'download', 'open.offline': 'offline', 'open.passwords': 'key',
+    'open.bookmarks': 'bookmark', 'open.history': 'clock', 'open.downloads': 'download', 'open.offline': 'offline', 'open.passwords': 'key',
     'fullscreen': 'fullscreen', 'devtools': 'code', 'open.settings': 'settings', 'open.about': 'info', 'quit': 'power',
-    'find': 'search', 'print': 'print', 'pdf': 'file', 'offline.save': 'download', 'translate': 'translate', 'chat': 'chat', 'stt': 'mic',
+    'find': 'search', 'print': 'print', 'pdf': 'file', 'offline.save': 'save', 'translate': 'translate', 'chat': 'chat', 'stt': 'mic',
     'reader': 'reader', 'transcript.side': 'clock', 'split.new': 'split', 'split.close': 'split', 'split.swap': 'swap', 'split.mode': 'layout',
     'split.reset': 'equal', 'note': 'note', 'vq': 'video', 'pip': 'pip', 'mobile': 'phone', 'emu': 'desktop', 'adsite': 'shield', 'tools.config': 'sliders', 'tools.iconmode': 'grid',
     'tm.reload': 'reload', 'tm.dup': 'copy', 'tm.mute': 'volume', 'tm.pin': 'pin', 'menu.tabgroup': 'group', 'tm.ungroup': 'ungroup', 'tm.split': 'split',
