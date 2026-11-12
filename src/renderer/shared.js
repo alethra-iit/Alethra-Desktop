@@ -26,6 +26,53 @@
     reader: 'M4 5h16M4 10h10M4 15h16M4 20h10', pip: 'M3 5h18v14H3zM12 12h8v6h-8z', image: 'M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M9 9h.01', desktop: 'M3 4h18v12H3zM8 20h8M12 16v4', mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3', tools: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4'
   };
   window.ICON = (n, s) => `<svg class="i" viewBox="0 0 24 24"${s ? ` style="width:${s}px;height:${s}px"` : ''}><path d="${P[n] || ''}"/></svg>`;
+  // Set ikon outline khusus MODE IKON (menu utama & menu Tools). Berisi markup SVG (viewBox 24, stroke 1.8, ujung bulat).
+  // Nama yang tidak ada di sini jatuh kembali ke ICON() biasa.
+  const R = (x, y, w, h, r) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`;
+  const C = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}"/>`;
+  const Pt = (d, x) => `<path d="${d}"${x || ''}/>`;
+  const M = {
+    // — Tools —
+    search: C(11, 11, 7) + Pt('m21 21-4.3-4.3'),
+    print: Pt('M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2') + Pt('M6 9V3.5A.5.5 0 0 1 6.5 3h11a.5.5 0 0 1 .5.5V9') + R(6, 14, 12, 7, 1),
+    pdf: Pt('M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z') + Pt('M14 2v6h6') + Pt('M6.8 18.5v-4h1.2a1.1 1.1 0 0 1 0 2.2H6.8M10.4 14.5v4h.7a2 2 0 0 0 0-4zM14.4 18.5v-4h2.2M14.4 16.4h1.6', ' stroke-width="1.2"'),
+    save: Pt('M12 13v8') + Pt('M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2') + Pt('m8 17 4-4 4 4'),
+    translate: Pt('m5 8 6 6') + Pt('m4 14 6-6 2-3') + Pt('M2 5h12') + Pt('M7 2h1') + Pt('m22 22-5-10-5 10') + Pt('M14 18h6'),
+    chat: Pt('M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z') + Pt('M8 8h8M8 12h5'),
+    mic: Pt('M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z') + Pt('M19 10v2a7 7 0 0 1-14 0v-2') + Pt('M12 19v3'),
+    reader: Pt('M12 7v14') + Pt('M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z'),
+    micclock: Pt('M9 2a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z') + Pt('M3 10a6 6 0 0 0 6.5 6') + Pt('M9 16v5') + C(17.5, 16.5, 4.5) + Pt('M17.5 14.3v2.4l1.4 1'),
+    split: R(3, 3, 18, 18, 2.5) + Pt('M12 3v18'),
+    swap: Pt('M8 3 4 7l4 4') + Pt('M4 7h16') + Pt('m16 21 4-4-4-4') + Pt('M20 17H4'),
+    layout: R(3, 3, 18, 18, 2.5) + Pt('M3 9.5h18') + Pt('M9.5 9.5V21'),
+    equal: Pt('M5 9h14M5 15h14'),
+    note: R(8, 2, 8, 4, 1) + Pt('M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2') + Pt('M9 12h6M9 16h6'),
+    video: Pt('m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11') + R(2, 6, 14, 12, 2.5),
+    pip: R(3, 4, 18, 16, 3) + R(12, 12, 6, 5, 1.5),
+    device: R(4, 2, 12, 20, 2.5) + Pt('M8.5 5.5h3M10 18.5h.01') + Pt('M19 8.5h.5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H19'),
+    shieldx: Pt('M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z') + Pt('m14.5 9.5-5 5M9.5 9.5l5 5'),
+    wrench: Pt('M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1a1 1 0 0 1 1 .2 6 6 0 0 1-8.3 7.1l-7.9 7.9a1 1 0 0 1-3-3l7.9-7.9A6 6 0 0 1 17.5 2.1a1 1 0 0 1 .2 1z'),
+    grid: R(3, 3, 7.5, 7.5, 2) + R(13.5, 3, 7.5, 7.5, 2) + R(3, 13.5, 7.5, 7.5, 2) + R(13.5, 13.5, 7.5, 7.5, 2),
+    // — Menu tab & browser —
+    plus: R(3, 3, 18, 18, 2.5) + Pt('M8 12h8M12 8v8'),
+    incog: Pt('M3 11.5h18') + Pt('M5.5 11.5 7.3 6a2 2 0 0 1 1.9-1.4h5.6A2 2 0 0 1 16.7 6l1.8 5.5') + C(7, 17, 3) + C(17, 17, 3) + Pt('M10 16.4q2-1 4 0'),
+    reopen: Pt('M3 11h18l-1.4 8.2a1 1 0 0 1-1 .8H5.4a1 1 0 0 1-1-.8z') + Pt('M9.5 15h5') + Pt('M8 8c.4-3 2.6-4.5 6-4.5h5.5') + Pt('m17 .8 3 2.7-3 2.7'),
+    searchtab: C(9.5, 11, 6.5) + Pt('m19 20.5-5-5') + Pt('M17.5 8h5.5l-2.75 3.2z', ' fill="currentColor" stroke-width="1.2"'),
+    tabs: R(3, 8, 15, 12, 2.5) + Pt('M3 12.5h15') + Pt('M7 4.5h12a2 2 0 0 1 2 2V16'),
+    bookmark: Pt('m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z'),
+    history: Pt('M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8') + Pt('M3 3v5h5') + Pt('M12 7v5l4 2'),
+    download: Pt('M12 15V3') + Pt('M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4') + Pt('m7 10 5 5 5-5'),
+    offline: Pt('M12 13v8l-4-4') + Pt('m12 21 4-4') + Pt('M4.4 15.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.4 8.3'),
+    key: C(6.2, 17.8, 2.7) + C(17.8, 6.2, 2.7) + Pt('m8.1 15.9 7.8-7.8'),
+    zoom: C(11, 11, 7.5) + Pt('m21 21-4.6-4.6') + Pt('M11 8v6M8 11h6'),
+    fullscreen: Pt('M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4'),
+    code: Pt('m18 16 4-4-4-4') + Pt('m6 8-4 4 4 4') + Pt('m14.5 4-5 16'),
+    settings: Pt('M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.2a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.2a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.2a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.2a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z') + C(12, 12, 3),
+    info: C(12, 12, 9.5) + Pt('M12 16.5v-5.5M12 7.6h.01'),
+    exit: Pt('M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4') + Pt('m10 17 5-5-5-5') + Pt('M15 12H3')
+  };
+  // dipakai hanya oleh tombol di mode ikon; jika nama tidak ada, pakai ikon bawaan
+  window.ICONM = (n, s) => M[n] ? `<svg class="i" viewBox="0 0 24 24"${s ? ` style="width:${s}px;height:${s}px"` : ''}>${M[n]}</svg>` : window.ICON(n, s);
   window.LOGO = (s) => `<svg viewBox="0 0 24 24" class="i" style="width:${s}px;height:${s}px;stroke-width:2.4"><path d="M4 21L12 3l8 18"/><path d="M8.2 15h7.6"/></svg>`;
   window.$ = (s, r) => (r || document).querySelector(s);
   window.$$ = (s, r) => Array.from((r || document).querySelectorAll(s));

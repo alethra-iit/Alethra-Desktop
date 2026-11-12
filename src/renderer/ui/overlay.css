@@ -62,6 +62,7 @@ html,body{background:transparent!important;overflow:hidden;height:100%;user-sele
 /* Mode ikon */
 #menu.ic,#menu2.ic{display:grid;grid-template-columns:repeat(6,42px);gap:4px;width:auto;padding:8px;justify-content:start;align-content:start}
 #menu2.ic.c4{grid-template-columns:repeat(4,42px)}
+.zr .l{display:flex;align-items:center;gap:8px}
 .ic .msep{grid-column:1/-1;margin:2px 0}.ic .mhd{display:none}.ic .zr{grid-column:1/-1;padding:0 2px}
 .mi.ib{width:42px;height:42px;padding:0;justify-content:center;border-radius:10px;position:relative}
 .mi.ib svg.i{width:20px;height:20px}

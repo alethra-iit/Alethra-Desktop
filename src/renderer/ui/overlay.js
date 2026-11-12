@@ -12,19 +12,19 @@
   const hide = (id, v) => { $('#' + id).hidden = !v; };
   // Mode ikon: item menu tampil sebagai ikon SVG; namanya muncul di pojok kanan bawah panel saat kursor di atasnya
   const ICMAP = {
-    'tab.new': 'plus', 'tab.incog': 'incog', 'tab.reopen': 'undo', 'tabs.search': 'search', 'menu.tabs': 'tabs',
-    'open.bookmarks': 'bookmark', 'open.history': 'clock', 'open.downloads': 'download', 'open.offline': 'offline', 'open.passwords': 'key',
-    'fullscreen': 'fullscreen', 'devtools': 'code', 'open.settings': 'settings', 'open.about': 'info', 'quit': 'power',
-    'find': 'search', 'print': 'print', 'pdf': 'file', 'offline.save': 'save', 'translate': 'translate', 'chat': 'chat', 'stt': 'mic',
-    'reader': 'reader', 'transcript.side': 'clock', 'split.new': 'split', 'split.close': 'split', 'split.swap': 'swap', 'split.mode': 'layout',
-    'split.reset': 'equal', 'note': 'note', 'vq': 'video', 'pip': 'pip', 'mobile': 'phone', 'emu': 'desktop', 'adsite': 'shield', 'tools.config': 'sliders', 'tools.iconmode': 'grid',
+    'tab.new': 'plus', 'tab.incog': 'incog', 'tab.reopen': 'reopen', 'tabs.search': 'searchtab', 'menu.tabs': 'tabs',
+    'open.bookmarks': 'bookmark', 'open.history': 'history', 'open.downloads': 'download', 'open.offline': 'offline', 'open.passwords': 'key',
+    'fullscreen': 'fullscreen', 'devtools': 'code', 'open.settings': 'settings', 'open.about': 'info', 'quit': 'exit',
+    'find': 'search', 'print': 'print', 'pdf': 'pdf', 'offline.save': 'save', 'translate': 'translate', 'chat': 'chat', 'stt': 'mic',
+    'reader': 'reader', 'transcript.side': 'micclock', 'split.new': 'split', 'split.close': 'split', 'split.swap': 'swap', 'split.mode': 'layout',
+    'split.reset': 'equal', 'note': 'note', 'vq': 'video', 'pip': 'pip', 'mobile': 'device', 'emu': 'device', 'adsite': 'shieldx', 'tools.config': 'wrench', 'tools.iconmode': 'grid',
     'tm.reload': 'reload', 'tm.dup': 'copy', 'tm.mute': 'volume', 'tm.pin': 'pin', 'menu.tabgroup': 'group', 'tm.ungroup': 'ungroup', 'tm.split': 'split',
     'tm.close': 'close', 'tm.closeother': 'closeother', 'tm.closeright': 'closeright', 'tabs.closeall': 'closeall'
   };
   function iconBtn(it, host) {
     const d = document.createElement('div');
     d.className = 'mi ib' + (it.off ? ' off' : '') + (it.dim ? ' dim' : '') + (it.check ? ' chk' : '') + (it.on ? ' on' : '');
-    d.innerHTML = ICON(it.ic || ICMAP[it.id] || 'more', 20);
+    d.innerHTML = ICONM(it.ic || ICMAP[it.id] || 'more', 20);
     d.setAttribute('role', 'button'); d.setAttribute('aria-label', it.label);
     const tip = () => host.querySelector('.mtip');
     d.onmouseenter = () => { const t = tip(); if (t) t.innerHTML = `<b>${esc(it.label)}</b>` + (it.note ? ` <span>${esc(it.note)}</span>` : it.key ? ` <span>${esc(it.key)}</span>` : ''); };
@@ -146,7 +146,7 @@
         if (it.sep) { el.insertAdjacentHTML('beforeend', '<div class="msep"></div>'); return; }
         if (it.head) { el.insertAdjacentHTML('beforeend', `<div class="mhd">${esc(it.head)}</div>`); return; }
         if (it.zoom) {
-          const z = document.createElement('div'); z.className = 'zr'; z.innerHTML = `<span class="l">Zoom</span><button data-d="-1">−</button><span class="v">${it.zoom}%</span><button data-d="1">+</button><button data-d="0" title="Setel ulang">⟲</button>`;
+          const z = document.createElement('div'); z.className = 'zr'; z.innerHTML = `<span class="l">${iconMode ? ICONM('zoom', 18) : ''}Zoom</span><button data-d="-1">−</button><span class="v">${it.zoom}%</span><button data-d="1">+</button><button data-d="0" title="Setel ulang">⟲</button>`;
           $$('button', z).forEach(b => b.onclick = () => api('ov.zoom', +b.dataset.d)); el.appendChild(z); return;
         }
         if (iconMode) { el.appendChild(iconBtn(it, el)); return; }
