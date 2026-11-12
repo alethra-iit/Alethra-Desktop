@@ -17,7 +17,7 @@
     'fullscreen': 'fullscreen', 'devtools': 'code', 'open.settings': 'settings', 'open.about': 'info', 'quit': 'power',
     'find': 'search', 'print': 'print', 'pdf': 'file', 'offline.save': 'download', 'translate': 'translate', 'chat': 'chat', 'stt': 'mic',
     'reader': 'reader', 'transcript.side': 'clock', 'split.new': 'split', 'split.close': 'split', 'split.swap': 'swap', 'split.mode': 'layout',
-    'split.reset': 'equal', 'vq': 'video', 'pip': 'pip', 'mobile': 'phone', 'emu': 'desktop', 'adsite': 'shield', 'tools.config': 'sliders', 'tools.iconmode': 'grid',
+    'split.reset': 'equal', 'note': 'note', 'vq': 'video', 'pip': 'pip', 'mobile': 'phone', 'emu': 'desktop', 'adsite': 'shield', 'tools.config': 'sliders', 'tools.iconmode': 'grid',
     'tm.reload': 'reload', 'tm.dup': 'copy', 'tm.mute': 'volume', 'tm.pin': 'pin', 'menu.tabgroup': 'group', 'tm.ungroup': 'ungroup', 'tm.split': 'split',
     'tm.close': 'close', 'tm.closeother': 'closeother', 'tm.closeright': 'closeright', 'tabs.closeall': 'closeall'
   };

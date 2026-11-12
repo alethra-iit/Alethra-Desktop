@@ -38,6 +38,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Alamat di layar penuh | Menu Tools (tombol melayang) punya kotak alamat/pencarian di paling atas dengan tombol **Salin / Tempel / Hapus / Buka**, lalu Cari di halaman, Cetak, Simpan sebagai PDF, dan Simpan offline. Ctrl+L / F6 membukanya langsung |
 | Widget (Pengaturan) | Menu baru berisi bagian lipat: *Tombol menu layar penuh* dan *Jam* (dipindah dari Tampilan) |
 | Kualitas video | Menu Tools → Kualitas video… |
+| Notepad | Menu Tools → Notepad (Ctrl+Alt+N). Catatan melayang di atas halaman (lihat bagian *Notepad* di bawah) |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
 | Izin situs | Bilah izin + manajer di Pengaturan |
 | Pengelola sandi | Terenkripsi (Windows DPAPI), isi otomatis saat kolom diklik |
@@ -80,7 +81,7 @@ Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dar
 ## Pintasan keyboard
 Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+W tutup · Ctrl+Tab ganti tab · Ctrl+1…9 · Ctrl+L alamat · Ctrl+F cari ·
 Ctrl+D bookmark · Ctrl+H histori · Ctrl+J unduhan · Ctrl+P cetak · Ctrl+S simpan offline · Ctrl +/−/0 zoom ·
-F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan
+F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad
 
 Data pengguna: `%APPDATA%\Alethra\data`.
 
@@ -91,7 +92,7 @@ Data pengguna: `%APPDATA%\Alethra\data`.
    `"%LOCALAPPDATA%\Programs\Alethra\Alethra.exe"`
 
 ## Menu Tools
-Tombol "Tools" di toolbar (antara Unduhan dan ⋮) berisi: cari di halaman, cetak, PDF, simpan offline, terjemahan, chat live, Terjemahan Suara, mode baca, kualitas video, PiP, situs seluler, blokir iklan situs. Item yang tampil diatur di **Pengaturan → Tools**. Fitur yang dimatikan di **Pengaturan → Play** (Terjemahkan situs, Terjemahan Suara) tetap muncul di menu Tools dalam keadaan redup dengan keterangan (mis. "Dimatikan di Play", "Model suara belum terpasang"); klik item itu membuka pengaturan yang tepat. Saat menu Tools dibuka, model suara offline dimuat lebih dulu di latar belakang supaya Terjemahan Suara langsung siap.
+Tombol "Tools" di toolbar (antara Unduhan dan ⋮) berisi: cari di halaman, cetak, PDF, simpan offline, terjemahan, chat live, Terjemahan Suara, mode baca, tampilan terpisah, **Notepad**, kualitas video, PiP, mode perangkat, blokir iklan situs. Item yang tampil diatur di **Pengaturan → Tools**. Fitur yang dimatikan di **Pengaturan → Play** (Terjemahkan situs, Terjemahan Suara) tetap muncul di menu Tools dalam keadaan redup dengan keterangan (mis. "Dimatikan di Play", "Model suara belum terpasang"); klik item itu membuka pengaturan yang tepat. Saat menu Tools dibuka, model suara offline dimuat lebih dulu di latar belakang supaya Terjemahan Suara langsung siap.
 
 ### Catatan unduhan model
 Model sherpa-onnx diunduh dari Hugging Face dan tersebar di beberapa akun (`csukuangfj`, `csukuangfj2`, `k2-fsa`). Alethra mencoba semuanya berurutan. Hugging Face menjawab HTTP 401 untuk repo yang tidak ada, jadi 401 berarti nama repo tidak ditemukan, bukan butuh login. Bila Hugging Face diblokir atau lambat, ganti **Sumber unduhan model** di Pengaturan → Mesin offline (pilih `hf-mirror.com` atau isi alamat sendiri, lalu tekan *Uji*). Bila unduhan gagal, tombol **Salin detail error** menyalin versi aplikasi, sumber, tahap, dan pesan galat untuk laporan.
@@ -145,3 +146,13 @@ Tools → *Riwayat terjemahan suara* (Ctrl+Alt+H, atau ikon jam di popup) membuk
 - **Tutup massal:** menu ⋮ → *Tutup tab lain* dan *Tutup semua tab* (juga di klik kanan tab, bersama *Tutup tab di kanan*). Tab sematan dilewati; bila tidak ada yang tersisa, dibuatkan tab baru. Penutupan ≥ 5 tab meminta konfirmasi. Tab yang ditutup bisa dibuka lagi dengan Ctrl+Shift+T (50 terakhir).
 - **Kelompok tab berwarna:** klik kanan tab → *Tambahkan ke grup → Grup baru…* (nama opsional + 9 warna). Chip berwarna di depan grup: klik untuk menciutkan/membentangkan, klik kanan untuk ubah nama/warna, tab baru di grup, pisahkan grup, atau tutup grup. Seret tab ke chip untuk memasukkannya; seret keluar dari deretan grup untuk melepasnya. Tab yang dibuka dari tab dalam grup ikut grup itu. Grup disimpan bersama sesi.
 - Puluhan tab: strip tab bisa digulir dengan roda mouse, tab aktif selalu digulirkan ke tampilan, dan Ctrl+Tab melewati grup yang diciutkan.
+
+## Notepad
+Menu Tools → **Notepad** (atau Ctrl+Alt+N) membuka catatan melayang di atas halaman, sama seperti Notepad di menu titik tiga Alethra Browser (Android).
+- **Melayang:** kotak bisa digeser (tahan dan seret judulnya) dan diubah ukurannya (pegangan di pojok kanan bawah). Posisi dan ukuran diingat. Kotak tetap terbuka saat berpindah tab dan selalu di bawah menu/popup.
+- **Perkecil (−):** kotak berubah menjadi ikon kecil yang bisa digeser; klik ikon untuk menampilkan lagi. **Tutup (✕)** menyembunyikan kotak, isinya tetap tersimpan.
+- **Banyak lembar kerja:** deretan chip di bawah judul. Klik chip untuk pindah; klik chip yang aktif atau klik kanan = ganti nama; ✕ pada chip = hapus (dikonfirmasi bila ada isinya; menghapus lembar terakhir menggantinya dengan lembar kosong); **+** = lembar baru (nama otomatis *Lembar N*).
+- **Draf otomatis:** isi disimpan otomatis tiap berhenti mengetik (file `notes.json` di folder data aplikasi), jadi tidak hilang walau belum menekan Simpan. Status di kaki kotak: *Tersimpan* / *Belum disimpan*.
+- **Toolbar:** Buka berkas (txt, md, srt, log, csv, json, maks. 2 MB; pilih *Ganti* atau *Tambahkan* bila catatan sudah ada isinya; nama berkas jadi nama lembar kerja) · Salin (teks terpilih, atau semua bila tidak ada yang dipilih) · Tempel · **Simpan** (Ctrl+S saat kotak aktif).
+- **Simpan** menulis berkas `.txt` bernama sesuai lembar kerja ke folder unduhan dan mencatatnya di halaman Unduhan (tidak dicatat bila tab aktif adalah tab penyamaran). Bila *Tanya lokasi simpan setiap unduhan* menyala, muncul dialog simpan.
+- **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Notepad*. Bila dimatikan, kotak yang sedang terbuka ikut ditutup.

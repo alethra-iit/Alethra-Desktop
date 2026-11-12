@@ -24,7 +24,7 @@ process.on('unhandledRejection', e => log('unhandledRejection', e));
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) { log('instance lain sudah berjalan'); app.quit(); process.exit(0); }
 
-let win, chromeWC, overlay, fsBar, chromeH = 84, pageId = 0;
+let win, chromeWC, overlay, fsBar, noteView = null, chromeH = 84, pageId = 0;
 const closed = [];
 /* Kelompok tab berwarna. Anggota satu grup selalu berurutan di ctx.tabs; tab yang disematkan selalu di paling kiri dan tidak bisa masuk grup. */
 ctx.groups = []; let groupSeq = 0;
@@ -65,6 +65,7 @@ function applyTheme() {
   const st = publicSettings();
   ctx.sendChrome('settings', st); sendOv('settings', st); ctx.broadcastPages('settings', st);
   if (fsBar && alive(fsBar.webContents)) sendTo(fsBar.webContents, 'settings', st);
+  if (noteView && alive(noteView.webContents)) sendTo(noteView.webContents, 'settings', st);
   try { renderOverlay(); } catch {}
 }
 function publicSettings() {
@@ -151,6 +152,7 @@ function layout() {
   ctx.tabs.forEach(t => { const r = G.rects[t.id]; t.view.setVisible(!!r); if (r) t.view.setBounds(t.emu ? emuApply(t, r) : r); });
   ctx.sendChrome('split', G.chrome);
   renderOverlay();
+  noteLayout(true);
 }
 // panel tempat sebuah tab berada (koordinat jendela); null bila tab tidak sedang terlihat
 const paneBox = (id) => { const r = lastGeo && lastGeo.rects[id]; return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
@@ -648,9 +650,9 @@ async function needAuth(part) {
 }
 async function lockApp() {
   const l = setting('lock'); if (l.mode !== 'app' || !l.hash || locked) return;
-  locked = true;
+  locked = true; noteLayout();
   for (;;) { const r = await askModal('pin', { reason: 'Alethra terkunci', title: 'Masukkan PIN' }, false); if (r && SV.verifyPin(r.pin)) break; if (r) ctx.toast('PIN salah'); }
-  locked = false; lastAuth = Date.now(); endModal(null);
+  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true);
 }
 
 /* ================= menu konteks (asli Windows) ================= */
@@ -746,6 +748,7 @@ function shortcut(e, i) {
   if (a && k === 'h') return run(openTranscriptSide);
   if (k === 't' && !s && !a) return run(() => createTab('alethra://home'));
   if (k === 't' && s) return run(reopenClosed);
+  if (a && !s && k === 'n') return run(noteToggle);
   if (k === 'n' && s) return run(() => newIncogTab());
   if (k === 'n' && !s) return run(() => createTab('alethra://home'));
   if (k === 'w' || k === 'f4') return run(() => closeTab(activeId));
@@ -924,6 +927,121 @@ function pickTrSrc(t, code) {
   ctx.toast('Bahasa asal: ' + (t.trFrom ? U.TR_LANGS[t.trFrom] : 'deteksi otomatis')); pushTabs();
   openMenu('trlang');           // kembali ke pilihan bahasa tujuan
 }
+/* ================= Notepad melayang (menu Tools) ================= */
+// Catatan melayang di atas halaman: WebContentsView sendiri (alethra://app/ui/note.html) di antara tab dan overlay menu.
+// Bisa digeser, diubah ukurannya, diperkecil menjadi ikon, punya banyak lembar kerja, dan tetap terbuka saat berpindah tab.
+// Isi lembar kerja disimpan di notes.json; posisi/ukuran di pengaturan (notebox).
+let noteOpen = false, noteMin = false, NG = null, noteBase = null;
+const NOTE_MIN = { w: 250, h: 224 }, NOTE_ICON = 48;
+const noteG = () => NG || (NG = Object.assign({}, SV.DEFAULTS.notebox, setting('notebox')));
+const noteShown = () => noteOpen && !!noteView;
+function noteBounds(commit) {
+  const [w, h] = win.getContentSize(), g = noteG(), c = Object.assign({}, g), top = fsActive() ? 0 : chromeH;
+  let r;
+  if (noteMin) {
+    c.ix = Math.max(0, Math.min(w - NOTE_ICON, c.ix < 0 ? w - NOTE_ICON - 12 : c.ix));
+    c.iy = Math.max(top, Math.min(h - NOTE_ICON, c.iy < 0 ? top + 36 : c.iy));
+    r = { x: c.ix, y: c.iy, width: NOTE_ICON, height: NOTE_ICON };
+  } else {
+    const lw = Math.min(NOTE_MIN.w, w), lh = Math.min(NOTE_MIN.h, Math.max(0, h - top));
+    c.w = Math.max(lw, Math.min(c.w, Math.max(lw, w - 8))); c.h = Math.max(lh, Math.min(c.h, Math.max(lh, h - top - 8)));
+    c.x = Math.max(0, Math.min(w - c.w, c.x < 0 ? Math.round((w - c.w) / 2) : c.x));
+    c.y = Math.max(top, Math.min(Math.max(top, h - c.h), c.y < 0 ? top + 70 : c.y));
+    r = { x: c.x, y: c.y, width: c.w, height: c.h };
+  }
+  if (commit) Object.assign(g, c);
+  return r;
+}
+// raise = true: angkat ke atas tab, lalu overlay menu & tombol layar penuh dikembalikan ke atas Notepad
+function noteLayout(raise) {
+  if (!noteView || !win || win.isDestroyed() || !alive(noteView.webContents)) return;
+  if (!noteOpen || locked) { noteView.setVisible(false); return; }
+  noteView.setBounds(noteBounds(false)); noteView.setVisible(true);
+  if (raise) {
+    const f = noteView.webContents.isFocused();   // memindah urutan view bisa melepas fokus; kembalikan bila kotak sedang dipakai mengetik
+    win.contentView.addChildView(noteView); if (overlay) win.contentView.addChildView(overlay); if (fsBar) win.contentView.addChildView(fsBar);
+    if (f && !noteMin) noteView.webContents.focus();
+  }
+}
+function noteEnsure() {
+  if (noteView && alive(noteView.webContents)) return;
+  noteView = new WebContentsView({ webPreferences: { preload: path.join(__dirname, '..', 'preload', 'internal.js'), sandbox: true, contextIsolation: true } });
+  noteView.setBackgroundColor('#00000000');
+  noteView.webContents.on('before-input-event', (e, input) => {
+    if (input.type === 'keyDown' && (input.control || input.meta) && !input.alt && !input.shift && (input.key || '').toLowerCase() === 's') { sendTo(noteView.webContents, 'note.save'); e.preventDefault(); return; }   // Ctrl+S di Notepad = Simpan catatan, bukan simpan halaman
+    if (shortcut(e, input)) e.preventDefault();
+  });
+  noteView.webContents.on('console-message', (_e, lvl, msg, line, src) => { if (lvl >= 2) log('notepad console', msg, src + ':' + line); });
+  win.contentView.addChildView(noteView); noteView.setVisible(false);
+  noteView.webContents.loadURL('alethra://app/ui/note.html');
+}
+function noteOpenNow() {
+  if (setting('tools').note === false) return;
+  noteEnsure(); noteOpen = true; noteBounds(true); noteLayout(true);
+  sendTo(noteView.webContents, 'note.mode', { min: noteMin });
+  setTimeout(() => { if (noteOpen && !noteMin && alive(noteView && noteView.webContents)) { noteView.webContents.focus(); sendTo(noteView.webContents, 'note.focus'); } }, 60);
+}
+function noteClose() {
+  if (!noteOpen) return;
+  noteOpen = false; noteMin = false;
+  if (noteView && alive(noteView.webContents)) { sendTo(noteView.webContents, 'note.mode', { min: false }); sendTo(noteView.webContents, 'note.flush'); }
+  noteLayout();
+  try { const w = curWC(); if (alive(w)) w.focus(); } catch {}
+}
+function noteSetMin(m) {
+  if (!noteOpen) return;
+  noteMin = !!m; noteBounds(true); noteLayout(true);
+  sendTo(noteView.webContents, 'note.mode', { min: noteMin });
+  if (!noteMin) setTimeout(() => { if (noteOpen && !noteMin && alive(noteView.webContents)) { noteView.webContents.focus(); sendTo(noteView.webContents, 'note.focus'); } }, 60);
+}
+function noteToggle() { if (setting('tools').note === false) return; if (!noteOpen) return noteOpenNow(); if (noteMin) return noteSetMin(false); noteClose(); }
+function noteDrag(ph, dx, dy) {
+  if (!noteOpen || !win) return;
+  const g = noteG();
+  if (ph === 'start') { noteBounds(true); noteBase = Object.assign({}, g); return; }
+  if (!noteBase) return;
+  if (ph === 'end') { noteBase = null; saveSetting('notebox', Object.assign({}, g)); return; }
+  dx = Math.round(+dx || 0); dy = Math.round(+dy || 0);
+  const [w, h] = win.getContentSize();
+  // nilai < 0 berarti "belum diatur" (otomatis), jadi hasil seretan dijepit ke >= 0 dulu agar tidak melompat ke tengah
+  if (ph === 'move') { if (noteMin) { g.ix = Math.max(0, noteBase.ix + dx); g.iy = Math.max(0, noteBase.iy + dy); } else { g.x = Math.max(0, noteBase.x + dx); g.y = Math.max(0, noteBase.y + dy); } }
+  else if (ph === 'resize' && !noteMin) { g.w = Math.max(NOTE_MIN.w, Math.min(noteBase.w + dx, Math.max(NOTE_MIN.w, w - g.x))); g.h = Math.max(NOTE_MIN.h, Math.min(noteBase.h + dy, Math.max(NOTE_MIN.h, h - g.y))); }
+  else return;
+  noteView.setBounds(noteBounds(true));
+}
+// isi lembar kerja: { cur, list: [{ id, n: nama, t: isi sekarang, s: isi saat terakhir Simpan, f: nama berkas asal }] }
+function noteData() { const d = ctx.notes.data; return { cur: Number.isInteger(d.cur) ? d.cur : 0, list: Array.isArray(d.list) ? d.list : [] }; }
+function noteSaveData(d) {
+  if (!d || !Array.isArray(d.list) || d.list.length > 200) return false;
+  const str = (v, n) => (typeof v === 'string' ? v : '').slice(0, n);
+  const list = d.list.map((x, i) => ({ id: Number.isFinite(+x.id) ? +x.id : Date.now() + i, n: str(x.n, 80) || 'Lembar ' + (i + 1), t: str(x.t, 2000000), s: str(x.s, 2000000), f: str(x.f, 260) }));
+  ctx.notes.data = { cur: Math.max(0, Math.min(list.length - 1, d.cur | 0)), list };
+  ctx.notes.save(); return true;
+}
+// Simpan: tulis .txt ke folder unduhan (atau tanya lokasi bila "Tanya lokasi simpan" menyala) dan catat di halaman Unduhan (kecuali tab aktif penyamaran)
+async function noteExport(name, text) {
+  text = String(text == null ? '' : text).slice(0, 2000000);
+  let base = String(name || '').replace(/[\\/:*?"<>|\r\n]/g, '-').trim().replace(/^\.+|\.+$/g, '') || 'catatan-' + new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  if (!/\.(txt|md|srt|log|csv|json)$/i.test(base)) base += '.txt';
+  let file = path.join(SV.dlDir(), base);
+  if (setting('dlAsk')) { const r = await dialog.showSaveDialog(win, { defaultPath: file }); if (r.canceled || !r.filePath) return { ok: false, cancel: true }; file = r.filePath; }
+  else { const ext = path.extname(file), stem = file.slice(0, file.length - ext.length); for (let i = 1; fs.existsSync(file) && i < 1000; i++) file = stem + ' (' + i + ')' + ext; }
+  try { fs.writeFileSync(file, text, 'utf8'); } catch (e) { ctx.toast('Gagal menyimpan: ' + String(e.message || e).slice(0, 60)); return { ok: false }; }
+  const t = curTab(); if (!(t && t.incog)) SV.recordSaved(file, 'text/plain');
+  ctx.toast('Tersimpan: ' + path.basename(file));
+  return { ok: true, name: path.basename(file) };
+}
+async function notePick() {
+  const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Berkas teks', extensions: ['txt', 'md', 'srt', 'log', 'csv', 'json'] }, { name: 'Semua berkas', extensions: ['*'] }] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const f = r.filePaths[0];
+  try {
+    if (fs.statSync(f).size > 2000000) return { err: 'Berkas terlalu besar (maksimal 2 MB)' };
+    const buf = fs.readFileSync(f);
+    if (buf.includes(0)) return { err: 'Ini bukan berkas teks' };
+    return { name: path.basename(f), text: buf.toString('utf8') };
+  } catch { return { err: 'Tidak bisa membaca berkas' }; }
+}
 /* ================= menu Tools (overlay) ================= */
 // Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play tetap ditampilkan (redup)
 // dengan keterangan, supaya pengguna tahu kenapa tidak bisa dipakai; klik membuka Pengaturan di tempat yang tepat.
@@ -946,6 +1064,7 @@ function toolsMenuSpec() {
     on('split') ? (inSplit(activeId)
       ? [I('split.close', 'Tutup tampilan terpisah', { key: 'Ctrl+Alt+V' }), I('split.swap', 'Tukar posisi panel'), I('split.mode', 'Susunan: ' + ({ auto: 'otomatis', h: 'berdampingan', v: 'atas-bawah' }[setting('splitMode')] || 'otomatis')), I('split.reset', 'Samakan lebar panel (50:50)')]
       : [I('split.new', 'Tampilan terpisah', { key: 'Ctrl+Alt+V' })]) : [],
+    [on('note') && I('note', 'Notepad', { key: 'Ctrl+Alt+N', check: noteShown() })],
     [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
      on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
@@ -1057,6 +1176,7 @@ function menuAction(id) {
     case 'split.mode': return splitMode();
     case 'split.reset': ratioLive = null; saveSetting('splitRatio', 0.5); return layout();
     case 'transcript.side': return openTranscriptSide();
+    case 'note': return noteToggle();
     case 'goto.play': return openSettingsAt('play');
     case 'goto.mesinoff': return openSettingsAt('mesinoff');
     case 'tools.config': { const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog); if (ex) { go(ex, 'alethra://settings#tools'); return selectTab(ex.id); } return createTab('alethra://settings#tools'); }
@@ -1089,7 +1209,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open', 'site.open', 'site.act']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open', 'site.open', 'site.act', 'note.state', 'note.save', 'note.close', 'note.min', 'note.restore', 'note.drag', 'note.clip', 'note.export', 'note.pick']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -1225,6 +1345,7 @@ const API = {
     if (k === 'splitRatio' && !(typeof v === 'number' && v >= 0.15 && v <= 0.85)) return false;
     if (k === 'stcurl' && v && !/^https?:\/\/[^\s]+$/.test(v)) return false;
     saveSetting(k, v);
+    if (k === 'tools' && v.note === false) noteClose();
     if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'stwmodel', 'stvmodel', 'trmode'].includes(k)) STT.refresh();
     if (k === 'stt' && !v) STT.stop();
     if (k === 'splitMode' || k === 'splitRatio') { ratioLive = null; layout(); }
@@ -1254,6 +1375,16 @@ const API = {
   'clip.read': () => clipboard.readText().slice(0, 4000),
   'clip.write': (e, t) => { clipboard.writeText(String(t == null ? '' : t).slice(0, 20000)); return true; },
   'stt.stop': () => STT.stop(),
+  /* Notepad melayang (menu Tools) */
+  'note.state': () => ({ min: noteMin, notes: noteData() }),
+  'note.save': (e, d) => noteSaveData(d),
+  'note.close': () => noteClose(),
+  'note.min': () => noteSetMin(true),
+  'note.restore': () => noteSetMin(false),
+  'note.drag': (e, ph, dx, dy) => noteDrag(ph, dx, dy),
+  'note.clip': (e, op, text) => { if (op === 'r') return clipboard.readText().slice(0, 2000000); if (op === 'w') { clipboard.writeText(String(text == null ? '' : text).slice(0, 2000000)); return true; } return null; },
+  'note.export': (e, name, text) => noteExport(name, text),
+  'note.pick': () => notePick(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
   'stt.resetpos': () => STT.resetPos(),
   'stt.key': (e, key) => {
@@ -1350,7 +1481,7 @@ async function needAuthStrict() {
 }
 ipcMain.handle('api', async (e, name, ...args) => {
   if (!isInternalSender(e)) return null;
-  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && name !== 'dl.open') return null;
+  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && name !== 'dl.open') return null;
   const f = API[name]; if (!f) return null;
   try { return await f(e, ...args); } catch (err) { console.error('api', name, err); return null; }
 });
@@ -1419,7 +1550,7 @@ app.on('second-instance', (_e, argv) => {
 });
 app.on('web-contents-created', (_e, c) => { c.on('will-attach-webview', ev => ev.preventDefault()); });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { quitting = true; try { OFF.shutdown(); } catch {} try { saveSession(); } catch {} wipeIncog(); [ctx.settings, ctx.bm, ctx.hist, ctx.perms, ctx.pw, ctx.off, ctx.dlStore].forEach(s => s && s.flush()); });
+app.on('before-quit', () => { quitting = true; try { OFF.shutdown(); } catch {} try { saveSession(); } catch {} wipeIncog(); [ctx.settings, ctx.bm, ctx.hist, ctx.perms, ctx.pw, ctx.off, ctx.dlStore, ctx.notes].forEach(s => s && s.flush()); });
 
 app.whenReady().then(() => {
   ctx.dataDir = path.join(app.getPath('userData'), 'data');
@@ -1432,6 +1563,7 @@ app.whenReady().then(() => {
   ctx.pw = new Store(ctx.dataDir, 'passwords.json', []);
   ctx.off = new Store(ctx.dataDir, 'offline.json', []);
   ctx.sess = new Store(ctx.dataDir, 'session.json', {});
+  ctx.notes = new Store(ctx.dataDir, 'notes.json', {});
   ctx.dlList = (ctx.dlStore.data || []).map(d => d.state === 'progressing' || d.state === 'paused' ? Object.assign(d, { state: 'interrupted' }) : d);
   SV.setupSession(session.defaultSession, false);
   SV.initTranslate(); SV.applyDoh();

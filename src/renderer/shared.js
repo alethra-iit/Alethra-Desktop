@@ -14,6 +14,7 @@
     download: 'M12 4v11M7 11l5 5 5-5M5 20h14', more: 'M5 12h.01M12 12h.01M19 12h.01', lock: 'M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3',
     warn: 'M12 3l10 18H2zM12 10v5M12 18h.01', globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',
     translate: 'M4 5h9M8.5 3v2M6 5c0 4 3 8 6 9M12 5c0 4-3 8-6 9M13 20l4-9 4 9M14.5 17h5', plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+    note: 'M5 3h10l4 4v14H5zM15 3v4h4M8 12h8M8 16h6', save: 'M5 3h12l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7', paste: 'M9 4h6v3H9zM7 5.5H5v15h14v-15h-2M9 12h6M9 16h6', resize: 'M21 11L11 21M21 17l-4 4',
     volume: 'M11 5L6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7', mute: 'M11 5L6 9H3v6h3l5 4zM16 9l5 6M21 9l-5 6',
     incog: 'M3 12c3-6 15-6 18 0M3 12c3 6 15 6 18 0M12 9.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5M4 4l16 16',
     search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-5-5', up: 'M6 15l6-6 6 6', down: 'M6 9l6 6 6-6', clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',

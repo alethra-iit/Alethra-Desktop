@@ -1,0 +1,35 @@
+html,body{background:transparent!important;overflow:hidden;height:100%;margin:0;user-select:none}
+#box{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--surf);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+#box[hidden],#ico[hidden]{display:none}
+.nh{display:flex;align-items:center;gap:8px;height:40px;padding:0 4px 0 12px;flex:none;cursor:grab;touch-action:none}
+.nh.drag{cursor:grabbing}.nh .t{flex:1;font-weight:600;font-size:14px}
+.nh svg.i{color:var(--sub)}
+.nb{width:36px;height:36px;border:0;background:none;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.nb:hover{background:var(--surf2)}
+.nt{display:flex;align-items:center;gap:5px;height:36px;padding:0 8px;flex:none;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.nt::-webkit-scrollbar{display:none}
+.chip2{display:inline-flex;align-items:center;height:30px;flex:none;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding-left:10px;cursor:pointer;font-size:12.5px;font-weight:600;white-space:nowrap}
+.chip2.on{background:var(--acc);color:var(--onacc);border-color:transparent}
+.chip2 .nm{max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.chip2 input{width:110px;height:24px;border:0;outline:0;background:transparent;color:inherit;font:inherit;padding:0}
+.chip2 .x{width:28px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:0 10px 10px 0}
+.chip2 .x:hover{opacity:.7}
+.plus{width:34px;height:30px;flex:none;border-radius:10px;border:1px solid var(--line);background:var(--bg);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.plus:hover,.tool:hover{background:var(--surf2)}
+.nbar{display:flex;gap:6px;padding:4px 8px 6px;flex:none}
+.tool{flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tool.pri{background:var(--acc);color:var(--onacc);border-color:transparent}.tool.pri:hover{filter:brightness(1.12);background:var(--acc)}
+#ta{flex:1;min-height:0;margin:0 8px;resize:none;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);padding:8px 10px;outline:0;font:14px/1.5 "Segoe UI",system-ui,sans-serif;user-select:text;white-space:pre-wrap}
+#ta:focus{border-color:var(--acc)}
+.nf{display:flex;align-items:center;height:30px;padding:0 0 0 12px;flex:none;color:var(--sub);font-size:11.5px}
+.nf .st{flex:1}
+.rz{width:40px;height:30px;display:flex;align-items:center;justify-content:center;cursor:nwse-resize;touch-action:none}
+#ico{position:absolute;inset:0;border-radius:24px;border:1px solid var(--line);background:var(--surf);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.95;touch-action:none}
+#ico:hover,#ico:focus-visible{opacity:1;background:var(--surf2)}#ico:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+#ico svg.i{width:22px;height:22px}
+#tip{position:absolute;left:12px;right:12px;bottom:40px;padding:7px 10px;border-radius:10px;background:var(--acc);color:var(--onacc);font-size:12.5px;text-align:center;z-index:5;pointer-events:none}
+.md{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10;padding:10px}
+.md .c{background:var(--bg);border-radius:14px;padding:14px;width:100%;max-width:300px;box-shadow:var(--shadow);user-select:text}
+.md h4{margin:0 0 6px;font-size:14px}.md p{margin:0 0 10px;color:var(--sub);font-size:12.5px;white-space:pre-wrap;word-break:break-word}
+.md .inp{width:100%;margin:0 0 10px}
+.md .end{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}

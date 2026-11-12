@@ -22,7 +22,9 @@ const DEFAULTS = {
   // kotak terjemahan suara di luar layar penuh. Kosong ('') = ikut tema terang/gelap.
   stb: { bgop: 100, bgcol: '', color: '', size: 20, bold: true, width: 720, height: 168, radius: 16, border: true, prev: true, shadow: 'auto' },
   // item menu Tools yang ditampilkan
-  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, adsite: true, split: true, transcript: true },
+  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, adsite: true, split: true, note: true, transcript: true },
+  // posisi & ukuran Notepad melayang (-1 = otomatis); ix/iy = posisi ikon saat diperkecil
+  notebox: { x: -1, y: -1, w: 340, h: 340, ix: -1, iy: -1 },
   lock: { mode: 'off', parts: [], grace: 60000, hash: '', salt: '' }
 };
 const S = () => ctx.settings.data;
