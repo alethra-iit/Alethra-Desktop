@@ -29,7 +29,6 @@ const DEFAULTS = {
   minibox: { x: -1, y: -1, w: 380, h: 560, ix: -1, iy: -1 },
   // posisi & ukuran Riwayat clipboard melayang (-1 = otomatis)
   clipbox: { x: -1, y: -1, w: 340, h: 440, ix: -1, iy: -1 },
-  minizoom: {},   // zoom Mini browser per situs { host: faktor }
   minisites: [{ n: 'Wikipedia', u: 'https://id.m.wikipedia.org/' }, { n: 'Google Terjemahan', u: 'https://translate.google.com/' }, { n: 'DuckDuckGo', u: 'https://duckduckgo.com/' }],
   lock: { mode: 'off', parts: [], grace: 60000, hash: '', salt: '' }
 };
