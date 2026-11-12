@@ -53,7 +53,7 @@
       else if (d.state === 'paused') st = 'Dijeda · ' + pct + '%';
       else if (d.state === 'cancelled') { st = 'Dibatalkan'; cls = 'bad'; } else { st = 'Gagal / terputus'; cls = 'bad'; }
       const size = d.state === 'completed' ? fmtBytes(d.total || d.received) : '';
-      const bar = d.state === 'completed' ? `<div class="pb"><i style="width:100%"></i></div>` : live ? `<div class="pb ${d.state === 'paused' ? 'pz' : ''}"><i style="width:${d.total ? pct : 8}%"></i></div>` : `<div class="pb bad"><i style="width:${pct}%"></i></div>`;
+      const bar = d.state === 'completed' ? '' : live ? `<div class="pb ${d.state === 'paused' ? 'pz' : ''}"><i style="width:${d.total ? pct : 8}%"></i></div>` : `<div class="pb bad"><i style="width:${pct}%"></i></div>`;
       r.innerHTML = `<div class="fi">${FILEICON(d.name, 40)}</div><div class="tx"><div class="t" title="${esc(d.name)}">${esc(d.name)}</div><div class="s">${size ? esc(size) + '<span class="dot"></span>' : ''}<span class="st ${cls}">${esc(st)}</span>${d.incog ? '<span class="dot"></span><span>Incognito</span>' : ''}<span class="dot"></span><span>${esc(sameDay(d.time))}</span></div>${bar}</div><div class="ac"></div>`;
       const a = r.lastChild, B = (ic, t, fn, more) => { const b = document.createElement('button'); b.title = t; b.innerHTML = ICON(ic); if (more) b.setAttribute('data-more', ''); b.onclick = e => { e.stopPropagation(); fn(b); }; a.appendChild(b); };
       if (d.state === 'progressing') B('pause', 'Jeda', () => act(d, 'pause'));
