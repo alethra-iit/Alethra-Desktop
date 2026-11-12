@@ -1,13 +1,62 @@
 <!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self' alethra:; img-src * data: blob:; style-src 'self' alethra: 'unsafe-inline'">
 <title>Pengaturan</title><link rel="stylesheet" href="alethra://app/shared.css">
 <style>
-.wrap{display:flex;min-height:100vh}.side{width:230px;flex:none;padding:24px 12px;position:sticky;top:0;height:100vh;border-right:1px solid var(--line)}
-.side h2{margin:0 12px 16px;font-size:20px}.side button{display:flex;width:100%;align-items:center;gap:10px;padding:9px 12px;border:0;background:none;border-radius:10px;text-align:left}.side button:hover{background:var(--surf)}.side button.on{background:var(--acc);color:var(--onacc)}
-.main{flex:1;min-width:0;padding:26px 32px 80px;max-width:820px}
-.main h1{margin:0 0 18px;font-size:24px}
-.set{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line)}.set:last-child{border-bottom:0}.set .tx{flex:1;min-width:0}.set .d{color:var(--sub);font-size:12.5px}
+:root{--pri:#2f6bff;--onpri:#fff;--pbg:#f3f5fa;--card:#fff;--cline:#e7eaf1;--hov:rgba(20,30,60,.05);--pshadow:0 1px 2px rgba(20,30,60,.04),0 8px 24px rgba(20,30,60,.06)}
+:root[data-theme=dark]{--pbg:var(--bg);--card:var(--surf);--cline:var(--line);--hov:rgba(255,255,255,.06);--pshadow:none}
+html,body{background:var(--pbg)}
+.wrap{display:flex;min-height:100vh}
+
+/* sidebar */
+.side{width:262px;flex:none;padding:22px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--cline);background:var(--pbg)}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 14px 20px}.brand svg{width:26px;height:26px;color:var(--fg)}.brand h2{margin:0;font-size:21px;font-weight:700;letter-spacing:-.2px}
+.side button{display:flex;width:100%;align-items:center;gap:14px;padding:11px 14px;margin-bottom:3px;border:0;background:none;border-radius:14px;text-align:left;font-size:14.5px;color:var(--fg);transition:background .12s}
+.side button svg{color:var(--sub)}
+.side button:hover{background:var(--hov)}
+.side button.on{background:color-mix(in srgb,var(--pri) 13%,transparent);color:var(--pri);font-weight:600}.side button.on svg{color:var(--pri)}
+
+/* isi */
+.main{flex:1;min-width:0;padding:30px 40px 90px;max-width:1000px}
+.ph{display:flex;align-items:center;gap:16px;margin:0 0 24px}
+.pi{width:48px;height:48px;border-radius:50%;background:var(--pri);color:var(--onpri);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 6px 16px color-mix(in srgb,var(--pri) 35%,transparent)}.pi svg{width:23px;height:23px}
+.ph h1{margin:0;font-size:25px;font-weight:700;letter-spacing:-.3px;line-height:1.2}.ph .ps{color:var(--sub);font-size:14px;margin-top:2px}
+
+.list{background:var(--card);border:1px solid var(--cline);border-radius:20px;box-shadow:var(--pshadow);overflow:hidden}
+.set{display:flex;align-items:center;gap:16px;padding:16px 22px;border-bottom:1px solid var(--cline)}.set:last-child{border-bottom:0}
+.set .tx{flex:1;min-width:0}.set .tx>div:first-child{font-weight:600;font-size:14.5px}.set .d{color:var(--sub);font-size:13px;margin-top:2px}
+.group{display:flex;align-items:center;gap:10px;margin:30px 2px 12px;font-size:17px;font-weight:700;color:var(--fg);text-transform:none;letter-spacing:0}
+.group:before{content:"";width:4px;height:18px;border-radius:3px;background:var(--pri)}
+.group.hi:before{display:none}.group .gi{display:flex;color:var(--pri)}.group .gi svg{width:22px;height:22px}
+
+/* tombol, sakelar, input */
+.btn{height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--cline);background:color-mix(in srgb,var(--pri) 6%,var(--card));font-weight:500}
+.btn:hover{background:color-mix(in srgb,var(--pri) 13%,var(--card))}
+.btn.sm{height:38px;padding:0 18px;border-radius:999px;font-size:13.5px}
+.btn.pri{background:var(--pri);color:var(--onpri);border-color:transparent}.btn.pri:hover{background:var(--pri);filter:brightness(1.08)}
+.btn.danger{color:var(--danger)}.btn.danger:hover{background:color-mix(in srgb,var(--danger) 10%,var(--card))}
+.btn:disabled{opacity:.55;cursor:default}
+.sw{width:50px;height:28px}.sw i{border-radius:14px;background:color-mix(in srgb,var(--fg) 20%,transparent)}.sw i:after{width:22px;height:22px;left:3px;top:3px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw input:checked+i{background:var(--pri)}.sw input:checked+i:after{left:25px;background:#fff}
+select,.inp{background:var(--card);border:1px solid var(--cline);border-radius:12px;height:40px}
+.inp:focus,select:focus{border-color:var(--pri)}
+.prog{height:6px}.prog i{background:var(--pri)}
+.dlg .card{background:var(--card);border-radius:24px;padding:26px}
+.empty{color:var(--sub)}
+
+/* swatch & akordeon */
 .sws{display:flex;gap:8px;flex-wrap:wrap}.swc{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}.swc.on{outline:2px solid var(--fg);outline-offset:2px}
-.acc{border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}.acch{display:flex;width:100%;align-items:center;gap:12px;padding:14px 16px;border:0;background:var(--surf);color:inherit;text-align:left;cursor:pointer}.acch:hover{background:var(--surf2)}.acch .tx{flex:1;min-width:0}.acch .d{display:block;color:var(--sub);font-size:12.5px;margin-top:2px}.acch .chv{display:flex;transition:transform .15s}.acc.open .chv{transform:rotate(180deg)}.acc .list{border:0;border-radius:0;margin:0}.acc:not(.open) .list{display:none}
+.acc{border:1px solid var(--cline);border-radius:20px;margin-bottom:12px;overflow:hidden;background:var(--card);box-shadow:var(--pshadow)}
+.acch{display:flex;width:100%;align-items:center;gap:12px;padding:16px 22px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.acch:hover{background:var(--hov)}
+.acch .tx{flex:1;min-width:0}.acch .d{display:block;color:var(--sub);font-size:13px;margin-top:2px}.acch .chv{display:flex;transition:transform .15s;color:var(--sub)}.acc.open .chv{transform:rotate(180deg)}
+.acc .list{border:0;border-radius:0;margin:0;box-shadow:none;border-top:1px solid var(--cline)}.acc:not(.open) .list{display:none}
 .chk{display:flex;gap:8px;align-items:center;padding:6px 0}
+
+/* Tentang */
+.ah{display:flex;align-items:center;gap:20px;padding:24px 26px}
+.aicon{width:80px;height:80px;flex:none;filter:drop-shadow(0 8px 16px rgba(45,20,100,.28))}
+.an{font-size:26px;font-weight:700;letter-spacing:-.3px;line-height:1.15}.av{color:var(--sub);font-size:16px;margin-top:3px}
+.kv{display:flex;gap:16px;align-items:baseline;padding:15px 26px;border-top:1px solid var(--cline)}.kv .k{width:130px;flex:none;font-weight:700}.kv .v{color:var(--sub);min-width:0;word-break:break-all}
+.chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px;align-items:center}
+.chips .lb{display:flex;align-items:center;gap:8px;color:var(--sub);margin-right:4px}
+.chips .c{display:inline-flex;gap:7px;padding:8px 15px;border-radius:999px;background:var(--card);border:1px solid var(--cline);font-size:13px;white-space:nowrap}.chips .c b{font-weight:600}.chips .c span{color:var(--sub)}
 </style></head><body><div class="wrap"><nav class="side" id="side"></nav><div class="main" id="main"></div></div>
 <script src="alethra://app/shared.js"></script><script src="alethra://app/pages/settings.js"></script></body></html>

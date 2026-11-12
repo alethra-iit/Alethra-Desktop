@@ -209,7 +209,7 @@ function uniquePath(dir, name) {
 let dlTimer = null;
 function dlPush() { if (dlTimer) return; dlTimer = setTimeout(() => { dlTimer = null; ctx.sendChrome('downloads', dlSummary()); ctx.broadcastPages('downloads', listDownloads()); }, 250); }
 function dlSummary() { const l = ctx.dlList; const act = l.filter(d => d.state === 'progressing' || d.state === 'paused'); const tot = act.reduce((a, d) => a + (d.total || 0), 0), rc = act.reduce((a, d) => a + d.received, 0); return { active: act.length, pct: tot ? Math.round(rc * 100 / tot) : 0 }; }
-function listDownloads() { return ctx.dlList.map(d => Object.assign({}, d)).reverse(); }
+function listDownloads() { return ctx.dlList.map(d => { const o = Object.assign({}, d); if (d.state === 'completed' && d.path) { try { o.missing = !fs.existsSync(d.path); } catch {} } return o; }).reverse(); }
 function persistDl() { ctx.dlStore.data = ctx.dlList.filter(d => !d.incog).slice(-500); ctx.dlStore.save(); }
 ctx.dlList = [];
 ctx.onDownload = (e, item, wc, incog) => {
@@ -242,6 +242,7 @@ function dlAct(id, a) {
   else if (a === 'open' && rec.path) shell.openPath(rec.path).then(r => { if (r) ctx.toast('Berkas tidak ditemukan'); });
   else if (a === 'show' && rec.path) shell.showItemInFolder(rec.path);
   else if (a === 'retry') session.fromPartition(rec.incog ? 'incog' : 'persist:main').downloadURL(rec.url);
+  else if (a === 'trash' && rec.path) { shell.trashItem(rec.path).then(() => { ctx.toast('Berkas dipindahkan ke Sampah'); dlPush(); }).catch(() => { ctx.toast('Berkas tidak ditemukan'); dlPush(); }); }
   else if (a === 'remove') { if (it) it.cancel(); ctx.dlList = ctx.dlList.filter(d => d.id !== id); persistDl(); }
   else if (a === 'clear') { ctx.dlList = ctx.dlList.filter(d => d.state === 'progressing' || d.state === 'paused'); persistDl(); }
   dlPush();

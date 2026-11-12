@@ -1,9 +1,15 @@
 (async function () {
   let built = false, sec = (location.hash || '#umum').slice(1), S = {};
   let busyUI = false; // true saat slider/pemilih warna sedang dipakai, supaya halaman tidak dibangun ulang di tengah geseran
-  S = await pageInit(s => { S = s; if (built && !busyUI) renderSec(false); });
-  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['widget', 'Widget', 'layout'], ['unduhan', 'Unduhan', 'download'], ['tools', 'Tools', 'tools'], ['play', 'Play', 'play'], ['mesinoff', 'Mesin offline', 'mic'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'globe']];
-  $('#side').innerHTML = '<h2>Pengaturan</h2>'; SECS.forEach(([k, l, ic, hid]) => { if (hid) return; const b = document.createElement('button'); b.dataset.k = k; b.innerHTML = ICON(ic, 18) + esc(l); b.onclick = () => { sec = k; history.replaceState(null, '', '#' + k); renderSec(true); }; $('#side').appendChild(b); });
+  // warna utama halaman ini: biru bawaan, atau warna aksen yang dipilih pengguna
+  const paintPri = (s) => {
+    const R = document.documentElement, ok = s && s.accent && /^#[0-9a-f]{6}$/i.test(s.accent);
+    R.style.setProperty('--pri', ok ? s.accent : '#2f6bff');
+    R.style.setProperty('--onpri', ok ? (R.style.getPropertyValue('--onacc') || '#fff') : '#fff');
+  };
+  S = await pageInit(s => { S = s; paintPri(s); if (built && !busyUI) renderSec(false); });
+  const SECS = [['umum', 'Umum', 'settings'], ['mesin', 'Mesin pencari', 'search'], ['privasi', 'Privasi & Keamanan', 'shield'], ['tampilan', 'Tampilan', 'image'], ['widget', 'Widget', 'layout'], ['unduhan', 'Unduhan', 'download'], ['tools', 'Tools', 'tools'], ['play', 'Play', 'play'], ['mesinoff', 'Mesin offline', 'mic'], ['audio', 'Pengaturan audio', 'sliders', 1], ['cadangan', 'Cadangan', 'copy'], ['tentang', 'Tentang', 'info']];
+  $('#side').innerHTML = `<div class="brand">${ICON('settings', 26)}<h2>Pengaturan</h2></div>`; SECS.forEach(([k, l, ic, hid]) => { if (hid) return; const b = document.createElement('button'); b.dataset.k = k; b.innerHTML = ICON(ic, 18) + esc(l); b.onclick = () => { sec = k; history.replaceState(null, '', '#' + k); renderSec(true); }; $('#side').appendChild(b); });
   const set = (k, v) => api('settings.set', k, v);
   const el = (h) => { const t = document.createElement('div'); t.innerHTML = h.trim(); return t.firstChild; };
   const box = (rows) => { const l = document.createElement('div'); l.className = 'list'; rows.forEach(r => l.appendChild(r)); return l; };
@@ -11,11 +17,12 @@
   const toggle = (k, title, desc, inv) => { const c = el(`<label class="sw"><input type="checkbox"><i></i></label>`); const i = c.firstChild; i.checked = inv ? !S[k] : !!S[k]; i.onchange = () => set(k, inv ? !i.checked : i.checked); return row(title, desc, c); };
   const select = (title, desc, opts, val, fn) => { const s = document.createElement('select'); opts.forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; if (String(v) === String(val)) o.selected = true; s.appendChild(o); }); s.onchange = () => fn(s.value); return row(title, desc, s); };
   const button = (title, desc, label, fn, cls) => { const b = document.createElement('button'); b.className = 'btn sm ' + (cls || ''); b.textContent = label; b.onclick = fn; return row(title, desc, b); };
-  const grp = (t) => el(`<div class="group">${esc(t)}</div>`);
+  const GI = { 'Pembaruan': 'reload', 'Situs & halaman': 'globe', 'Blokir iklan': 'shield', 'Data': 'trash', 'Kunci aplikasi (PIN)': 'lock', 'Terjemahan': 'translate', 'Warna aksen': 'tune', 'Video': 'video', 'Beranda': 'home', 'Riwayat terjemahan': 'clock', 'Diagnostik': 'info' };
+  const grp = (t) => { const ic = GI[t]; return el(`<div class="group${ic ? ' hi' : ''}">${ic ? `<span class="gi">${ICON(ic)}</span>` : ''}${esc(t)}</div>`); };
   // slider angka dengan nilai di sebelahnya; perubahan dikirim langsung (diperlambat) supaya terlihat saat geser
   const slider = (title, desc, min, max, step, val, fmt, fn) => {
     const w = document.createElement('div'); w.style.cssText = 'display:flex;align-items:center;gap:10px';
-    const r = document.createElement('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = val; r.style.cssText = 'width:200px;accent-color:var(--acc)';
+    const r = document.createElement('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = val; r.style.cssText = 'width:200px;accent-color:var(--pri)';
     const v = document.createElement('span'); v.style.cssText = 'min-width:68px;text-align:right;font-variant-numeric:tabular-nums;color:var(--sub);font-size:13px'; v.textContent = fmt(+val);
     let t = 0; const end = () => { if (busyUI) { busyUI = false; renderSec(false); } };
     r.onpointerdown = () => { busyUI = true; };
@@ -81,7 +88,7 @@
   function oeRow(map) {
     return (m0) => {
       const m = map(m0), job = (OE.jobs || {})[m.id], busy = job && job.busy, paused = busy && job.paused, pct = job && job.total ? Math.min(100, Math.round(job.done * 100 / job.total)) : 0;
-      const r = el(`<div class="set"><div class="tx"><div>${esc(m.title)}${m.sel ? ' <span style="font-size:11px;padding:2px 8px;border-radius:9px;background:var(--acc);color:var(--onacc);margin-left:6px">Dipakai</span>' : ''}</div><div class="d">${esc(m.desc)} · ${m.installed ? fmtBytes(m.bytes) : '±' + m.mb + ' MB'}</div>${busy ? `<div class="prog"><i data-p="${m.id}" style="width:${pct}%"></i></div><div class="d" data-pt="${m.id}">${esc(paused ? 'Dijeda' : (job.phase || ''))} ${job.total ? pct + '% (' + fmtBytes(job.done) + ' / ' + fmtBytes(job.total) + ')' : ''}</div>` : ''}${!busy && job && job.error ? `<div class="d" style="color:var(--danger)">${esc(job.error)}</div>` : ''}</div></div>`);
+      const r = el(`<div class="set"><div class="tx"><div>${esc(m.title)}${m.sel ? ' <span style="font-size:11px;padding:2px 8px;border-radius:9px;background:var(--pri);color:var(--onpri);margin-left:6px">Dipakai</span>' : ''}</div><div class="d">${esc(m.desc)} · ${m.installed ? fmtBytes(m.bytes) : '±' + m.mb + ' MB'}</div>${busy ? `<div class="prog"><i data-p="${m.id}" style="width:${pct}%"></i></div><div class="d" data-pt="${m.id}">${esc(paused ? 'Dijeda' : (job.phase || ''))} ${job.total ? pct + '% (' + fmtBytes(job.done) + ' / ' + fmtBytes(job.total) + ')' : ''}</div>` : ''}${!busy && job && job.error ? `<div class="d" style="color:var(--danger)">${esc(job.error)}</div>` : ''}</div></div>`);
       const a = document.createElement('div'); a.style.cssText = 'display:flex;gap:6px;flex:none';
       const b = (t, fn, cls) => { const x = document.createElement('button'); x.className = 'btn sm ' + (cls || ''); x.textContent = t; x.onclick = fn; a.appendChild(x); };
       if (!busy && job && job.error && job.detail) b('Salin detail error', async () => { await api('clip.write', job.detail); const x = a.firstChild; if (x) { x.textContent = 'Tersalin ✓'; setTimeout(() => { x.textContent = 'Salin detail error'; }, 1800); } });
@@ -115,7 +122,9 @@
     busyUI = false;
     $$('#side button').forEach(b => b.classList.toggle('on', b.dataset.k === sec));
     const keep = main.scrollTop || window.scrollY; main.innerHTML = '';
-    const title = SECS.find(x => x[0] === sec)[1]; main.appendChild(el(`<h1>${esc(title)}</h1>`));
+    const cur = SECS.find(x => x[0] === sec), title = cur[1];
+    const SUB = { umum: 'Perilaku dasar dan pintasan ke halaman lain', mesin: 'Pilih mesin pencari dan saran ketikan', privasi: 'Atur privasi, keamanan, dan izin situs', tampilan: 'Tema, warna, dan tampilan browser', widget: 'Atur widget di beranda', unduhan: 'Lokasi dan perilaku unduhan', tools: 'Alat bantu untuk halaman dan video', play: 'Pengaturan pemutar dan terjemahan video', mesinoff: 'Kelola model suara dan terjemahan offline', cadangan: 'Cadangkan dan pulihkan data Alethra', tentang: 'Informasi tentang Alethra Browser' };
+    main.appendChild(el(`<div class="ph"><div class="pi">${ICON(cur[2], 23)}</div><div><h1>${esc(title)}</h1><div class="ps">${esc(SUB[sec] || '')}</div></div></div>`));
     const A = (n) => main.appendChild(n);
     if (sec === 'umum') {
       A(box([
@@ -472,7 +481,7 @@
           const done = r.rows.filter(x => x.avgMs != null).sort((a, b) => a.avgMs - b.avgMs), rest = r.rows.filter(x => x.avgMs == null), max = Math.max(1, ...done.map(x => x.avgMs));
           done.forEach((x, i) => {
             const w = Math.max(4, Math.round(x.avgMs * 100 / max));
-            out.appendChild(el(`<div class="set"><div class="tx"><div>${esc(x.name)}${i === 0 && done.length > 1 ? ' <span style="font-size:11px;padding:2px 8px;border-radius:9px;background:var(--acc);color:var(--onacc);margin-left:6px">Tercepat</span>' : ''}</div>
+            out.appendChild(el(`<div class="set"><div class="tx"><div>${esc(x.name)}${i === 0 && done.length > 1 ? ' <span style="font-size:11px;padding:2px 8px;border-radius:9px;background:var(--pri);color:var(--onpri);margin-left:6px">Tercepat</span>' : ''}</div>
               <div class="d">${x.avgMs} ms per kalimat · muat pertama ${x.firstMs} ms${x.ramMB ? ' · RAM ±' + x.ramMB + ' MB' : ''}</div>
               <div class="prog"><i style="width:${w}%"></i></div><div class="d" style="color:var(--text, inherit)">${esc(x.text || '')}</div></div></div>`));
           });
@@ -520,7 +529,10 @@
     }
     if (sec === 'tentang') {
       const a = await api('about');
-      A(box([row('Alethra', 'Versi ' + a.version, null), row('Mesin', `Chromium ${a.chrome} · Electron ${a.electron}`, null), row('Folder data', a.data, null)]));
+      {
+        const hero = el(`<div class="list"><div class="ah"><img class="aicon" src="alethra://app/icon.png" alt="Alethra"><div><div class="an">Alethra</div><div class="av">Versi ${esc(a.version)}</div></div></div><div class="kv"><div class="k">Mesin</div><div class="v">Chromium ${esc(a.chrome)} · Electron ${esc(a.electron)}</div></div><div class="kv"><div class="k">Folder data</div><div class="v">${esc(a.data)}</div></div></div>`);
+        A(hero);
+      }
       A(grp('Pembaruan'));
       {
         const upBox = el('<div class="list"></div>'); A(upBox);
@@ -562,7 +574,10 @@
         };
         upFill(await api('up.state') || { state: 'idle', version: a.version });
       }
-      A(el('<p class="sub" style="margin-top:16px">Pintasan: Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+L alamat · Ctrl+F cari · Ctrl+D bookmark · Ctrl+H histori · Ctrl+J unduhan · F11 layar penuh · Ctrl+Alt+R mode baca · Ctrl+Alt+T terjemah.</p>'));
+      {
+        const KS = [['Ctrl+T', 'Tab baru'], ['Ctrl+Shift+N', 'Incognito'], ['Ctrl+L', 'Alamat'], ['Ctrl+F', 'Cari'], ['Ctrl+D', 'Bookmark'], ['Ctrl+H', 'Histori'], ['Ctrl+J', 'Unduhan'], ['F11', 'Layar penuh'], ['Ctrl+Alt+R', 'Mode baca'], ['Ctrl+Alt+T', 'Terjemah']];
+        A(el(`<div class=\"chips\"><span class=\"lb\">${ICON('info', 18)}Pintasan:</span>${KS.map(([k, t]) => `<span class=\"c\"><b>${esc(k)}</b><span>${esc(t)}</span></span>`).join('')}</div>`));
+      }
     }
     if (!scroll) window.scrollTo(0, keep);
   }

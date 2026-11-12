@@ -1,3 +1,47 @@
 <!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self' alethra:; img-src * data: blob:; style-src 'self' alethra: 'unsafe-inline'">
-<title>Unduhan</title><link rel="stylesheet" href="alethra://app/shared.css"><style>.row .fav.fi{width:38px;height:44px;border-radius:0;background:none;overflow:visible}.row .fav.fi .fi-svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.12))}</style></head><body><div class="page" id="app"></div>
+<title>Unduhan</title><link rel="stylesheet" href="alethra://app/shared.css"><style>
+body{background:var(--surf)}
+.page.dl{max-width:1100px;padding:28px 24px 60px}
+.dlc{background:var(--bg);border-radius:28px;padding:26px 30px 22px;box-shadow:0 6px 30px rgba(0,0,0,.07);border:1px solid var(--line)}
+.dlh{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.dlh .ico{width:66px;height:66px;border-radius:20px;background:var(--surf);display:flex;align-items:center;justify-content:center;color:var(--acc);flex:none}
+.dlh .ico svg.i{width:34px;height:34px;stroke-width:2.4}
+.dlh .tt{flex:1;min-width:200px}.dlh h1{margin:0;font-size:30px;letter-spacing:-.5px}.dlh .sub{margin:2px 0 0;font-size:16px}
+.dlh .loc{font-size:12px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px}
+.dls{display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--line);border-radius:26px;padding:0 18px;height:52px;width:min(380px,100%);color:var(--sub)}
+.dls input{flex:1;min-width:0;background:none;border:0;outline:0;height:100%;font-size:15px}
+.dls:focus-within{border-color:var(--acc)}
+.dlt{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0 16px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.tab{display:inline-flex;align-items:center;gap:9px;height:46px;padding:0 22px;border-radius:24px;border:1px solid transparent;background:var(--surf);font-size:15.5px;font-weight:500}
+.tab:hover{background:var(--surf2)}.tab.on{background:var(--acc);color:var(--onacc)}
+.tab svg.i{width:20px;height:20px}
+.dll{display:flex;flex-direction:column;gap:12px;min-height:60px}
+.it{display:flex;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--line);border-radius:22px;background:var(--bg);position:relative}
+.it:hover{background:var(--surf)}
+.it .fi{width:56px;height:62px;border-radius:14px;background:var(--surf);display:flex;align-items:center;justify-content:center;flex:none}
+.it .fi .fi-svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.12))}
+.it .tx{flex:1;min-width:0}.it.ok .tx{cursor:pointer}
+.it .t{font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .s{display:flex;align-items:center;gap:8px;color:var(--sub);font-size:14.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .s .dot{width:4px;height:4px;border-radius:50%;background:currentColor;flex:none}
+.it .s .st{color:var(--acc);font-weight:500}.it .s .st.bad{color:var(--danger)}.it .s .st.warn{color:#c77700}
+.it .pb{height:9px;border-radius:6px;background:var(--surf2);overflow:hidden;margin-top:9px}
+.it .pb i{display:block;height:100%;border-radius:6px;background:var(--acc);transition:width .25s}
+.it .pb.bad i{background:var(--danger)}.it .pb.pz i{background:var(--sub)}
+.it .ac{display:flex;align-items:center;flex:none}
+.it .ac button{width:52px;height:46px;border:0;background:none;display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line);color:var(--fg)}
+.it .ac button:first-child{border-left:0}.it .ac button:hover{background:var(--surf2)}
+.it .ac button:first-child{border-radius:12px 0 0 12px}.it .ac button:last-child{border-radius:0 12px 12px 0}
+.it .ac button svg.i{width:22px;height:22px}
+.mn{position:absolute;right:14px;top:calc(100% - 14px);z-index:20;min-width:230px;background:var(--bg);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px}
+.mn button{display:flex;align-items:center;gap:12px;width:100%;height:40px;padding:0 12px;border:0;border-radius:9px;background:none;text-align:left}
+.mn button:hover{background:var(--surf)}.mn button.dg{color:var(--danger)}.mn button svg.i{width:18px;height:18px}
+.dlf{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px;padding-top:18px;border-top:1px solid var(--line);flex-wrap:wrap}
+.dlf .cn{display:flex;align-items:center;gap:14px;font-size:16px}
+.dlf .ck{width:36px;height:36px;border-radius:50%;background:var(--acc);color:var(--onacc);display:flex;align-items:center;justify-content:center}
+.dlf .ck svg.i{width:20px;height:20px;stroke-width:3}
+.dlf .btn{height:46px;border-radius:24px;padding:0 24px;font-size:15.5px;font-weight:500}
+.dlf .btn:disabled{opacity:.45;cursor:default}
+@media(max-width:700px){.dlc{padding:18px}.it{flex-wrap:wrap}.it .ac{margin-left:auto}}
+</style></head><body><div class="page dl" id="app"></div>
 <script src="alethra://app/shared.js"></script><script src="alethra://app/fileicons.js"></script><script src="alethra://app/pages/downloads.js"></script></body></html>
