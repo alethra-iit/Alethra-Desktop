@@ -4,9 +4,9 @@
   app.innerHTML = `<div class="dlc">
     <div class="dlh"><div class="ico">${ICON('download')}</div>
       <div class="tt"><h1>Unduhan</h1><p class="sub">Kelola file yang telah Anda unduh</p><div class="loc" id="loc"></div></div>
-      <label class="dls">${ICON('search', 20)}<input id="q" type="search" placeholder="Cari di unduhan…" autocomplete="off"></label></div>
+      <label class="dls">${ICON('search', 17)}<input id="q" type="search" placeholder="Cari di unduhan…" autocomplete="off"></label></div>
     <div class="dlt" id="tabs"></div><div class="dll" id="l"></div>
-    <div class="dlf"><div class="cn" id="cn"></div><button class="btn" id="clr">${ICON('trash', 20)} Hapus semua</button></div></div>`;
+    <div class="dlf"><div class="cn" id="cn"></div><button class="btn" id="clr">${ICON('trash', 16)} Hapus semua</button></div></div>`;
   const FIL = [['Semua', 'grid'], ['Selesai', 'check'], ['Berlangsung', 'pause'], ['Gagal', 'close']];
   // 0 semua · 1 selesai · 2 berlangsung · 3 gagal
   const stateOf = d => d.state === 'completed' ? 1 : d.state === 'progressing' || d.state === 'paused' ? 2 : 3;
@@ -54,7 +54,7 @@
       else if (d.state === 'cancelled') { st = 'Dibatalkan'; cls = 'bad'; } else { st = 'Gagal / terputus'; cls = 'bad'; }
       const size = d.state === 'completed' ? fmtBytes(d.total || d.received) : '';
       const bar = d.state === 'completed' ? '' : live ? `<div class="pb ${d.state === 'paused' ? 'pz' : ''}"><i style="width:${d.total ? pct : 8}%"></i></div>` : `<div class="pb bad"><i style="width:${pct}%"></i></div>`;
-      r.innerHTML = `<div class="fi">${FILEICON(d.name, 40)}</div><div class="tx"><div class="t" title="${esc(d.name)}">${esc(d.name)}</div><div class="s">${size ? esc(size) + '<span class="dot"></span>' : ''}<span class="st ${cls}">${esc(st)}</span>${d.incog ? '<span class="dot"></span><span>Incognito</span>' : ''}<span class="dot"></span><span>${esc(sameDay(d.time))}</span></div>${bar}</div><div class="ac"></div>`;
+      r.innerHTML = `<div class="fi">${FILEICON(d.name, 30)}</div><div class="tx"><div class="t" title="${esc(d.name)}">${esc(d.name)}</div><div class="s">${size ? esc(size) + '<span class="dot"></span>' : ''}<span class="st ${cls}">${esc(st)}</span>${d.incog ? '<span class="dot"></span><span>Incognito</span>' : ''}<span class="dot"></span><span>${esc(sameDay(d.time))}</span></div>${bar}</div><div class="ac"></div>`;
       const a = r.lastChild, B = (ic, t, fn, more) => { const b = document.createElement('button'); b.title = t; b.innerHTML = ICON(ic); if (more) b.setAttribute('data-more', ''); b.onclick = e => { e.stopPropagation(); fn(b); }; a.appendChild(b); };
       if (d.state === 'progressing') B('pause', 'Jeda', () => act(d, 'pause'));
       else if (d.state === 'paused') B('play', 'Lanjutkan', () => act(d, 'resume'));
