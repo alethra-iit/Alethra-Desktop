@@ -67,6 +67,7 @@ function applyTheme() {
   if (fsBar && alive(fsBar.webContents)) sendTo(fsBar.webContents, 'settings', st);
   if (noteView && alive(noteView.webContents)) sendTo(noteView.webContents, 'settings', st);
   if (miniView && alive(miniView.webContents)) sendTo(miniView.webContents, 'settings', st);
+  if (clipView && alive(clipView.webContents)) sendTo(clipView.webContents, 'settings', st);
   try { renderOverlay(); } catch {}
 }
 function publicSettings() {
@@ -153,7 +154,7 @@ function layout() {
   ctx.tabs.forEach(t => { const r = G.rects[t.id]; t.view.setVisible(!!r); if (r) t.view.setBounds(t.emu ? emuApply(t, r) : r); });
   ctx.sendChrome('split', G.chrome);
   renderOverlay();
-  noteLayout(true); miniLayout(true);
+  noteLayout(true); miniLayout(true); clipLayout(true);
 }
 // panel tempat sebuah tab berada (koordinat jendela); null bila tab tidak sedang terlihat
 const paneBox = (id) => { const r = lastGeo && lastGeo.rects[id]; return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
@@ -651,9 +652,9 @@ async function needAuth(part) {
 }
 async function lockApp() {
   const l = setting('lock'); if (l.mode !== 'app' || !l.hash || locked) return;
-  locked = true; noteLayout(); miniLayout();
+  locked = true; noteLayout(); miniLayout(); clipLayout();
   for (;;) { const r = await askModal('pin', { reason: 'Alethra terkunci', title: 'Masukkan PIN' }, false); if (r && SV.verifyPin(r.pin)) break; if (r) ctx.toast('PIN salah'); }
-  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true); miniLayout(true);
+  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true); miniLayout(true); clipLayout(true);
 }
 
 /* ================= menu konteks (asli Windows) ================= */
@@ -751,6 +752,7 @@ function shortcut(e, i) {
   if (k === 't' && s) return run(reopenClosed);
   if (a && !s && k === 'n') return run(noteToggle);
   if (a && !s && k === 'b') return run(miniToggle);
+  if (a && !s && k === 'c') return run(clipToggle);
   if (k === 'n' && s) return run(() => newIncogTab());
   if (k === 'n' && !s) return run(() => createTab('alethra://home'));
   if (k === 'w' || k === 'f4') return run(() => closeTab(activeId));
@@ -1194,6 +1196,132 @@ function miniToTab() {   // pindahkan halaman mini ke tab biasa, lalu tutup mini
   const u = miniSt.url; if (!u) return;
   miniClose(); createTab(u);
 }
+/* ================= Riwayat clipboard melayang (menu Tools) ================= */
+// Merekam teks yang disalin (dari Alethra maupun aplikasi lain) selama fitur menyala. Riwayat biasa HANYA di memori (hilang saat Alethra ditutup);
+// hanya item yang disematkan (pin) disimpan ke clips.json. Tidak merekam saat tab aktif adalah tab Incognito, saat dijeda,
+// atau bila aplikasi sumber menandai salinannya rahasia (mis. pengelola sandi di Windows).
+let clipView = null, clipOpen = false, clipMin = false, CBG = null, clipBase = null;
+let clipList = [], clipSeq = 0, clipLast = null, clipPaused = false, clipTimer = null;
+const CLIP_MIN = { w: 280, h: 280 }, CLIP_ICON = 48, CLIP_MAX = 60, CLIP_LEN = 20000;
+const clipG = () => CBG || (CBG = Object.assign({}, SV.DEFAULTS.clipbox, setting('clipbox')));
+const clipShown = () => clipOpen && !!clipView;
+const clipPins = () => { const d = ctx.clips && ctx.clips.data; if (!d) return []; if (!Array.isArray(d.pins)) d.pins = []; return d.pins; };
+function clipState() {
+  const mk = (x, pin) => ({ id: x.id, t: x.t.slice(0, 600), n: x.t.length, ts: x.ts, pin });
+  return { list: clipPins().map(x => mk(x, true)).concat(clipList.map(x => mk(x, false))), paused: clipPaused, min: clipMin };
+}
+const clipPush = () => { if (clipView && alive(clipView.webContents)) sendTo(clipView.webContents, 'ch.state', clipState()); };
+const clipFind = (id) => clipList.find(x => x.id === id) || clipPins().find(x => x.id === id);
+function clipPoll() {
+  if (clipPaused || setting('tools').clips === false) return;
+  let t; try { t = clipboard.readText(); } catch { return; }
+  if (!t || !t.trim() || t === clipLast) return;
+  clipLast = t;
+  try { if (clipboard.availableFormats().some(f => /ExcludeClipboardContentFromMonitorProcessing|CanIncludeInClipboardHistory/i.test(f))) return; } catch {}
+  const tab = curTab(); if (tab && tab.incog) return;
+  t = t.slice(0, CLIP_LEN);
+  if (clipPins().some(x => x.t === t)) return;
+  clipList = clipList.filter(x => x.t !== t);
+  clipList.unshift({ id: ++clipSeq, t, ts: Date.now() });
+  if (clipList.length > CLIP_MAX) clipList.length = CLIP_MAX;
+  clipPush();
+}
+function clipStart() {
+  if (clipTimer) return;
+  try { clipLast = clipboard.readText(); } catch { clipLast = null; }   // isi clipboard yang sudah ada saat Alethra dibuka tidak ikut direkam
+  clipTimer = setInterval(clipPoll, 800);
+}
+function clipBounds(commit) {
+  const [w, h] = win.getContentSize(), g = clipG(), c = Object.assign({}, g), top = fsActive() ? 0 : chromeH;
+  let r;
+  if (clipMin) {
+    c.ix = Math.max(0, Math.min(w - CLIP_ICON, c.ix < 0 ? w - CLIP_ICON - 12 : c.ix));
+    c.iy = Math.max(top, Math.min(h - CLIP_ICON, c.iy < 0 ? top + 148 : c.iy));
+    r = { x: c.ix, y: c.iy, width: CLIP_ICON, height: CLIP_ICON };
+  } else {
+    const lw = Math.min(CLIP_MIN.w, w), lh = Math.min(CLIP_MIN.h, Math.max(0, h - top));
+    c.w = Math.max(lw, Math.min(c.w, Math.max(lw, w - 8))); c.h = Math.max(lh, Math.min(c.h, Math.max(lh, h - top - 8)));
+    c.x = Math.max(0, Math.min(w - c.w, c.x < 0 ? Math.max(0, w - c.w - 16) : c.x));
+    c.y = Math.max(top, Math.min(Math.max(top, h - c.h), c.y < 0 ? top + 90 : c.y));
+    r = { x: c.x, y: c.y, width: c.w, height: c.h };
+  }
+  if (commit) Object.assign(g, c);
+  return r;
+}
+function clipLayout(raise) {
+  if (!clipView || !win || win.isDestroyed() || !alive(clipView.webContents)) return;
+  if (!clipOpen || locked) { clipView.setVisible(false); return; }
+  clipView.setBounds(clipBounds(false)); clipView.setVisible(true);
+  if (raise) {
+    const f = clipView.webContents.isFocused();
+    win.contentView.addChildView(clipView); if (overlay) win.contentView.addChildView(overlay); if (fsBar) win.contentView.addChildView(fsBar);
+    if (f && !clipMin) clipView.webContents.focus();
+  }
+}
+function clipEnsure() {
+  if (clipView && alive(clipView.webContents)) return;
+  clipView = new WebContentsView({ webPreferences: { preload: path.join(__dirname, '..', 'preload', 'internal.js'), sandbox: true, contextIsolation: true } });
+  clipView.setBackgroundColor('#00000000');
+  clipView.webContents.on('before-input-event', (e, input) => { if (shortcut(e, input)) e.preventDefault(); });
+  clipView.webContents.on('console-message', (_e, lvl, msg, line, src) => { if (lvl >= 2) log('clipboard console', msg, src + ':' + line); });
+  win.contentView.addChildView(clipView); clipView.setVisible(false);
+  clipView.webContents.loadURL('alethra://app/ui/clip.html');
+}
+function clipOpenNow() {
+  if (setting('tools').clips === false) return;
+  clipEnsure(); clipOpen = true; clipBounds(true); clipLayout(true);
+  sendTo(clipView.webContents, 'ch.mode', { min: clipMin }); clipPush();
+  setTimeout(() => { if (clipOpen && !clipMin && alive(clipView && clipView.webContents)) { clipView.webContents.focus(); sendTo(clipView.webContents, 'ch.focus'); } }, 60);
+}
+function clipClose() {
+  if (!clipOpen) return;
+  clipOpen = false; clipMin = false; clipLayout();
+  if (clipView && alive(clipView.webContents)) sendTo(clipView.webContents, 'ch.mode', { min: false });
+  try { const w = curWC(); if (alive(w)) w.focus(); } catch {}
+}
+function clipSetMin(m) {
+  if (!clipOpen) return;
+  clipMin = !!m; clipBounds(true); clipLayout(true);
+  sendTo(clipView.webContents, 'ch.mode', { min: clipMin }); clipPush();
+}
+function clipToggle() { if (setting('tools').clips === false) return; if (!clipOpen) return clipOpenNow(); if (clipMin) return clipSetMin(false); clipClose(); }
+function clipDrag(ph, dx, dy) {
+  if (!clipOpen || !win) return;
+  const g = clipG();
+  if (ph === 'start') { clipBounds(true); clipBase = Object.assign({}, g); return; }
+  if (!clipBase) return;
+  if (ph === 'end') { clipBase = null; saveSetting('clipbox', Object.assign({}, g)); return; }
+  dx = Math.round(+dx || 0); dy = Math.round(+dy || 0);
+  const [w, h] = win.getContentSize();
+  if (ph === 'move') { if (clipMin) { g.ix = Math.max(0, clipBase.ix + dx); g.iy = Math.max(0, clipBase.iy + dy); } else { g.x = Math.max(0, clipBase.x + dx); g.y = Math.max(0, clipBase.y + dy); } }
+  else if (ph === 'resize' && !clipMin) { g.w = Math.max(CLIP_MIN.w, Math.min(clipBase.w + dx, Math.max(CLIP_MIN.w, w - g.x))); g.h = Math.max(CLIP_MIN.h, Math.min(clipBase.h + dy, Math.max(CLIP_MIN.h, h - g.y))); }
+  else return;
+  clipView.setBounds(clipBounds(true));
+}
+function clipCopy(id) {
+  const x = clipFind(id); if (!x) return false;
+  clipboard.writeText(x.t); clipLast = x.t;
+  if (clipList.includes(x)) { clipList = [x].concat(clipList.filter(y => y !== x)); x.ts = Date.now(); clipPush(); }
+  return true;
+}
+function clipPaste(id) {   // salin lalu tempel ke halaman aktif (fokus dikembalikan ke tab)
+  if (!clipCopy(id)) return false;
+  try { const w = curWC(); if (alive(w)) { w.focus(); setTimeout(() => { try { if (alive(w)) w.paste(); } catch {} }, 60); } } catch {}
+  return true;
+}
+function clipPin(id) {
+  const pins = clipPins(), p = pins.find(x => x.id === id);
+  if (p) { ctx.clips.data.pins = pins.filter(x => x !== p); clipList.unshift(p); if (clipList.length > CLIP_MAX) clipList.length = CLIP_MAX; }
+  else { const x = clipList.find(y => y.id === id); if (!x) return false; clipList = clipList.filter(y => y !== x); pins.push(x); if (pins.length > 100) pins.shift(); }
+  ctx.clips.save(); clipPush(); return true;
+}
+function clipDel(id) {
+  clipList = clipList.filter(x => x.id !== id);
+  const pins = clipPins(); if (pins.some(x => x.id === id)) { ctx.clips.data.pins = pins.filter(x => x.id !== id); ctx.clips.save(); }
+  clipPush(); return true;
+}
+function clipClear() { clipList = []; clipPush(); return true; }   // item yang disematkan tidak ikut terhapus
+function clipPause(on) { clipPaused = on == null ? !clipPaused : !!on; if (!clipPaused) { try { clipLast = clipboard.readText(); } catch {} } clipPush(); return clipPaused; }
 /* ================= menu Tools (overlay) ================= */
 // Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play tetap ditampilkan (redup)
 // dengan keterangan, supaya pengguna tahu kenapa tidak bisa dipakai; klik membuka Pengaturan di tempat yang tepat.
@@ -1217,7 +1345,8 @@ function toolsMenuSpec() {
       ? [I('split.close', 'Tutup tampilan terpisah', { key: 'Ctrl+Alt+V' }), I('split.swap', 'Tukar posisi panel'), I('split.mode', 'Susunan: ' + ({ auto: 'otomatis', h: 'berdampingan', v: 'atas-bawah' }[setting('splitMode')] || 'otomatis')), I('split.reset', 'Samakan lebar panel (50:50)')]
       : [I('split.new', 'Tampilan terpisah', { key: 'Ctrl+Alt+V' })]) : [],
     [on('note') && I('note', 'Notepad', { key: 'Ctrl+Alt+N', check: noteShown() }),
-     on('mini') && I('mini', 'Mini browser', { key: 'Ctrl+Alt+B', check: miniShown() })],
+     on('mini') && I('mini', 'Mini browser', { key: 'Ctrl+Alt+B', check: miniShown() }),
+     on('clips') && I('clips', 'Riwayat clipboard', { key: 'Ctrl+Alt+C', check: clipShown() })],
     [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
      on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
@@ -1331,6 +1460,7 @@ function menuAction(id) {
     case 'transcript.side': return openTranscriptSide();
     case 'note': return noteToggle();
     case 'mini': return miniToggle();
+    case 'clips': return clipToggle();
     case 'goto.play': return openSettingsAt('play');
     case 'goto.mesinoff': return openSettingsAt('mesinoff');
     case 'tools.config': { const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog); if (ex) { go(ex, 'alethra://settings#tools'); return selectTab(ex.id); } return createTab('alethra://settings#tools'); }
@@ -1501,6 +1631,7 @@ const API = {
     saveSetting(k, v);
     if (k === 'tools' && v.note === false) noteClose();
     if (k === 'tools' && v.mini === false) miniClose();
+    if (k === 'tools' && v.clips === false) clipClose();
     if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'stwmodel', 'stvmodel', 'trmode'].includes(k)) STT.refresh();
     if (k === 'stt' && !v) STT.stop();
     if (k === 'splitMode' || k === 'splitRatio') { ratioLive = null; layout(); }
@@ -1557,6 +1688,18 @@ const API = {
     const l = miniSites().filter(x => x.u !== u); l.push({ n: String(n || U.hostOf(u) || u).slice(0, 60), u }); miniSitesSave(l.slice(-40)); return true;
   },
   'mini.site.del': (e, u) => { miniSitesSave(miniSites().filter(x => x.u !== u)); return true; },
+  /* Riwayat clipboard melayang (menu Tools) */
+  'ch.state': () => clipState(),
+  'ch.copy': (e, id) => clipCopy(id | 0),
+  'ch.paste': (e, id) => clipPaste(id | 0),
+  'ch.pin': (e, id) => clipPin(id | 0),
+  'ch.del': (e, id) => clipDel(id | 0),
+  'ch.clear': () => clipClear(),
+  'ch.pause': (e, on) => clipPause(on),
+  'ch.close': () => clipClose(),
+  'ch.min': () => clipSetMin(true),
+  'ch.restore': () => clipSetMin(false),
+  'ch.drag': (e, ph, dx, dy) => clipDrag(ph, dx, dy),
   'note.pick': () => notePick(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
   'stt.resetpos': () => STT.resetPos(),
@@ -1654,7 +1797,7 @@ async function needAuthStrict() {
 }
 ipcMain.handle('api', async (e, name, ...args) => {
   if (!isInternalSender(e)) return null;
-  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && !(miniView && e.sender === miniView.webContents) && name !== 'dl.open') return null;
+  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && !(miniView && e.sender === miniView.webContents) && !(clipView && e.sender === clipView.webContents) && name !== 'dl.open') return null;
   const f = API[name]; if (!f) return null;
   try { return await f(e, ...args); } catch (err) { console.error('api', name, err); return null; }
 });
@@ -1723,7 +1866,7 @@ app.on('second-instance', (_e, argv) => {
 });
 app.on('web-contents-created', (_e, c) => { c.on('will-attach-webview', ev => ev.preventDefault()); });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { quitting = true; try { OFF.shutdown(); } catch {} try { saveSession(); } catch {} wipeIncog(); [ctx.settings, ctx.bm, ctx.hist, ctx.perms, ctx.pw, ctx.off, ctx.dlStore, ctx.notes].forEach(s => s && s.flush()); });
+app.on('before-quit', () => { quitting = true; try { OFF.shutdown(); } catch {} try { saveSession(); } catch {} wipeIncog(); [ctx.settings, ctx.bm, ctx.hist, ctx.perms, ctx.pw, ctx.off, ctx.dlStore, ctx.notes, ctx.clips].forEach(s => s && s.flush()); });
 
 app.whenReady().then(() => {
   ctx.dataDir = path.join(app.getPath('userData'), 'data');
@@ -1737,6 +1880,8 @@ app.whenReady().then(() => {
   ctx.off = new Store(ctx.dataDir, 'offline.json', []);
   ctx.sess = new Store(ctx.dataDir, 'session.json', {});
   ctx.notes = new Store(ctx.dataDir, 'notes.json', {});
+  ctx.clips = new Store(ctx.dataDir, 'clips.json', {});
+  clipStart();
   ctx.dlList = (ctx.dlStore.data || []).map(d => d.state === 'progressing' || d.state === 'paused' ? Object.assign(d, { state: 'interrupted' }) : d);
   SV.setupSession(session.defaultSession, false);
   SV.initTranslate(); SV.applyDoh();

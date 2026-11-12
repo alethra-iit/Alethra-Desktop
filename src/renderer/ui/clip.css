@@ -1,0 +1,29 @@
+html,body{background:transparent!important;overflow:hidden;height:100%;margin:0;user-select:none}
+#box{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--surf);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+#box[hidden],#ico[hidden]{display:none}
+.ch{display:flex;align-items:center;gap:2px;height:40px;padding:0 4px 0 12px;flex:none;cursor:grab;touch-action:none}
+.ch.drag{cursor:grabbing}.ch svg.i{color:var(--sub)}.ch .t{flex:1;margin-left:6px;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cb{width:32px;height:32px;border:0;background:none;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.cb:hover{background:var(--surf2)}.cb.on{background:var(--acc);color:var(--onacc)}.cb.on svg.i{color:var(--onacc)}.cb svg.i{width:18px;height:18px}
+.cb:disabled{opacity:.35;cursor:default}.cb:disabled:hover{background:none}
+.cs{padding:0 8px 6px;flex:none}
+.cs input{width:100%;height:32px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);padding:0 10px;font-size:13px;outline:0;user-select:text}
+.cs input:focus{border-color:var(--acc)}
+#cl{flex:1;min-height:0;overflow:auto;padding:0 8px 6px}
+.ci{display:flex;gap:6px;padding:8px 6px 8px 10px;margin-bottom:6px;border:1px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer;position:relative}
+.ci:hover,.ci:focus-visible{background:var(--surf2);outline:0}.ci.pin{border-color:var(--acc)}
+.ci .bd{flex:1;min-width:0}
+.ci .tx{font-size:13px;line-height:1.4;white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ci .mt{margin-top:3px;font-size:11px;color:var(--sub)}
+.ci .ac{display:flex;flex-direction:column;gap:2px;flex:none}
+.ci .ab{width:26px;height:26px;border:0;background:none;border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:.55}
+.ci:hover .ab,.ci:focus-within .ab,.ci.pin .ab.pn{opacity:1}.ci .ab:hover{background:var(--surf);opacity:1}
+.ci .ab svg.i{width:15px;height:15px}.ci.pin .ab.pn{color:var(--acc)}
+.ci .ok{position:absolute;inset:0;border-radius:12px;background:var(--acc);color:var(--onacc);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;pointer-events:none}
+.em{padding:34px 18px;text-align:center;color:var(--sub);font-size:12.5px;line-height:1.55}
+.cf{display:flex;align-items:center;height:30px;padding:0 0 0 12px;flex:none;color:var(--sub);font-size:11.5px}
+.cf .st{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rz{width:40px;height:30px;display:flex;align-items:center;justify-content:center;cursor:nwse-resize;touch-action:none}
+#ico{position:absolute;inset:0;border-radius:24px;border:1px solid var(--line);background:var(--surf);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.95;touch-action:none}
+#ico:hover,#ico:focus-visible{opacity:1;background:var(--surf2)}#ico:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+#ico svg.i{width:22px;height:22px}

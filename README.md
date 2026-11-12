@@ -40,6 +40,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Kualitas video | Menu Tools → Kualitas video… |
 | Notepad | Menu Tools → Notepad (Ctrl+Alt+N). Catatan melayang di atas halaman (lihat bagian *Notepad* di bawah) |
 | Mini browser | Menu Tools → Mini browser (Ctrl+Alt+B). Jendela web kecil yang melayang di atas halaman (lihat bagian *Mini browser* di bawah) |
+| Riwayat clipboard | Menu Tools → Riwayat clipboard (Ctrl+Alt+C). Daftar teks yang baru disalin (lihat bagian *Riwayat clipboard* di bawah) |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
 | Izin situs | Bilah izin + manajer di Pengaturan |
 | Pengelola sandi | Terenkripsi (Windows DPAPI), isi otomatis saat kolom diklik |
@@ -82,7 +83,7 @@ Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dar
 ## Pintasan keyboard
 Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+W tutup · Ctrl+Tab ganti tab · Ctrl+1…9 · Ctrl+L alamat · Ctrl+F cari ·
 Ctrl+D bookmark · Ctrl+H histori · Ctrl+J unduhan · Ctrl+P cetak · Ctrl+S simpan offline · Ctrl +/−/0 zoom ·
-F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad · Ctrl+Alt+B Mini browser
+F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad · Ctrl+Alt+B Mini browser · Ctrl+Alt+C Riwayat clipboard
 
 Data pengguna: `%APPDATA%\Alethra\data`.
 
@@ -158,6 +159,14 @@ Menu Tools → **Mini browser** (atau Ctrl+Alt+B) membuka jendela web kecil yang
 - **Tampilan ponsel:** nyala secara bawaan supaya situs pas di jendela sempit; matikan untuk situs yang butuh tampilan desktop (mis. WhatsApp Web).
 - **Pintasan di dalam mini browser:** Ctrl+R / F5 muat ulang, Alt+←/→ mundur/maju, Ctrl+L / F6 ke bilah alamat. Pintasan tab biasa (Ctrl+W, Ctrl+Tab, dst.) tidak berlaku di sini.
 - **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Mini browser*. Bila dimatikan, jendela yang sedang terbuka ikut ditutup.
+
+## Riwayat clipboard
+Menu Tools → **Riwayat clipboard** (atau Ctrl+Alt+C) membuka daftar melayang berisi teks yang baru Anda salin, dari Alethra maupun aplikasi lain.
+- **Pakai:** ketuk item untuk menyalinnya lagi; tombol tempel di kanan item langsung menempelkannya ke halaman aktif. Kolom cari menyaring isi riwayat.
+- **Sematkan:** tombol pin menyimpan item secara permanen (tersimpan di `clips.json`) dan menaruhnya di atas daftar.
+- **Privasi:** riwayat biasa hanya di memori dan hilang saat Alethra ditutup (maksimal 60 item, tiap item maksimal 20.000 karakter). Tidak merekam saat tab aktif adalah tab Incognito, saat perekaman dijeda (tombol jeda), atau bila aplikasi sumber menandai salinannya rahasia (mis. pengelola sandi di Windows). Isi clipboard yang sudah ada saat Alethra dibuka tidak ikut direkam. Hanya teks, gambar tidak direkam.
+- **Geser & ukuran:** tarik bilah atas untuk memindahkan, pegangan kanan bawah untuk mengubah ukuran, tombol − untuk memperkecil jadi ikon bulat.
+- **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Riwayat clipboard*. Bila dimatikan, perekaman berhenti dan jendela ditutup.
 
 ## Notepad
 Menu Tools → **Notepad** (atau Ctrl+Alt+N) membuka catatan melayang di atas halaman, sama seperti Notepad di menu titik tiga Alethra Browser (Android).
