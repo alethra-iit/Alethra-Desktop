@@ -14,10 +14,10 @@
   const ICMAP = {
     'tab.new': 'plus', 'tab.incog': 'incog', 'tab.reopen': 'reopen', 'tabs.search': 'searchtab', 'menu.tabs': 'tabs',
     'open.bookmarks': 'bookmark', 'open.history': 'history', 'open.downloads': 'download', 'open.offline': 'offline', 'open.passwords': 'key',
-    'fullscreen': 'fullscreen', 'devtools': 'code', 'open.settings': 'settings', 'open.about': 'info', 'quit': 'exit',
+    'fullscreen': 'fullscreen', 'devtools': 'code', 'open.settings': 'settings', 'quit': 'exit',
     'find': 'search', 'print': 'print', 'pdf': 'pdf', 'offline.save': 'save', 'translate': 'translate', 'chat': 'chat', 'stt': 'mic',
     'reader': 'reader', 'transcript.side': 'micclock', 'split.new': 'split', 'split.close': 'split', 'split.swap': 'swap', 'split.mode': 'layout',
-    'split.reset': 'equal', 'note': 'note', 'vq': 'video', 'pip': 'pip', 'mobile': 'device', 'emu': 'device', 'adsite': 'shieldx', 'tools.config': 'wrench', 'tools.iconmode': 'grid',
+    'split.reset': 'equal', 'note': 'note', 'mini': 'mini', 'vq': 'video', 'pip': 'pip', 'mobile': 'device', 'emu': 'device', 'adsite': 'shieldx', 'tools.config': 'wrench', 'tools.iconmode': 'grid',
     'tm.reload': 'reload', 'tm.dup': 'copy', 'tm.mute': 'volume', 'tm.pin': 'pin', 'menu.tabgroup': 'group', 'tm.ungroup': 'ungroup', 'tm.split': 'split',
     'tm.close': 'close', 'tm.closeother': 'closeother', 'tm.closeright': 'closeright', 'tabs.closeall': 'closeall'
   };

@@ -233,7 +233,7 @@
         tgp('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara', 'stt', 'Terjemahan Suara'),
         tg('reader', 'Mode baca', 'Ctrl+Alt+R'), tg('transcript', 'Riwayat terjemahan suara', 'Ctrl+Alt+H. Daftar kalimat hasil Terjemahan Suara')]));
       A(grp('Video & situs')); A(box([
-        tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('emu', 'Mode perangkat (ponsel/tablet)', 'Ctrl+Shift+M. Lebar halaman dipersempit seperti layar ponsel'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs'), tg('split', 'Tampilan terpisah', 'Ctrl+Alt+V. Dua halaman berdampingan, mis. video + catatan'), tg('note', 'Notepad', 'Ctrl+Alt+N. Catatan melayang di atas halaman: bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya banyak lembar kerja. Tetap terbuka saat berpindah tab')]));
+        tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('emu', 'Mode perangkat (ponsel/tablet)', 'Ctrl+Shift+M. Lebar halaman dipersempit seperti layar ponsel'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs'), tg('split', 'Tampilan terpisah', 'Ctrl+Alt+V. Dua halaman berdampingan, mis. video + catatan'), tg('mini', 'Mini browser', 'Ctrl+Alt+B. Jendela web kecil yang melayang di atas halaman, mis. kamus, Google Terjemahan, atau chat. Bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya daftar situs favorit'), tg('note', 'Notepad', 'Ctrl+Alt+N. Catatan melayang di atas halaman: bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya banyak lembar kerja. Tetap terbuka saat berpindah tab')]));
       A(box([button('Tampilkan semua', 'Kembalikan semua item ke menu Tools', 'Atur ulang', () => set('tools', S.stDefs.tools))]));
     }
     if (sec === 'play') {

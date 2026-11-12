@@ -66,6 +66,7 @@ function applyTheme() {
   ctx.sendChrome('settings', st); sendOv('settings', st); ctx.broadcastPages('settings', st);
   if (fsBar && alive(fsBar.webContents)) sendTo(fsBar.webContents, 'settings', st);
   if (noteView && alive(noteView.webContents)) sendTo(noteView.webContents, 'settings', st);
+  if (miniView && alive(miniView.webContents)) sendTo(miniView.webContents, 'settings', st);
   try { renderOverlay(); } catch {}
 }
 function publicSettings() {
@@ -152,7 +153,7 @@ function layout() {
   ctx.tabs.forEach(t => { const r = G.rects[t.id]; t.view.setVisible(!!r); if (r) t.view.setBounds(t.emu ? emuApply(t, r) : r); });
   ctx.sendChrome('split', G.chrome);
   renderOverlay();
-  noteLayout(true);
+  noteLayout(true); miniLayout(true);
 }
 // panel tempat sebuah tab berada (koordinat jendela); null bila tab tidak sedang terlihat
 const paneBox = (id) => { const r = lastGeo && lastGeo.rects[id]; return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
@@ -650,9 +651,9 @@ async function needAuth(part) {
 }
 async function lockApp() {
   const l = setting('lock'); if (l.mode !== 'app' || !l.hash || locked) return;
-  locked = true; noteLayout();
+  locked = true; noteLayout(); miniLayout();
   for (;;) { const r = await askModal('pin', { reason: 'Alethra terkunci', title: 'Masukkan PIN' }, false); if (r && SV.verifyPin(r.pin)) break; if (r) ctx.toast('PIN salah'); }
-  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true);
+  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true); miniLayout(true);
 }
 
 /* ================= menu konteks (asli Windows) ================= */
@@ -749,6 +750,7 @@ function shortcut(e, i) {
   if (k === 't' && !s && !a) return run(() => createTab('alethra://home'));
   if (k === 't' && s) return run(reopenClosed);
   if (a && !s && k === 'n') return run(noteToggle);
+  if (a && !s && k === 'b') return run(miniToggle);
   if (k === 'n' && s) return run(() => newIncogTab());
   if (k === 'n' && !s) return run(() => createTab('alethra://home'));
   if (k === 'w' || k === 'f4') return run(() => closeTab(activeId));
@@ -857,7 +859,7 @@ function mainMenuSpec() {
     { zoom: st.zoom || 100 },
     !fsOn && I('fullscreen', 'Layar penuh', { key: 'F11' }), I('devtools', 'Alat pengembang', { key: 'F12' }),
     { sep: 1 },
-    I('open.settings', 'Pengaturan', { key: 'Ctrl+,' }), I('open.about', 'Tentang Alethra'), I('quit', 'Keluar')
+    I('open.settings', 'Pengaturan', { key: 'Ctrl+,' }), I('quit', 'Keluar')
   ].filter(Boolean);
 }
 /* ================= submenu "Atur tab" (urutan sama dengan klik kanan tab; berlaku untuk tab aktif). "Cari tab…" hanya di menu utama & klik kanan. ================= */
@@ -1042,6 +1044,156 @@ async function notePick() {
     return { name: path.basename(f), text: buf.toString('utf8') };
   } catch { return { err: 'Tidak bisa membaca berkas' }; }
 }
+/* ================= Mini browser melayang (menu Tools) ================= */
+// Jendela web kecil di atas halaman, untuk dipakai sambil membaca (kamus, terjemahan, chat, dll). Terdiri dari dua view:
+// miniView = bilah atas + latar + pegangan ukuran (alethra://app/ui/mini.html), miniWeb = isi situs (sesi yang sama dengan tab biasa).
+// Bisa digeser, diubah ukurannya, diperkecil jadi ikon (situs tetap hidup), dan punya daftar situs favorit.
+let miniView = null, miniWeb = null, miniOpen = false, miniMin = false, MG = null, miniBase = null;
+let miniSt = { url: '', mobile: true };
+const MINI_MIN = { w: 300, h: 300 }, MINI_ICON = 48, MINI_HEAD = 78, MINI_FOOT = 18;
+const miniG = () => MG || (MG = Object.assign({}, SV.DEFAULTS.minibox, setting('minibox')));
+const miniShown = () => miniOpen && !!miniView;
+const miniAlive = () => miniWeb && alive(miniWeb.webContents);
+function miniBounds(commit) {
+  const [w, h] = win.getContentSize(), g = miniG(), c = Object.assign({}, g), top = fsActive() ? 0 : chromeH;
+  let r;
+  if (miniMin) {
+    c.ix = Math.max(0, Math.min(w - MINI_ICON, c.ix < 0 ? w - MINI_ICON - 12 : c.ix));
+    c.iy = Math.max(top, Math.min(h - MINI_ICON, c.iy < 0 ? top + 92 : c.iy));
+    r = { x: c.ix, y: c.iy, width: MINI_ICON, height: MINI_ICON };
+  } else {
+    const lw = Math.min(MINI_MIN.w, w), lh = Math.min(MINI_MIN.h, Math.max(0, h - top));
+    c.w = Math.max(lw, Math.min(c.w, Math.max(lw, w - 8))); c.h = Math.max(lh, Math.min(c.h, Math.max(lh, h - top - 8)));
+    c.x = Math.max(0, Math.min(w - c.w, c.x < 0 ? Math.max(0, w - c.w - 16) : c.x));
+    c.y = Math.max(top, Math.min(Math.max(top, h - c.h), c.y < 0 ? top + 16 : c.y));
+    r = { x: c.x, y: c.y, width: c.w, height: c.h };
+  }
+  if (commit) Object.assign(g, c);
+  return r;
+}
+const miniWebRect = (r) => ({ x: r.x + 1, y: r.y + MINI_HEAD, width: Math.max(0, r.width - 2), height: Math.max(0, r.height - MINI_HEAD - MINI_FOOT) });
+function miniLayout(raise) {
+  if (!miniView || !win || win.isDestroyed() || !alive(miniView.webContents)) return;
+  if (!miniOpen || locked) { miniView.setVisible(false); if (miniAlive()) miniWeb.setVisible(false); return; }
+  const r = miniBounds(false);
+  miniView.setBounds(r); miniView.setVisible(true);
+  if (miniAlive()) { const showWeb = !miniMin && !!miniSt.url; miniWeb.setBounds(miniWebRect(r)); miniWeb.setVisible(showWeb); }
+  if (raise) {
+    const f = miniView.webContents.isFocused();
+    win.contentView.addChildView(miniView); if (miniAlive()) win.contentView.addChildView(miniWeb);
+    if (overlay) win.contentView.addChildView(overlay); if (fsBar) win.contentView.addChildView(fsBar);
+    if (f && !miniMin) miniView.webContents.focus();
+  }
+}
+function miniState() {
+  const wc = miniAlive() ? miniWeb.webContents : null;
+  return {
+    url: miniSt.url, title: wc && miniSt.url ? wc.getTitle() : '', loading: !!(wc && miniSt.url && wc.isLoading()),
+    back: !!(wc && miniSt.url && wc.navigationHistory.canGoBack()), fwd: !!(wc && miniSt.url && wc.navigationHistory.canGoForward()),
+    mobile: miniSt.mobile, min: miniMin, sites: miniSites()
+  };
+}
+const miniPush = () => { if (miniView && alive(miniView.webContents)) sendTo(miniView.webContents, 'mini.state', miniState()); };
+function miniSites() { const l = setting('minisites'); return (Array.isArray(l) ? l : []).filter(x => x && typeof x.u === 'string' && /^https?:\/\//i.test(x.u)).slice(0, 40).map(x => ({ n: String(x.n || U.hostOf(x.u) || x.u).slice(0, 60), u: x.u })); }
+function miniSitesSave(l) { saveSetting('minisites', l); miniPush(); }
+function miniEnsure() {
+  if (miniView && alive(miniView.webContents)) return;
+  miniView = new WebContentsView({ webPreferences: { preload: path.join(__dirname, '..', 'preload', 'internal.js'), sandbox: true, contextIsolation: true } });
+  miniView.setBackgroundColor('#00000000');
+  miniView.webContents.on('before-input-event', (e, input) => { if (shortcut(e, input)) e.preventDefault(); });
+  miniView.webContents.on('console-message', (_e, lvl, msg, line, src) => { if (lvl >= 2) log('mini console', msg, src + ':' + line); });
+  win.contentView.addChildView(miniView); miniView.setVisible(false);
+  miniView.webContents.loadURL('alethra://app/ui/mini.html');
+}
+function miniWebEnsure() {
+  if (miniAlive()) return;
+  const ses = session.fromPartition(PERSIST); SV.setupSession(ses, false);
+  miniWeb = new WebContentsView({ webPreferences: { partition: PERSIST, sandbox: true, contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '..', 'preload', 'page.js'), spellcheck: true, webSecurity: true, allowRunningInsecureContent: false } });
+  miniWeb.setBackgroundColor('#ffffffff'); miniWeb.setVisible(false);
+  const wc = miniWeb.webContents;
+  try { wc.setUserAgent(miniSt.mobile ? SV.MOBILE_UA : SV.UA); } catch {}
+  wc.setWindowOpenHandler((d) => { if (/^https?:/i.test(d.url)) miniGo(d.url); return { action: 'deny' }; });   // tautan target=_blank tetap di dalam mini browser
+  const guard = (e, url) => { if (!/^https?:/i.test(url) && !/^data:text\/html/i.test(url)) e.preventDefault(); };
+  wc.on('will-navigate', guard); wc.on('will-redirect', guard);
+  const sync = () => { try { const u = wc.getURL(); if (/^https?:/i.test(u)) miniSt.url = u; } catch {} miniPush(); };
+  ['did-navigate', 'did-navigate-in-page', 'did-start-loading', 'did-stop-loading', 'page-title-updated'].forEach(ev => wc.on(ev, sync));
+  wc.on('did-fail-load', (_e, code, desc, url, isMain) => {
+    if (!isMain || code === -3) return;
+    const h = `<meta charset="utf-8"><meta name="color-scheme" content="light dark"><body style="font:14px system-ui;margin:0;padding:28px 20px;text-align:center"><h3 style="margin:0 0 8px">Tidak bisa membuka halaman</h3><p style="opacity:.7;margin:0;word-break:break-all">${U.esc(String(url || ''))}</p><p style="opacity:.7">${U.esc(String(desc || code))}</p></body>`;
+    wc.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(h)).catch(() => {});
+  });
+  wc.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown') return;
+    const k = (input.key || '').toLowerCase(), c = input.control || input.meta, a = input.alt;
+    if (k === 'f5' || (c && k === 'r' && !a)) { wc.reload(); e.preventDefault(); return; }
+    if (a && k === 'arrowleft') { if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack(); e.preventDefault(); return; }
+    if (a && k === 'arrowright') { if (wc.navigationHistory.canGoForward()) wc.navigationHistory.goForward(); e.preventDefault(); return; }
+    if (k === 'f6' || (c && k === 'l')) { miniView.webContents.focus(); sendTo(miniView.webContents, 'mini.addr'); e.preventDefault(); return; }
+    if (k === 'f12' || (c && input.shift && k === 'i') || k === 'f3' || (c && k === 'g') || (c && k === 'w') || k === 'f4' || (c && /^[1-9]$/.test(k)) || (c && (k === 'tab' || k === 'pagedown' || k === 'pageup')) || (c && k === 't') || (c && k === 'd')) { e.preventDefault(); return; }   // pintasan tab biasa tidak berlaku di mini browser
+    if (shortcut(e, input)) e.preventDefault();
+  });
+  win.contentView.addChildView(miniWeb);
+}
+function miniGo(text) {
+  const u = U.toUrl(String(text || '').trim(), engineUrl(), true);
+  if (!u || !/^https?:\/\//i.test(u)) return;
+  if (!miniOpen) miniOpenNow();
+  miniEnsure(); miniWebEnsure(); miniSt.url = u;
+  miniWeb.webContents.loadURL(u).catch(() => {});
+  miniLayout(true); miniPush();
+}
+function miniHome() {   // kembali ke daftar situs; halaman dimuat kosong supaya video/musik berhenti
+  if (miniAlive()) { try { miniWeb.webContents.loadURL('about:blank').catch(() => {}); } catch {} }
+  miniSt.url = ''; miniLayout(); miniPush();
+}
+function miniWebDestroy() {
+  if (!miniWeb) return;
+  try { win.contentView.removeChildView(miniWeb); } catch {}
+  try { if (alive(miniWeb.webContents)) miniWeb.webContents.close(); } catch {}
+  miniWeb = null;
+}
+function miniOpenNow(url) {
+  if (setting('tools').mini === false) return;
+  miniEnsure(); miniOpen = true; miniBounds(true); miniLayout(true);
+  sendTo(miniView.webContents, 'mini.mode', { min: miniMin }); miniPush();
+  if (url) miniGo(url);
+  else setTimeout(() => { if (miniOpen && !miniMin && !miniSt.url && alive(miniView && miniView.webContents)) { miniView.webContents.focus(); sendTo(miniView.webContents, 'mini.addr'); } }, 60);
+}
+function miniClose() {
+  if (!miniOpen) return;
+  miniOpen = false; miniMin = false; miniSt.url = '';
+  miniWebDestroy(); miniLayout();
+  if (miniView && alive(miniView.webContents)) { sendTo(miniView.webContents, 'mini.mode', { min: false }); miniPush(); }
+  try { const w = curWC(); if (alive(w)) w.focus(); } catch {}
+}
+function miniSetMin(m) {
+  if (!miniOpen) return;
+  miniMin = !!m; miniBounds(true); miniLayout(true);
+  sendTo(miniView.webContents, 'mini.mode', { min: miniMin }); miniPush();
+}
+function miniToggle() { if (setting('tools').mini === false) return; if (!miniOpen) return miniOpenNow(); if (miniMin) return miniSetMin(false); miniClose(); }
+function miniDrag(ph, dx, dy) {
+  if (!miniOpen || !win) return;
+  const g = miniG();
+  if (ph === 'start') { miniBounds(true); miniBase = Object.assign({}, g); return; }
+  if (!miniBase) return;
+  if (ph === 'end') { miniBase = null; saveSetting('minibox', Object.assign({}, g)); return; }
+  dx = Math.round(+dx || 0); dy = Math.round(+dy || 0);
+  const [w, h] = win.getContentSize();
+  if (ph === 'move') { if (miniMin) { g.ix = Math.max(0, miniBase.ix + dx); g.iy = Math.max(0, miniBase.iy + dy); } else { g.x = Math.max(0, miniBase.x + dx); g.y = Math.max(0, miniBase.y + dy); } }
+  else if (ph === 'resize' && !miniMin) { g.w = Math.max(MINI_MIN.w, Math.min(miniBase.w + dx, Math.max(MINI_MIN.w, w - g.x))); g.h = Math.max(MINI_MIN.h, Math.min(miniBase.h + dy, Math.max(MINI_MIN.h, h - g.y))); }
+  else return;
+  miniLayout(false);
+}
+function miniSetMobile(on) {
+  miniSt.mobile = !!on;
+  if (miniAlive()) { try { miniWeb.webContents.setUserAgent(miniSt.mobile ? SV.MOBILE_UA : SV.UA); if (miniSt.url) miniWeb.webContents.reloadIgnoringCache(); } catch {} }
+  miniPush();
+}
+function miniToTab() {   // pindahkan halaman mini ke tab biasa, lalu tutup mini browser
+  const u = miniSt.url; if (!u) return;
+  miniClose(); createTab(u);
+}
 /* ================= menu Tools (overlay) ================= */
 // Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play tetap ditampilkan (redup)
 // dengan keterangan, supaya pengguna tahu kenapa tidak bisa dipakai; klik membuka Pengaturan di tempat yang tepat.
@@ -1064,7 +1216,8 @@ function toolsMenuSpec() {
     on('split') ? (inSplit(activeId)
       ? [I('split.close', 'Tutup tampilan terpisah', { key: 'Ctrl+Alt+V' }), I('split.swap', 'Tukar posisi panel'), I('split.mode', 'Susunan: ' + ({ auto: 'otomatis', h: 'berdampingan', v: 'atas-bawah' }[setting('splitMode')] || 'otomatis')), I('split.reset', 'Samakan lebar panel (50:50)')]
       : [I('split.new', 'Tampilan terpisah', { key: 'Ctrl+Alt+V' })]) : [],
-    [on('note') && I('note', 'Notepad', { key: 'Ctrl+Alt+N', check: noteShown() })],
+    [on('note') && I('note', 'Notepad', { key: 'Ctrl+Alt+N', check: noteShown() }),
+     on('mini') && I('mini', 'Mini browser', { key: 'Ctrl+Alt+B', check: miniShown() })],
     [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
      on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
@@ -1177,6 +1330,7 @@ function menuAction(id) {
     case 'split.reset': ratioLive = null; saveSetting('splitRatio', 0.5); return layout();
     case 'transcript.side': return openTranscriptSide();
     case 'note': return noteToggle();
+    case 'mini': return miniToggle();
     case 'goto.play': return openSettingsAt('play');
     case 'goto.mesinoff': return openSettingsAt('mesinoff');
     case 'tools.config': { const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog); if (ex) { go(ex, 'alethra://settings#tools'); return selectTab(ex.id); } return createTab('alethra://settings#tools'); }
@@ -1346,6 +1500,7 @@ const API = {
     if (k === 'stcurl' && v && !/^https?:\/\/[^\s]+$/.test(v)) return false;
     saveSetting(k, v);
     if (k === 'tools' && v.note === false) noteClose();
+    if (k === 'tools' && v.mini === false) miniClose();
     if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'stwmodel', 'stvmodel', 'trmode'].includes(k)) STT.refresh();
     if (k === 'stt' && !v) STT.stop();
     if (k === 'splitMode' || k === 'splitRatio') { ratioLive = null; layout(); }
@@ -1384,6 +1539,24 @@ const API = {
   'note.drag': (e, ph, dx, dy) => noteDrag(ph, dx, dy),
   'note.clip': (e, op, text) => { if (op === 'r') return clipboard.readText().slice(0, 2000000); if (op === 'w') { clipboard.writeText(String(text == null ? '' : text).slice(0, 2000000)); return true; } return null; },
   'note.export': (e, name, text) => noteExport(name, text),
+  /* Mini browser melayang (menu Tools) */
+  'mini.state': () => miniState(),
+  'mini.go': (e, text) => miniGo(text),
+  'mini.home': () => miniHome(),
+  'mini.back': () => { if (miniAlive() && miniWeb.webContents.navigationHistory.canGoBack()) miniWeb.webContents.navigationHistory.goBack(); else miniHome(); },
+  'mini.fwd': () => { if (miniAlive() && miniWeb.webContents.navigationHistory.canGoForward()) miniWeb.webContents.navigationHistory.goForward(); },
+  'mini.reload': () => { if (miniAlive() && miniSt.url) { const wc = miniWeb.webContents; wc.isLoading() ? wc.stop() : wc.reload(); } },
+  'mini.close': () => miniClose(),
+  'mini.min': () => miniSetMin(true),
+  'mini.restore': () => miniSetMin(false),
+  'mini.drag': (e, ph, dx, dy) => miniDrag(ph, dx, dy),
+  'mini.mobile': (e, on) => miniSetMobile(on),
+  'mini.totab': () => miniToTab(),
+  'mini.site.add': (e, n, u) => {
+    u = String(u || ''); if (!/^https?:\/\//i.test(u)) return false;
+    const l = miniSites().filter(x => x.u !== u); l.push({ n: String(n || U.hostOf(u) || u).slice(0, 60), u }); miniSitesSave(l.slice(-40)); return true;
+  },
+  'mini.site.del': (e, u) => { miniSitesSave(miniSites().filter(x => x.u !== u)); return true; },
   'note.pick': () => notePick(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
   'stt.resetpos': () => STT.resetPos(),
@@ -1481,7 +1654,7 @@ async function needAuthStrict() {
 }
 ipcMain.handle('api', async (e, name, ...args) => {
   if (!isInternalSender(e)) return null;
-  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && name !== 'dl.open') return null;
+  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && !(miniView && e.sender === miniView.webContents) && name !== 'dl.open') return null;
   const f = API[name]; if (!f) return null;
   try { return await f(e, ...args); } catch (err) { console.error('api', name, err); return null; }
 });

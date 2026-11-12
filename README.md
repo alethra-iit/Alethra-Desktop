@@ -39,6 +39,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Widget (Pengaturan) | Menu baru berisi bagian lipat: *Tombol menu layar penuh* dan *Jam* (dipindah dari Tampilan) |
 | Kualitas video | Menu Tools → Kualitas video… |
 | Notepad | Menu Tools → Notepad (Ctrl+Alt+N). Catatan melayang di atas halaman (lihat bagian *Notepad* di bawah) |
+| Mini browser | Menu Tools → Mini browser (Ctrl+Alt+B). Jendela web kecil yang melayang di atas halaman (lihat bagian *Mini browser* di bawah) |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
 | Izin situs | Bilah izin + manajer di Pengaturan |
 | Pengelola sandi | Terenkripsi (Windows DPAPI), isi otomatis saat kolom diklik |
@@ -81,7 +82,7 @@ Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dar
 ## Pintasan keyboard
 Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+W tutup · Ctrl+Tab ganti tab · Ctrl+1…9 · Ctrl+L alamat · Ctrl+F cari ·
 Ctrl+D bookmark · Ctrl+H histori · Ctrl+J unduhan · Ctrl+P cetak · Ctrl+S simpan offline · Ctrl +/−/0 zoom ·
-F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad
+F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad · Ctrl+Alt+B Mini browser
 
 Data pengguna: `%APPDATA%\Alethra\data`.
 
@@ -146,6 +147,17 @@ Tools → *Riwayat terjemahan suara* (Ctrl+Alt+H, atau ikon jam di popup) membuk
 - **Tutup massal:** menu ⋮ → *Tutup tab lain* dan *Tutup semua tab* (juga di klik kanan tab, bersama *Tutup tab di kanan*). Tab sematan dilewati; bila tidak ada yang tersisa, dibuatkan tab baru. Penutupan ≥ 5 tab meminta konfirmasi. Tab yang ditutup bisa dibuka lagi dengan Ctrl+Shift+T (50 terakhir).
 - **Kelompok tab berwarna:** klik kanan tab → *Tambahkan ke grup → Grup baru…* (nama opsional + 9 warna). Chip berwarna di depan grup: klik untuk menciutkan/membentangkan, klik kanan untuk ubah nama/warna, tab baru di grup, pisahkan grup, atau tutup grup. Seret tab ke chip untuk memasukkannya; seret keluar dari deretan grup untuk melepasnya. Tab yang dibuka dari tab dalam grup ikut grup itu. Grup disimpan bersama sesi.
 - Puluhan tab: strip tab bisa digulir dengan roda mouse, tab aktif selalu digulirkan ke tampilan, dan Ctrl+Tab melewati grup yang diciutkan.
+
+## Mini browser
+Menu Tools → **Mini browser** (atau Ctrl+Alt+B) membuka jendela web kecil yang melayang di atas halaman, cocok untuk kamus, Google Terjemahan, chat, atau situs referensi tanpa berpindah tab.
+- **Isi:** bilah atas (judul, favorit ★, tampilan ponsel/desktop, buka di tab biasa, perkecil, tutup), bilah alamat dengan mundur/maju/muat ulang/daftar situs, lalu halaman web. Pegangan di pojok kanan bawah untuk mengubah ukuran.
+- **Geser & ukuran:** tarik bilah atas untuk memindahkan. Posisi dan ukuran diingat (`minibox`).
+- **Perkecil:** tombol − mengubahnya jadi ikon bulat yang bisa digeser; situs tetap hidup di belakang (mis. musik tetap jalan). Ketuk ikon untuk membuka lagi. Tombol ✕ menutup dan menghentikan halaman.
+- **Favorit:** buka sebuah situs lalu ketuk ★. Daftar favorit tampil saat mini browser dibuka tanpa alamat (`minisites`).
+- **Sesi:** memakai sesi yang sama dengan tab biasa, jadi login, blokir iklan, dan pengaturan privasi tetap berlaku. Tautan yang dibuka dari dalamnya (target=_blank) tetap di jendela mini. Izin kamera/mikrofon/lokasi ditolak otomatis di mini browser.
+- **Tampilan ponsel:** nyala secara bawaan supaya situs pas di jendela sempit; matikan untuk situs yang butuh tampilan desktop (mis. WhatsApp Web).
+- **Pintasan di dalam mini browser:** Ctrl+R / F5 muat ulang, Alt+←/→ mundur/maju, Ctrl+L / F6 ke bilah alamat. Pintasan tab biasa (Ctrl+W, Ctrl+Tab, dst.) tidak berlaku di sini.
+- **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Mini browser*. Bila dimatikan, jendela yang sedang terbuka ikut ditutup.
 
 ## Notepad
 Menu Tools → **Notepad** (atau Ctrl+Alt+N) membuka catatan melayang di atas halaman, sama seperti Notepad di menu titik tiga Alethra Browser (Android).
