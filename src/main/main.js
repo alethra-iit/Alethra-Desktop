@@ -380,6 +380,9 @@ function wire(t) {
     if (/^https?:/.test(u) && setting('tr')) wc.executeJavaScript(`window.__alCfg={on:true,lang:${JSON.stringify(setting('trLang'))},hide:${!!setting('trhide')}};` + injectScript('translate.js')).catch(() => {});
     pushTabs();
   });
+  wc.on('dom-ready', () => { sync(); miniApplyZoom(); });
+  wc.on('did-navigate', () => { miniZoomKey = null; });   // CSS yang disisipkan hilang saat pindah halaman
+  wc.on('zoom-changed', (_e, dir) => miniZoomStep(dir === 'in' ? 1 : -1));
   wc.on('did-fail-load', (_e, code, desc, url, isMain) => {
     if (!isMain || code === -3) return;
     if (t.upgraded && url.startsWith('https://') && t.upgraded === 'http://' + url.slice(8)) { const u = t.upgraded; t.upgraded = null; wc.loadURL(u).catch(() => {}); return; }
@@ -1052,7 +1055,7 @@ async function notePick() {
 // Bisa digeser, diubah ukurannya, diperkecil jadi ikon (situs tetap hidup), dan punya daftar situs favorit.
 let miniView = null, miniWeb = null, miniOpen = false, miniMin = false, MG = null, miniBase = null;
 let miniSt = { url: '', mobile: true };
-const MINI_MIN = { w: 300, h: 300 }, MINI_ICON = 48, MINI_HEAD = 78, MINI_FOOT = 18;
+const MINI_MIN = { w: 300, h: 300 }, MINI_ICON = 48, MINI_HEAD = 78, MINI_FOOT = 28, MINI_SIDE = 6;
 const miniG = () => MG || (MG = Object.assign({}, SV.DEFAULTS.minibox, setting('minibox')));
 const miniShown = () => miniOpen && !!miniView;
 const miniAlive = () => miniWeb && alive(miniWeb.webContents);
@@ -1073,7 +1076,7 @@ function miniBounds(commit) {
   if (commit) Object.assign(g, c);
   return r;
 }
-const miniWebRect = (r) => ({ x: r.x + 1, y: r.y + MINI_HEAD, width: Math.max(0, r.width - 2), height: Math.max(0, r.height - MINI_HEAD - MINI_FOOT) });
+const miniWebRect = (r) => ({ x: r.x + 1, y: r.y + MINI_HEAD, width: Math.max(0, r.width - 1 - MINI_SIDE), height: Math.max(0, r.height - MINI_HEAD - MINI_FOOT) });   // sisa strip kanan = pegangan lebar, kaki = pegangan tinggi + zoom
 function miniLayout(raise) {
   if (!miniView || !win || win.isDestroyed() || !alive(miniView.webContents)) return;
   if (!miniOpen || locked) { miniView.setVisible(false); if (miniAlive()) miniWeb.setVisible(false); return; }
@@ -1087,12 +1090,40 @@ function miniLayout(raise) {
     if (f && !miniMin) miniView.webContents.focus();
   }
 }
+// Zoom khusus mini browser: memakai CSS zoom pada halaman (bukan zoom Chromium per-situs), supaya tab biasa di situs yang sama tidak ikut berubah.
+// Tingkat zoom diingat per situs di pengaturan (minizoom).
+const MINI_ZOOMS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+let miniZoomKey = null;
+const miniHost = () => U.hostOf(miniSt.url) || '';
+const miniZoom = () => { const h = miniHost(), z = h && (setting('minizoom') || {})[h]; return typeof z === 'number' && z >= 0.25 && z <= 5 ? z : 1; };
+async function miniApplyZoom() {
+  if (!miniAlive() || !miniSt.url) return;
+  const wc = miniWeb.webContents, z = miniZoom();
+  try {
+    if (miniZoomKey) { const k = miniZoomKey; miniZoomKey = null; await wc.removeInsertedCSS(k).catch(() => {}); }
+    if (z !== 1) miniZoomKey = await wc.insertCSS(`html{zoom:${z}!important}`);
+  } catch {}
+}
+function miniSetZoom(z) {
+  const h = miniHost(); if (!h) return;
+  const map = Object.assign({}, setting('minizoom') || {});
+  if (Math.abs(z - 1) < 0.001) delete map[h]; else map[h] = Math.round(z * 100) / 100;
+  const ks = Object.keys(map); if (ks.length > 300) delete map[ks[0]];
+  saveSetting('minizoom', map); miniApplyZoom(); miniPush();
+}
+function miniZoomStep(dir) {   // dir: 1 = perbesar, -1 = perkecil, 0 = setel ulang
+  if (!miniSt.url) return;
+  if (dir === 0) return miniSetZoom(1);
+  const z = miniZoom();
+  const n = dir > 0 ? MINI_ZOOMS.find(v => v > z + 0.001) : [...MINI_ZOOMS].reverse().find(v => v < z - 0.001);
+  if (n != null) miniSetZoom(n);
+}
 function miniState() {
   const wc = miniAlive() ? miniWeb.webContents : null;
   return {
     url: miniSt.url, title: wc && miniSt.url ? wc.getTitle() : '', loading: !!(wc && miniSt.url && wc.isLoading()),
     back: !!(wc && miniSt.url && wc.navigationHistory.canGoBack()), fwd: !!(wc && miniSt.url && wc.navigationHistory.canGoForward()),
-    mobile: miniSt.mobile, min: miniMin, sites: miniSites()
+    mobile: miniSt.mobile, min: miniMin, sites: miniSites(), zoom: miniZoom()
   };
 }
 const miniPush = () => { if (miniView && alive(miniView.webContents)) sendTo(miniView.webContents, 'mini.state', miniState()); };
@@ -1127,6 +1158,9 @@ function miniWebEnsure() {
   wc.on('before-input-event', (e, input) => {
     if (input.type !== 'keyDown') return;
     const k = (input.key || '').toLowerCase(), c = input.control || input.meta, a = input.alt;
+    if (c && !a && (k === '=' || k === '+')) { miniZoomStep(1); e.preventDefault(); return; }
+    if (c && !a && (k === '-' || k === '_')) { miniZoomStep(-1); e.preventDefault(); return; }
+    if (c && !a && k === '0') { miniZoomStep(0); e.preventDefault(); return; }
     if (k === 'f5' || (c && k === 'r' && !a)) { wc.reload(); e.preventDefault(); return; }
     if (a && k === 'arrowleft') { if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack(); e.preventDefault(); return; }
     if (a && k === 'arrowright') { if (wc.navigationHistory.canGoForward()) wc.navigationHistory.goForward(); e.preventDefault(); return; }
@@ -1683,6 +1717,7 @@ const API = {
   'mini.drag': (e, ph, dx, dy) => miniDrag(ph, dx, dy),
   'mini.mobile': (e, on) => miniSetMobile(on),
   'mini.totab': () => miniToTab(),
+  'mini.zoom': (e, dir) => miniZoomStep(dir | 0),
   'mini.site.add': (e, n, u) => {
     u = String(u || ''); if (!/^https?:\/\//i.test(u)) return false;
     const l = miniSites().filter(x => x.u !== u); l.push({ n: String(n || U.hostOf(u) || u).slice(0, 60), u }); miniSitesSave(l.slice(-40)); return true;

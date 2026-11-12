@@ -152,7 +152,8 @@ Tools → *Riwayat terjemahan suara* (Ctrl+Alt+H, atau ikon jam di popup) membuk
 ## Mini browser
 Menu Tools → **Mini browser** (atau Ctrl+Alt+B) membuka jendela web kecil yang melayang di atas halaman, cocok untuk kamus, Google Terjemahan, chat, atau situs referensi tanpa berpindah tab.
 - **Isi:** bilah atas (judul, favorit ★, tampilan ponsel/desktop, buka di tab biasa, perkecil, tutup), bilah alamat dengan mundur/maju/muat ulang/daftar situs, lalu halaman web. Pegangan di pojok kanan bawah untuk mengubah ukuran.
-- **Geser & ukuran:** tarik bilah atas untuk memindahkan. Posisi dan ukuran diingat (`minibox`).
+- **Geser & ukuran:** tarik bilah atas untuk memindahkan. Tarik tepi kanan untuk mengubah lebar, kaki jendela (bagian bawah) untuk mengubah tinggi, atau pojok kanan bawah untuk keduanya. Posisi dan ukuran diingat (`minibox`).
+- **Zoom:** tombol − / + dan angka persen di kaki jendela (klik angkanya untuk kembali ke 100%), atau Ctrl++ / Ctrl+− / Ctrl+0 di dalam mini browser. Zoom hanya berlaku di mini browser dan diingat per situs (`minizoom`); tab biasa tidak ikut berubah.
 - **Perkecil:** tombol − mengubahnya jadi ikon bulat yang bisa digeser; situs tetap hidup di belakang (mis. musik tetap jalan). Ketuk ikon untuk membuka lagi. Tombol ✕ menutup dan menghentikan halaman.
 - **Favorit:** buka sebuah situs lalu ketuk ★. Daftar favorit tampil saat mini browser dibuka tanpa alamat (`minisites`).
 - **Sesi:** memakai sesi yang sama dengan tab biasa, jadi login, blokir iklan, dan pengaturan privasi tetap berlaku. Tautan yang dibuka dari dalamnya (target=_blank) tetap di jendela mini. Izin kamera/mikrofon/lokasi ditolak otomatis di mini browser.
