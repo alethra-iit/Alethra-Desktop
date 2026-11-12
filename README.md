@@ -22,7 +22,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Fitur | Di versi PC |
 |---|---|
 | Tab & tab Incognito (sesi memori, terhapus saat ditutup) | Tab bar ala Chrome: seret untuk urutkan, klik-tengah tutup, bisukan tab, Ctrl+Shift+T |
-| Bilah alamat + saran bookmark/histori | Omnibox dengan saran dan indikator HTTPS/HTTP |
+| Bilah alamat + saran bookmark/histori | Omnibox dengan saran. Ikon di kiri omnibox adalah tombol **Pengaturan situs** (seperti Chrome): *Koneksi aman/tidak aman*, *Cookie dan data situs* (lihat jumlah, hapus), dan *Pengaturan situs* (izin Lokasi/Kamera/Mikrofon/Notifikasi/Papan klip per situs, blokir iklan, setel ulang izin) |
 | Beranda (jam, pintasan, aksen, wallpaper) | `alethra://home` + kotak pencarian; opsi jam di Pengaturan → Tampilan |
 | Bookmark (folder, impor/ekspor HTML) | Halaman Bookmark + bilah bookmark (Ctrl+Shift+B) |
 | Histori | Dikelompokkan per hari, cari, hapus |

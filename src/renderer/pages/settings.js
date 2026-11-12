@@ -530,19 +530,33 @@
           const ver = u.version || a.version, nv = u.newVersion ? 'Versi ' + u.newVersion : 'Versi baru', manual = u.mode === 'manual';
           const text = {
             idle: 'Versi ' + ver + '. Belum diperiksa.', checking: 'Memeriksa pembaruan…', none: 'Sudah versi terbaru (' + ver + ').' + (u.last ? ' Diperiksa ' + when(u.last) + '.' : ''),
-            available: nv + ' tersedia' + (manual ? '. Versi portable tidak bisa memasang sendiri: unduh dari halaman rilis.' : '.'),
+            available: nv + ' tersedia' + (manual ? '. Versi portable tidak bisa memasang sendiri: unduh dari halaman rilis.' : '. Klik "Perbarui sekarang" untuk mengunduh dan memasang, Alethra akan mulai ulang otomatis.'),
             downloading: 'Mengunduh ' + nv.toLowerCase() + '… ' + (u.pct || 0) + '%', ready: nv + ' sudah diunduh. Dipasang saat Alethra ditutup, atau mulai ulang sekarang.',
             error: 'Gagal: ' + (u.err || 'tidak diketahui'), unsupported: u.err || 'Pembaruan tidak tersedia di build ini.'
           }[u.state] || '';
           const ctl = document.createElement('div'); ctl.style.cssText = 'display:flex;gap:6px;flex:none';
           const b = (t, fn, cls, off) => { const x = document.createElement('button'); x.className = 'btn sm ' + (cls || ''); x.textContent = t; x.disabled = !!off; x.onclick = fn; ctl.appendChild(x); };
           if (u.state === 'ready') b('Mulai ulang & pasang', () => api('up.install'), 'pri');
-          else if (u.state === 'available') b(manual ? 'Buka halaman rilis' : 'Unduh', () => api('up.download'), 'pri');
+          else if (u.state === 'available') { b(manual ? 'Buka halaman rilis' : 'Perbarui sekarang', () => api('up.download', true), 'pri'); if (!manual) b('Unduh saja', () => api('up.download', false)); }
           if (u.state !== 'unsupported') b(u.state === 'error' ? 'Coba lagi' : 'Periksa sekarang', () => api('up.check'), u.state === 'error' ? 'pri' : '', u.state === 'checking' || u.state === 'downloading');
           const r = row('Pembaruan Alethra', text, ctl); const d = r.querySelector('.d'); if (d && u.state === 'error') d.style.color = 'var(--danger)';
           upBox.appendChild(r);
           if (u.state === 'downloading') upBox.appendChild(el(`<div class="set"><div class="tx"><div class="prog"><i style="width:${u.pct || 0}%"></i></div></div></div>`));
-          if (u.notes && (u.state === 'available' || u.state === 'ready')) upBox.appendChild(el(`<div class="set"><div class="tx"><div class="d" style="white-space:pre-wrap">${esc(u.notes.slice(0, 600))}</div></div></div>`));
+          if (['available', 'downloading', 'ready'].includes(u.state)) {
+            const nb = el('<div class="set"><div class="tx"></div></div>'), tx = nb.firstChild;
+            const hd = el('<div style="font-weight:600;margin-bottom:6px"></div>'); hd.textContent = 'Yang baru di ' + nv.toLowerCase(); tx.appendChild(hd);
+            const body = el('<div class="d" style="max-height:240px;overflow:auto;line-height:1.55"></div>');
+            const lines = String(u.notes || '').split('\n').map(x => x.trim()).filter(Boolean);
+            if (!lines.length) body.textContent = 'Pembuat rilis belum menulis catatan perubahan untuk versi ini.';
+            lines.forEach(l => {
+              const h = /^#{1,6}\s+(.*)/.exec(l), li = /^[-*•]\s+(.*)/.exec(l), r = document.createElement('div');
+              if (h) { r.style.cssText = 'font-weight:600;margin-top:8px;color:var(--fg)'; r.textContent = h[1]; }
+              else if (li) { r.style.cssText = 'padding-left:14px;text-indent:-12px'; r.textContent = '• ' + li[1]; }
+              else r.textContent = l;
+              body.appendChild(r);
+            });
+            tx.appendChild(body); upBox.appendChild(nb);
+          }
           upBox.appendChild(toggle('upauto', 'Periksa dan unduh otomatis', 'Mengecek rilis baru di GitHub tiap beberapa jam, mengunduhnya di latar, lalu memasangnya saat Alethra ditutup. Versi portable hanya memberi tahu.'));
           if (u.repo) upBox.appendChild(button('Semua rilis', u.repo, 'Buka GitHub', () => api('up.releases')));
         };

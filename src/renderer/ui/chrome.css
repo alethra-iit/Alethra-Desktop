@@ -30,7 +30,7 @@ html,body{background:var(--strip);overflow:hidden;user-select:none}
 .tb{width:34px;height:34px;border:0;background:none;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative;color:var(--fg);flex:none}.tb:hover:not(:disabled){background:var(--tbh)}.tb:disabled{opacity:.3;cursor:default}.tb.sm{width:28px;height:28px}.tb.on{color:var(--acc)}
 #omni{flex:1;min-width:120px;height:34px;margin:0 6px;background:var(--omni);border-radius:17px;display:flex;align-items:center;padding:0 4px 0 12px;gap:6px;border:2px solid transparent}
 #omni:focus-within{border-color:var(--acc);background:var(--bg)}
-#sec{display:flex;color:var(--sub)}#sec svg{width:16px;height:16px}#sec.bad{color:var(--danger)}
+#sec{margin-left:-6px;color:var(--sub);background:var(--tbh);border-radius:50%;width:28px;height:28px;-webkit-app-region:no-drag}#sec svg{width:17px;height:17px}#sec.bad{color:var(--danger)}#sec.logo{background:none;opacity:1}#sec:disabled{opacity:1;cursor:default}#sec.logo:hover{background:none}#omni:focus-within #sec{background:none}
 #url{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;font-size:13.5px;user-select:text}
 #star.on svg{fill:currentColor;color:#f5b301;stroke:#f5b301}
 #badge{position:absolute;right:3px;top:3px;min-width:14px;height:14px;border-radius:7px;background:var(--acc);color:var(--onacc);font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 3px}

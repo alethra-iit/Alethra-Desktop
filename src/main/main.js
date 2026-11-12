@@ -961,6 +961,44 @@ function toolsMenuSpec() {
   else { out.push({ sep: 1 }); out.push(modeItem, I('tools.config', 'Atur menu Tools…')); }
   return out;
 }
+/* ================= Pengaturan situs (ikon di kiri omnibox) ================= */
+// Panel kecil di bawah omnibox: Koneksi, Cookie dan data situs, serta Pengaturan situs (izin per situs + blokir iklan).
+const SITE_KEYS = ['geo', 'cam', 'mic', 'notif', 'clip'];
+async function siteData(t, keep) {
+  const host = U.hostOf(t.url), incog = !!t.incog, wc = t.view.webContents;
+  let cookies = 0; try { cookies = (await wc.session.cookies.get({ url: t.url })).length; } catch {}
+  const perms = {}; SITE_KEYS.forEach(k => { perms[k] = SV.getPerm(host, k, incog); });
+  const off = (setting('sadoff') || []).some(d => host === d || host.endsWith('.' + d));
+  return { host, url: t.url, secure: /^https:/.test(t.url), http: /^http:/.test(t.url), cert: !(t.sslOk && t.sslOk.has(host)), cookies, perms, labels: SV.PERM_LABEL, ads: !!setting('sadblock') && !off, incog, changed: !!(keep && keep.changed) };
+}
+async function openSite(page, left, keep) {
+  const t = curTab(); if (!t || internalName(t.url) || !U.hostOf(t.url)) return;
+  const d = await siteData(t, keep);
+  if (curTab() !== t) return;
+  OV.suggest = null;
+  OV.menu = { kind: 'site', page: page || 'home', left: Math.max(4, (left != null ? left : (OV.menu && OV.menu.left)) | 0), d };
+  renderOverlay();
+}
+async function siteAct(act, a, b) {
+  const t = curTab(), m = OV.menu; if (!t || !m || m.kind !== 'site') return;
+  const wc = t.view.webContents, host = U.hostOf(t.url), incog = !!t.incog;
+  if (!host) return;
+  if (act === 'page') return openSite(a, m.left, m.d);
+  if (act === 'perm') { if (!SITE_KEYS.includes(a) || !['allow', 'block', 'ask'].includes(b)) return; SV.setPerm(host, a, b, incog); return openSite(m.page, m.left, { changed: true }); }
+  if (act === 'resetperm') { SITE_KEYS.forEach(k => SV.setPerm(host, k, 'ask', incog)); return openSite(m.page, m.left, { changed: true }); }
+  if (act === 'ads') {
+    let l = (setting('sadoff') || []).slice(); const on = l.some(d => host === d || host.endsWith('.' + d));
+    if (on) l = l.filter(d => !(host === d || host.endsWith('.' + d))); else l.push(host);
+    saveSetting('sadoff', l); if (!setting('sadblock')) saveSetting('sadblock', true);
+    return openSite(m.page, m.left, { changed: true });
+  }
+  if (act === 'clear') {
+    try { await wc.session.clearStorageData({ origin: new URL(t.url).origin }); } catch (e) { console.error('site clear', e); }
+    ctx.toast('Cookie dan data ' + host + ' dihapus'); return openSite(m.page, m.left, { changed: true });
+  }
+  if (act === 'reload') { closePopups(); wc.reload(); return; }
+  if (act === 'allsettings') { closePopups(); return openSettingsAt('privasi'); }
+}
 let trRight = 8;
 function openMenu(kind, right) {
   if (kind === 'trlang' && right != null) trRight = right;
@@ -1051,7 +1089,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open', 'site.open', 'site.act']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -1144,6 +1182,8 @@ const API = {
   'tr.open': (e, right) => { if (OV.menu && (OV.menu.kind === 'trlang' || OV.menu.kind === 'trsrc')) { closePopups(); return; } const t = curTab(); if (!t || !/^https?:/.test(t.url)) return ctx.toast('Buka sebuah situs dulu untuk menerjemahkan'); openMenu('trlang', right); },
   'tools.open': (e, right) => { right = fsRight(e, right); if (OV.menu && OV.menu.kind === 'tools') { closePopups(); return; } openMenu('tools', right); },
   'ov.menu': (e, id) => menuAction(id),
+  'site.open': (e, left) => { if (OV.menu && OV.menu.kind === 'site') { closePopups(); return; } return openSite('home', left); },
+  'site.act': (e, act, a, b) => siteAct(String(act), a, b),
   'ov.zoom': (e, d) => { zoomBy(d); openMenu('main'); },
   'modal.result': (e, v) => endModal(v),
   'bookmark.toggle': toggleBookmark,
@@ -1207,7 +1247,7 @@ const API = {
   /* pembaruan aplikasi */
   'up.state': () => UPD.state(),
   'up.check': () => UPD.check(),
-  'up.download': () => UPD.download(),
+  'up.download': (e, go) => UPD.download(!!go),
   'up.install': () => UPD.install(),
   'up.releases': () => UPD.openReleases(),
   'oe.ping': () => OFF.ping(),

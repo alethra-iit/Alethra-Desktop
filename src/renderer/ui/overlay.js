@@ -32,8 +32,73 @@
     d.onclick = () => { if (!it.off) api('ov.menu', it.id); };
     return d;
   }
+  /* ---------- panel Pengaturan situs ---------- */
+  let clearArm = false;
+  function renderSite(s) {
+    const m = s.menu, d = m.d, el = $('#site'); el.hidden = false; el.innerHTML = '';
+    el.style.left = Math.max(4, Math.min(m.left, (s.tw || 9999) - 344)) + 'px';
+    const q = (sel, p) => $(sel, p || el);
+    const go = (p) => { clearArm = false; api('site.act', 'page', p); };
+    const header = (title, sub, back) => {
+      const h = document.createElement('div'); h.className = 'sh';
+      h.innerHTML = (back ? `<button class="bk" title="Kembali" aria-label="Kembali">${ICON('back')}</button>` : '') + `<div class="t"><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div><button class="cl" title="Tutup" aria-label="Tutup">${ICON('close')}</button>`;
+      if (back) q('.bk', h).onclick = () => go('home'); q('.cl', h).onclick = () => api('ov.close');
+      el.appendChild(h); return h;
+    };
+    const sep = () => el.insertAdjacentHTML('beforeend', '<div class="sd"></div>');
+    const note = () => { if (!d.changed) return; const n = document.createElement('div'); n.className = 'sn'; n.innerHTML = '<span>Muat ulang halaman agar perubahan berlaku.</span><button>Muat ulang</button>'; q('button', n).onclick = () => api('site.act', 'reload'); el.appendChild(n); };
+    const link = (txt, act) => { const a = document.createElement('a'); a.textContent = txt; a.onclick = act; return a; };
+    if (m.page === 'conn') {
+      header('Keamanan', d.host, true); sep();
+      const b = document.createElement('div'); b.className = 'sb' + (d.secure ? '' : ' bad');
+      b.innerHTML = d.secure
+        ? `${ICON('lock')}<div><b>Koneksi aman</b><p>Informasi Anda (misalnya kata sandi atau nomor kartu kredit) bersifat pribadi saat dikirim ke situs ini.</p></div>`
+        : `${ICON('warn')}<div><b>Koneksi tidak aman</b><p>Jangan memasukkan informasi sensitif (kata sandi, nomor kartu kredit) di situs ini karena pihak lain bisa melihatnya.</p></div>`;
+      el.appendChild(b);
+      if (d.secure) { sep(); const c = document.createElement('div'); c.className = 'sb' + (d.cert ? '' : ' bad'); c.innerHTML = d.cert ? `${ICON('check')}<div><b>Sertifikat valid</b></div>` : `${ICON('warn')}<div><b>Sertifikat tidak tepercaya</b><p>Anda memilih melanjutkan meski sertifikat situs ini bermasalah.</p></div>`; el.appendChild(c); }
+    } else if (m.page === 'cookies') {
+      header('Cookie dan data situs', d.host, true); sep();
+      const b = document.createElement('div'); b.className = 'sb';
+      b.innerHTML = `${ICON('cookie')}<div><b>${d.cookies} cookie dipakai situs ini</b><p>Cookie dan data situs lain dipakai untuk mengingat Anda, misalnya agar tetap masuk atau menyesuaikan iklan. Untuk mengelola cookie semua situs, buka </p></div>`;
+      q('p', b).appendChild(link('Pengaturan', () => api('site.act', 'allsettings'))); q('p', b).append('.');
+      el.appendChild(b);
+      const bt = document.createElement('div'); bt.className = 'sbt';
+      bt.innerHTML = `<button class="danger">${clearArm ? 'Klik lagi untuk menghapus' : 'Hapus cookie dan data situs ini'}</button>`;
+      q('button', bt).onclick = () => { if (!clearArm) { clearArm = true; q('button', bt).textContent = 'Klik lagi untuk menghapus'; setTimeout(() => { clearArm = false; }, 4000); return; } clearArm = false; api('site.act', 'clear'); };
+      el.appendChild(bt); note();
+    } else if (m.page === 'perm') {
+      header('Pengaturan situs', d.host, true); sep();
+      const ICP = { geo: 'globe', cam: 'video', mic: 'mic', notif: 'chat', clip: 'copy' };
+      Object.keys(d.perms).forEach(k => {
+        const r = document.createElement('div'); r.className = 'sp';
+        r.innerHTML = `${ICON(ICP[k] || 'settings')}<span class="l">${esc(d.labels[k] || k)}</span><div class="seg">${[['ask', 'Tanya'], ['allow', 'Izinkan'], ['block', 'Blokir']].map(([v, l]) => `<button data-v="${v}" class="${d.perms[k] === v ? 'on' + (v === 'block' ? ' blk' : '') : ''}">${l}</button>`).join('')}</div>`;
+        $$('button', r).forEach(b => b.onclick = () => { if (d.perms[k] !== b.dataset.v) api('site.act', 'perm', k, b.dataset.v); });
+        el.appendChild(r);
+      });
+      sep();
+      const ad = document.createElement('div'); ad.className = 'sp';
+      ad.innerHTML = `${ICON('shield')}<span class="l">Blokir iklan</span><div class="seg"><button data-v="1" class="${d.ads ? 'on' : ''}">Aktif</button><button data-v="0" class="${d.ads ? '' : 'on blk'}">Mati</button></div>`;
+      $$('button', ad).forEach(b => b.onclick = () => { if (!!+b.dataset.v !== d.ads) api('site.act', 'ads'); });
+      el.appendChild(ad);
+      const bt = document.createElement('div'); bt.className = 'sbt';
+      bt.innerHTML = `<button class="rs">Setel ulang izin</button><button class="al">Semua izin situs ${ICON('external', 13).replace('<svg', '<svg style="vertical-align:-2px;margin-left:3px"')}</button>`;
+      q('.rs', bt).onclick = () => api('site.act', 'resetperm'); q('.al', bt).onclick = () => api('site.act', 'allsettings');
+      el.appendChild(bt); note();
+    } else {
+      header(d.host, d.incog ? 'Jendela Incognito' : '', false); sep();
+      const row = (ic, label, act, cls, ext) => {
+        const r = document.createElement('div'); r.className = 'sr' + (cls ? ' ' + cls : ''); r.setAttribute('role', 'button'); r.tabIndex = 0;
+        r.innerHTML = `${ICON(ic)}<span class="l">${esc(label)}</span>${ICON(ext ? 'external' : 'fwd')}`; r.onclick = act; el.appendChild(r);
+      };
+      row(d.secure ? 'lock' : 'warn', d.secure ? 'Koneksi aman' : 'Koneksi tidak aman', () => go('conn'), d.secure ? '' : 'bad');
+      row('cookie', 'Cookie dan data situs', () => go('cookies'));
+      row('settings', 'Pengaturan situs', () => go('perm'));
+      note();
+    }
+  }
   function render() {
     const s = st;
+    hide('site', !!(st.menu && st.menu.kind === 'site'));
     catcher.style.display = (s.suggest || s.menu) ? '' : 'none';
     // saran alamat
     if (s.suggest) {
@@ -47,7 +112,8 @@
       });
     } else hide('sug', false);
     // menu utama
-    if (s.menu) {
+    if (s.menu && s.menu.kind === 'site') { hide('menu', false); hide('menu2', false); aq = null; renderSite(s); }
+    else if (s.menu) {
       const iconMode = !!s.iconMenu && (s.menu.kind === 'main' || s.menu.kind === 'tools');
       const el = $('#menu'); el.hidden = false; el.innerHTML = ''; el.className = iconMode ? 'ic' : ''; el.style.right = (s.menu.right != null ? s.menu.right : 8) + 'px'; place(el, s);
       if (s.menu.kind !== lastMk) { lastMk = s.menu.kind; mq = ''; }

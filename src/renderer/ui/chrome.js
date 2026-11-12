@@ -71,8 +71,13 @@
     $('#back').disabled = !t.back; $('#fwd').disabled = !t.fwd;
     $('#reload').innerHTML = ICON(t.loading ? 'close' : 'reload'); $('#reload').title = t.loading ? 'Berhenti' : 'Muat ulang (Ctrl+R)';
     if (!omniFocused) url.value = shown(t.url);
-    const s = $('#sec'); s.className = ''; 
-    if (t.internal) s.innerHTML = LOGO(16); else if (t.secure) s.innerHTML = ICON('lock'); else if (/^https?:/.test(t.url)) { s.innerHTML = ICON('warn'); s.className = 'bad'; s.title = 'Tidak aman (HTTP)'; } else s.innerHTML = ICON('globe');
+    // ikon di kiri omnibox = tombol "Pengaturan situs" (seperti Chrome); halaman internal Alethra memakai logo dan tidak bisa diklik
+    const s = $('#sec'); s.className = 'tb sm';
+    if (t.internal) { s.innerHTML = LOGO(16); s.classList.add('logo'); s.title = 'Halaman Alethra'; s.disabled = true; }
+    else {
+      s.disabled = false; s.innerHTML = ICON('tune'); s.title = 'Pengaturan situs';
+      if (/^https?:/.test(t.url) && !t.secure) { s.classList.add('bad'); s.title = 'Pengaturan situs (koneksi tidak aman)'; }
+    }
     $('#star').classList.toggle('on', !!t.bookmarked); $('#star').style.display = t.internal ? 'none' : '';
     $('#trb').classList.toggle('on', !!t.trOn);
     document.title = (t.title || 'Alethra') + ' — Alethra';
@@ -106,10 +111,12 @@
   $('#newtab').onclick = () => api('tab.new');
   $('#back').onclick = () => api('nav.back'); $('#fwd').onclick = () => api('nav.forward');
   $('#reload').onclick = () => api(cur() && cur().loading ? 'nav.stop' : 'nav.reload');
+  $('#sec').onmousedown = e => e.preventDefault();   // jangan ambil fokus supaya kotak alamat tidak ikut menyala
+  $('#sec').onclick = () => { const r = $('#omni').getBoundingClientRect(); api('site.open', Math.round(r.left)); };
   $('#home').onclick = () => api('nav.home'); $('#star').onclick = () => api('bookmark.toggle');
   $('#trb').onclick = () => { const r = $('#trb').getBoundingClientRect(); api('tr.open', Math.round(window.innerWidth - r.right)); }; $('#dlb').onclick = () => api('dl.open'); $('#menub').onclick = () => api('menu.open');
   $('#toolsb').onclick = () => { const r = $('#toolsb').getBoundingClientRect(); api('tools.open', Math.round(window.innerWidth - r.right)); };
-  document.addEventListener('mousedown', e => { if (!e.target.closest('#omni, #menub, #toolsb, #trb')) api('omni.hide'); }, true);   // tombol menu menangani buka/tutup sendiri (toggle), jangan ditutup dulu saat mouse ditekan
+  document.addEventListener('mousedown', e => { if (!e.target.closest('#omni, #menub, #toolsb, #trb, #sec')) api('omni.hide'); }, true);   // tombol menu menangani buka/tutup sendiri (toggle), jangan ditutup dulu saat mouse ditekan
   $('#tabstrip').addEventListener('dblclick', e => { if (e.target.id === 'tabstrip') api('tab.new'); });
 
   /* ---------- omnibox ---------- */

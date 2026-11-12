@@ -11,12 +11,14 @@ const SV = require('./services');
 
 const portable = () => !!process.env.PORTABLE_EXECUTABLE_FILE;
 const modeNow = () => !app.isPackaged ? 'dev' : portable() ? 'manual' : 'auto';
-const S = { state: 'idle', mode: '', version: '', newVersion: '', pct: 0, err: '', url: '', notes: '', last: 0 };
+const S = { state: 'idle', mode: '', version: '', newVersion: '', pct: 0, err: '', url: '', notes: '', last: 0, go: false };
 let au = null, busy = false, timer = null;
 
 const verNum = (v) => String(v || '0').replace(/^v/i, '').split(/[-+]/)[0].split('.').map(x => parseInt(x, 10) || 0);
 const cmp = (a, b) => { const x = verNum(a), y = verNum(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
-const plain = (t) => String(t || '').replace(/<[^>]*>/g, ' ').replace(/\s+\n/g, '\n').replace(/[ \t]+/g, ' ').trim().slice(0, 1200);
+const plain = (t) => String(t || '').replace(/<\s*br\s*\/?>/gi, '\n').replace(/<\/(p|div|h[1-6]|ul|ol)>/gi, '\n').replace(/<li[^>]*>/gi, '\n- ').replace(/<h[1-6][^>]*>/gi, '\n## ').replace(/<[^>]*>/g, '')
+  .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+  .replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 4000);
 
 function repo() {
   try { const r = require('../../package.json').alethraRepo; if (/^[\w.-]+\/[\w.-]+$/.test(r || '')) return r; } catch {}
@@ -37,7 +39,7 @@ function nice(e) {
   if (/rate limit|403/i.test(m)) return 'GitHub membatasi permintaan sementara (HTTP 403). Coba lagi nanti.';
   return m.split('\n')[0].slice(0, 220) || 'Kesalahan tidak diketahui';
 }
-const fail = (e) => set({ state: 'error', err: nice(e), pct: 0 });
+const fail = (e) => set({ state: 'error', err: nice(e), pct: 0, go: false });
 
 function getAu() { if (!au) bind(require('electron-updater').autoUpdater); return au; }
 function bind(a) {
@@ -54,7 +56,7 @@ function bind(a) {
     if (SV.setting('upauto') !== false) download();
   });
   au.on('download-progress', (p) => set({ state: 'downloading', pct: Math.max(0, Math.min(100, Math.round((p && p.percent) || 0))) }));
-  au.on('update-downloaded', (i) => { set({ state: 'ready', pct: 100, newVersion: String((i && i.version) || S.newVersion) }); try { ctx.toast && ctx.toast('Pembaruan ' + S.newVersion + ' siap. Dipasang saat Alethra ditutup, atau buka Pengaturan > Tentang'); } catch {} });
+  au.on('update-downloaded', (i) => { set({ state: 'ready', pct: 100, newVersion: String((i && i.version) || S.newVersion) }); if (S.go) { S.go = false; setTimeout(install, 800); return; } try { ctx.toast && ctx.toast('Pembaruan ' + S.newVersion + ' siap. Dipasang saat Alethra ditutup, atau buka Pengaturan > Tentang'); } catch {} });
   au.on('error', (e) => { if (S.state === 'checking' || S.state === 'downloading') fail(e); });
 }
 
@@ -81,8 +83,9 @@ async function check() {
   return info();
 }
 
-function download() {
+function download(go) {
   if (S.state !== 'available') return false;
+  S.go = !!go && S.mode === 'auto';
   if (S.mode === 'manual') { if (/^https:\/\/github\.com\//.test(S.url)) shell.openExternal(S.url); return true; }
   set({ state: 'downloading', pct: 0, err: '' });
   getAu().downloadUpdate().catch(fail);

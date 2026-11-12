@@ -12,7 +12,7 @@
       const r = document.createElement('div'); r.className = 'row';
       const pct = d.total ? Math.round(d.received * 100 / d.total) : 0;
       const stt = { progressing: d.total ? `${pct}% · ${fmtBytes(d.received)} / ${fmtBytes(d.total)}` : fmtBytes(d.received), paused: 'Dijeda · ' + pct + '%', completed: fmtBytes(d.total || d.received) + ' · Selesai', cancelled: 'Dibatalkan', interrupted: 'Gagal / terputus' }[d.state];
-      r.innerHTML = `<div class="fav">${ICON('file', 18)}</div><div class="tx"><div class="t">${esc(d.name)}</div><div class="s">${esc(stt)}${d.incog ? ' · Incognito' : ''}</div>${d.state === 'progressing' || d.state === 'paused' ? `<div class="prog"><i style="width:${pct}%"></i></div>` : ''}</div><div class="acts" style="opacity:1"></div>`;
+      r.innerHTML = `<div class="fav fi">${FILEICON(d.name, 34)}</div><div class="tx"><div class="t">${esc(d.name)}</div><div class="s">${esc(stt)}${d.incog ? ' · Incognito' : ''}</div>${d.state === 'progressing' || d.state === 'paused' ? `<div class="prog"><i style="width:${pct}%"></i></div>` : ''}</div><div class="acts" style="opacity:1"></div>`;
       const a = r.lastChild, B = (ic, t, fn) => { const b = document.createElement('button'); b.className = 'ib'; b.title = t; b.innerHTML = ICON(ic, 17); b.onclick = e => { e.stopPropagation(); fn(); }; a.appendChild(b); };
       if (d.state === 'progressing') { B('pause', 'Jeda', () => api('dl.act', d.id, 'pause')); B('close', 'Batalkan', () => api('dl.act', d.id, 'cancel')); }
       else if (d.state === 'paused') { B('play', 'Lanjutkan', () => api('dl.act', d.id, 'resume')); B('close', 'Batalkan', () => api('dl.act', d.id, 'cancel')); }
