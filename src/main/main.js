@@ -381,9 +381,6 @@ function wire(t) {
     if (/^https?:/.test(u) && setting('tr')) wc.executeJavaScript(`window.__alCfg={on:true,lang:${JSON.stringify(setting('trLang'))},hide:${!!setting('trhide')}};` + injectScript('translate.js')).catch(() => {});
     pushTabs();
   });
-  wc.on('dom-ready', () => { sync(); miniApplyZoom(); });
-  wc.on('did-navigate', () => { miniZoomKey = null; });   // CSS yang disisipkan hilang saat pindah halaman
-  wc.on('zoom-changed', (_e, dir) => miniZoomStep(dir === 'in' ? 1 : -1));
   wc.on('did-fail-load', (_e, code, desc, url, isMain) => {
     if (!isMain || code === -3) return;
     if (t.upgraded && url.startsWith('https://') && t.upgraded === 'http://' + url.slice(8)) { const u = t.upgraded; t.upgraded = null; wc.loadURL(u).catch(() => {}); return; }
@@ -1152,6 +1149,9 @@ function miniWebEnsure() {
   wc.on('will-navigate', guard); wc.on('will-redirect', guard);
   const sync = () => { try { const u = wc.getURL(); if (/^https?:/i.test(u)) miniSt.url = u; } catch {} miniPush(); };
   ['did-navigate', 'did-navigate-in-page', 'did-start-loading', 'did-stop-loading', 'page-title-updated'].forEach(ev => wc.on(ev, sync));
+  wc.on('dom-ready', () => { sync(); miniApplyZoom(); });
+  wc.on('did-navigate', () => { miniZoomKey = null; });   // CSS yang disisipkan hilang saat pindah halaman
+  wc.on('zoom-changed', (_e, dir) => miniZoomStep(dir === 'in' ? 1 : -1));
   wc.on('did-fail-load', (_e, code, desc, url, isMain) => {
     if (!isMain || code === -3) return;
     const h = `<meta charset="utf-8"><meta name="color-scheme" content="light dark"><body style="font:14px system-ui;margin:0;padding:28px 20px;text-align:center"><h3 style="margin:0 0 8px">Tidak bisa membuka halaman</h3><p style="opacity:.7;margin:0;word-break:break-all">${U.esc(String(url || ''))}</p><p style="opacity:.7">${U.esc(String(desc || code))}</p></body>`;
