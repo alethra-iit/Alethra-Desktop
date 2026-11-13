@@ -1,0 +1,28 @@
+html,body{background:transparent!important;overflow:hidden;height:100%;margin:0;user-select:none}
+#box{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--surf);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+#box[hidden],#ico[hidden]{display:none}
+.xh{display:flex;align-items:center;gap:2px;height:40px;padding:0 4px 0 12px;flex:none;cursor:grab;touch-action:none}
+.xh.drag{cursor:grabbing}.xh svg.i{color:var(--sub)}.xh .t{flex:1;margin-left:6px;font-weight:600;font-size:14px}
+.xb{width:32px;height:32px;border:0;background:none;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.xb:hover{background:var(--surf2)}.xb svg.i{width:18px;height:18px}.xb:disabled{opacity:.35;cursor:default}.xb:disabled:hover{background:none}
+.xl{display:flex;align-items:center;gap:4px;padding:0 10px 8px;flex:none}
+.xl select{flex:1;min-width:0;height:32px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);padding:0 8px;font-size:12.5px;outline:0}
+.xl select:focus{border-color:var(--acc)}
+.xp{flex:1;min-height:0;display:flex;flex-direction:column;margin:0 10px 8px;border:1px solid var(--line);border-radius:12px;background:var(--bg);overflow:hidden}
+.xp:focus-within{border-color:var(--acc)}
+.xp textarea,.xo{flex:1;min-height:0;border:0;background:none;color:var(--fg);padding:10px 12px 4px;font:inherit;font-size:14px;line-height:1.5;resize:none;outline:0;overflow:auto;user-select:text;white-space:pre-wrap;word-break:break-word}
+.xo:empty::before{content:attr(data-ph);color:var(--sub)}
+.xo.err{color:var(--danger)}
+.xt{display:flex;align-items:center;gap:2px;height:32px;padding:0 4px 0 10px;flex:none;color:var(--sub);font-size:11.5px}
+.xt .s{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xt button{height:26px;padding:0 8px;border:0;background:none;border-radius:8px;display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--fg);cursor:pointer}
+.xt button:hover{background:var(--surf2)}.xt button:disabled{opacity:.35;cursor:default}.xt button:disabled:hover{background:none}
+.xt button svg.i{width:14px;height:14px}
+.xf{height:14px;flex:none}
+.rr{position:absolute;right:0;top:40px;bottom:16px;width:6px;cursor:ew-resize;touch-action:none}
+.rb{position:absolute;left:0;right:30px;bottom:0;height:6px;cursor:ns-resize;touch-action:none}
+.rz{position:absolute;right:0;bottom:0;width:30px;height:16px;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 5px 4px 0;cursor:nwse-resize;touch-action:none;color:var(--sub)}
+.rz svg.i{width:12px;height:12px}
+#ico{position:absolute;inset:0;border-radius:24px;border:1px solid var(--line);background:var(--surf);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.95;touch-action:none}
+#ico:hover,#ico:focus-visible{opacity:1;background:var(--surf2)}#ico:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+#ico svg.i{width:22px;height:22px}

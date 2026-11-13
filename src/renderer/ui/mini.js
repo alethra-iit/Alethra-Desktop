@@ -8,7 +8,7 @@
   const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
   const isSaved = () => S.url && S.sites.some(x => x.u === S.url);
 
-  function dragger(el, kind, onClick) {
+  function dragger(el, kind, onClick, axis) {   // axis: 'x' = hanya lebar, 'y' = hanya tinggi (untuk 'resize')
     let d = null;
     el.addEventListener('pointerdown', e => {
       if (e.button !== 0 || e.target.closest('button,input')) return;
@@ -20,7 +20,7 @@
       if (!d || e.pointerId !== d.id) return;
       const dx = e.screenX - d.x, dy = e.screenY - d.y;
       if (!d.on) { if (onClick && Math.abs(dx) + Math.abs(dy) < 5) return; d.on = true; el.classList.add('drag'); api('mini.drag', 'start'); }
-      api('mini.drag', kind, dx, dy);
+      api('mini.drag', kind, axis === 'y' ? 0 : dx, axis === 'x' ? 0 : dy);
     });
     const end = e => {
       if (!d || e.pointerId !== d.id) return;
@@ -45,9 +45,14 @@
         <input id="ad" type="text" autocomplete="off" spellcheck="false" placeholder="Ketik alamat atau pencarian" aria-label="Alamat"></div>
       <div class="ld" id="ld"></div>
       <div id="st"></div>
-      <div class="mf"><div class="rz" id="rz" title="Ubah ukuran" aria-label="Ubah ukuran">${ICON('resize', 12)}</div></div>`;
+      <div class="rr" id="rr" title="Tarik untuk mengubah lebar"></div>
+      <div class="mf"><div class="zm"><button class="zb" id="zOut" title="Perkecil tampilan (Ctrl+−)" aria-label="Perkecil tampilan">${ICON('minus', 15)}</button>
+        <button class="zv" id="zVal" title="Setel ulang zoom (Ctrl+0)" aria-label="Setel ulang zoom">100%</button>
+        <button class="zb" id="zIn" title="Perbesar tampilan (Ctrl++)" aria-label="Perbesar tampilan">${ICON('plus', 15)}</button></div>
+        <div class="rb" id="rb" title="Tarik untuk mengubah tinggi"></div>
+        <div class="rz" id="rz" title="Tarik untuk mengubah ukuran" aria-label="Ubah ukuran">${ICON('resize', 14)}</div></div>`;
     addr = $('#ad'); ld = $('#ld'); title = $('#mt'); startEl = $('#st');
-    ['bStar', 'bMob', 'bTab', 'bMin', 'bX', 'bBack', 'bFwd', 'bRel', 'bHome'].forEach(k => { btn[k] = $('#' + k); });
+    ['bStar', 'bMob', 'bTab', 'bMin', 'bX', 'bBack', 'bFwd', 'bRel', 'bHome', 'zOut', 'zIn', 'zVal'].forEach(k => { btn[k] = $('#' + k); });
     btn.bX.onclick = () => api('mini.close');
     btn.bMin.onclick = () => api('mini.min');
     btn.bTab.onclick = () => api('mini.totab');
@@ -65,13 +70,19 @@
       if (e.key === 'Escape') { addr.value = S.url || ''; addr.blur(); }
     });
     addr.addEventListener('focus', () => addr.select());
+    btn.zOut.onclick = () => api('mini.zoom', -1);
+    btn.zIn.onclick = () => api('mini.zoom', 1);
+    btn.zVal.onclick = () => api('mini.zoom', 0);
     dragger($('#mh'), 'move');
     dragger($('#rz'), 'resize');
+    dragger($('#rr'), 'resize', null, 'x');
+    dragger($('#rb'), 'resize', null, 'y');
   }
 
   function renderStart() {
-    startEl.hidden = !!S.url;
-    if (S.url) return;
+    // jangan pakai hidden: #st harus tetap mengisi ruang tengah, kalau tidak kaki jendela (zoom + ukuran) naik ke balik halaman web
+    startEl.classList.toggle('off', !!S.url);
+    if (S.url) { startEl.innerHTML = ''; return; }
     startEl.innerHTML = `<h4>Situs favorit</h4>`;
     if (!S.sites.length) startEl.insertAdjacentHTML('beforeend', `<div class="hint">Belum ada favorit. Buka sebuah situs, lalu ketuk ${ICON('star', 14)} untuk menyimpannya di sini.</div>`);
     S.sites.forEach(x => {
@@ -99,6 +110,8 @@
     btn.bMob.classList.toggle('on', !!S.mobile);
     btn.bStar.classList.toggle('on', !!isSaved()); btn.bStar.title = isSaved() ? 'Hapus dari favorit' : 'Simpan ke favorit';
     ld.classList.toggle('on', !!S.loading);
+    const zp = Math.round((S.zoom || 1) * 100);
+    btn.zVal.textContent = zp + '%'; btn.zVal.disabled = !S.url || zp === 100; btn.zOut.disabled = !S.url || zp <= 50; btn.zIn.disabled = !S.url || zp >= 300;
     renderStart();
   }
 

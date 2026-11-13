@@ -41,6 +41,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Notepad | Menu Tools → Notepad (Ctrl+Alt+N). Catatan melayang di atas halaman (lihat bagian *Notepad* di bawah) |
 | Mini browser | Menu Tools → Mini browser (Ctrl+Alt+B). Jendela web kecil yang melayang di atas halaman (lihat bagian *Mini browser* di bawah) |
 | Riwayat clipboard | Menu Tools → Riwayat clipboard (Ctrl+Alt+C). Daftar teks yang baru disalin (lihat bagian *Riwayat clipboard* di bawah) |
+| Penerjemah melayang | Menu Tools → Penerjemah melayang (Ctrl+Alt+X). Kotak terjemahan kecil di atas halaman (lihat bagian *Penerjemah melayang* di bawah) |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
 | Izin situs | Bilah izin + manajer di Pengaturan |
 | Pengelola sandi | Terenkripsi (Windows DPAPI), isi otomatis saat kolom diklik |
@@ -83,7 +84,7 @@ Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dar
 ## Pintasan keyboard
 Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+W tutup · Ctrl+Tab ganti tab · Ctrl+1…9 · Ctrl+L alamat · Ctrl+F cari ·
 Ctrl+D bookmark · Ctrl+H histori · Ctrl+J unduhan · Ctrl+P cetak · Ctrl+S simpan offline · Ctrl +/−/0 zoom ·
-F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad · Ctrl+Alt+B Mini browser · Ctrl+Alt+C Riwayat clipboard
+F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad · Ctrl+Alt+B Mini browser · Ctrl+Alt+C Riwayat clipboard · Ctrl+Alt+X Penerjemah melayang
 
 Data pengguna: `%APPDATA%\Alethra\data`.
 
@@ -152,7 +153,8 @@ Tools → *Riwayat terjemahan suara* (Ctrl+Alt+H, atau ikon jam di popup) membuk
 ## Mini browser
 Menu Tools → **Mini browser** (atau Ctrl+Alt+B) membuka jendela web kecil yang melayang di atas halaman, cocok untuk kamus, Google Terjemahan, chat, atau situs referensi tanpa berpindah tab.
 - **Isi:** bilah atas (judul, favorit ★, tampilan ponsel/desktop, buka di tab biasa, perkecil, tutup), bilah alamat dengan mundur/maju/muat ulang/daftar situs, lalu halaman web. Pegangan di pojok kanan bawah untuk mengubah ukuran.
-- **Geser & ukuran:** tarik bilah atas untuk memindahkan. Posisi dan ukuran diingat (`minibox`).
+- **Geser & ukuran:** tarik bilah atas untuk memindahkan. Tarik tepi kanan untuk mengubah lebar, kaki jendela (bagian bawah) untuk mengubah tinggi, atau pojok kanan bawah untuk keduanya. Posisi dan ukuran diingat (`minibox`).
+- **Zoom:** tombol − / + dan angka persen di kaki jendela (klik angkanya untuk kembali ke 100%), atau Ctrl++ / Ctrl+− / Ctrl+0 di dalam mini browser. Zoom hanya berlaku di mini browser dan diingat per situs (`minizoom`); tab biasa tidak ikut berubah.
 - **Perkecil:** tombol − mengubahnya jadi ikon bulat yang bisa digeser; situs tetap hidup di belakang (mis. musik tetap jalan). Ketuk ikon untuk membuka lagi. Tombol ✕ menutup dan menghentikan halaman.
 - **Favorit:** buka sebuah situs lalu ketuk ★. Daftar favorit tampil saat mini browser dibuka tanpa alamat (`minisites`).
 - **Sesi:** memakai sesi yang sama dengan tab biasa, jadi login, blokir iklan, dan pengaturan privasi tetap berlaku. Tautan yang dibuka dari dalamnya (target=_blank) tetap di jendela mini. Izin kamera/mikrofon/lokasi ditolak otomatis di mini browser.
@@ -167,6 +169,16 @@ Menu Tools → **Riwayat clipboard** (atau Ctrl+Alt+C) membuka daftar melayang b
 - **Privasi:** riwayat biasa hanya di memori dan hilang saat Alethra ditutup (maksimal 60 item, tiap item maksimal 20.000 karakter). Tidak merekam saat tab aktif adalah tab Incognito, saat perekaman dijeda (tombol jeda), atau bila aplikasi sumber menandai salinannya rahasia (mis. pengelola sandi di Windows). Isi clipboard yang sudah ada saat Alethra dibuka tidak ikut direkam. Hanya teks, gambar tidak direkam.
 - **Geser & ukuran:** tarik bilah atas untuk memindahkan, pegangan kanan bawah untuk mengubah ukuran, tombol − untuk memperkecil jadi ikon bulat.
 - **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Riwayat clipboard*. Bila dimatikan, perekaman berhenti dan jendela ditutup.
+
+## Penerjemah melayang
+Menu Tools → **Penerjemah melayang** (atau Ctrl+Alt+X) membuka kotak terjemahan kecil di atas halaman, tanpa pindah tab.
+- **Pakai:** ketik atau tempel teks (tombol *Tempel* mengambil dari clipboard), hasil muncul otomatis sekitar 0,6 detik setelah berhenti mengetik (Ctrl+Enter untuk langsung). Jika ada teks yang disorot di halaman saat kotak dibuka, teks itu otomatis dimasukkan dan diterjemahkan.
+- **Bahasa:** pilih bahasa asal (atau *Deteksi otomatis*, bahasa terdeteksi ditampilkan) dan bahasa tujuan; tombol tukar membalik keduanya dan memindahkan hasil jadi teks asal. Pasangan terakhir diingat (`xlpair`).
+- **Hasil:** *Salin* menyalin terjemahan, *Tempel ke halaman* menempelkannya ke kolom yang sedang aktif di tab. Teks maksimal 5.000 karakter.
+- **Mesin:** mengikuti Pengaturan → *Terjemahan hasil suara*: Google Translate (online) atau mesin offline (Opus-MT / CTranslate2 / Bergamot / NLLB), dengan cadangan Google Translate bila *mtfb* menyala. Mesin offline memerlukan bahasa asal yang dipilih manual; dengan *Deteksi otomatis* dipakai Google Translate. Baris di bawah hasil menampilkan mesin yang dipakai. Dengan Google Translate, teks yang diterjemahkan dikirim ke server Google.
+- **Privasi:** teks yang diketik tidak disimpan; hanya pasangan bahasa terakhir dan posisi/ukuran kotak (`xlbox`).
+- **Geser & ukuran:** tarik bilah atas untuk memindahkan; tarik tepi kanan, tepi bawah, atau pojok kanan bawah untuk mengubah ukuran; tombol − memperkecil jadi ikon bulat.
+- **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Penerjemah melayang*.
 
 ## Notepad
 Menu Tools → **Notepad** (atau Ctrl+Alt+N) membuka catatan melayang di atas halaman, sama seperti Notepad di menu titik tiga Alethra Browser (Android).

@@ -68,6 +68,7 @@ function applyTheme() {
   if (noteView && alive(noteView.webContents)) sendTo(noteView.webContents, 'settings', st);
   if (miniView && alive(miniView.webContents)) sendTo(miniView.webContents, 'settings', st);
   if (clipView && alive(clipView.webContents)) sendTo(clipView.webContents, 'settings', st);
+  if (xlView && alive(xlView.webContents)) sendTo(xlView.webContents, 'settings', st);
   try { renderOverlay(); } catch {}
 }
 function publicSettings() {
@@ -154,7 +155,7 @@ function layout() {
   ctx.tabs.forEach(t => { const r = G.rects[t.id]; t.view.setVisible(!!r); if (r) t.view.setBounds(t.emu ? emuApply(t, r) : r); });
   ctx.sendChrome('split', G.chrome);
   renderOverlay();
-  noteLayout(true); miniLayout(true); clipLayout(true);
+  noteLayout(true); miniLayout(true); clipLayout(true); xlLayout(true);
 }
 // panel tempat sebuah tab berada (koordinat jendela); null bila tab tidak sedang terlihat
 const paneBox = (id) => { const r = lastGeo && lastGeo.rects[id]; return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
@@ -380,6 +381,9 @@ function wire(t) {
     if (/^https?:/.test(u) && setting('tr')) wc.executeJavaScript(`window.__alCfg={on:true,lang:${JSON.stringify(setting('trLang'))},hide:${!!setting('trhide')}};` + injectScript('translate.js')).catch(() => {});
     pushTabs();
   });
+  wc.on('dom-ready', () => { sync(); miniApplyZoom(); });
+  wc.on('did-navigate', () => { miniZoomKey = null; });   // CSS yang disisipkan hilang saat pindah halaman
+  wc.on('zoom-changed', (_e, dir) => miniZoomStep(dir === 'in' ? 1 : -1));
   wc.on('did-fail-load', (_e, code, desc, url, isMain) => {
     if (!isMain || code === -3) return;
     if (t.upgraded && url.startsWith('https://') && t.upgraded === 'http://' + url.slice(8)) { const u = t.upgraded; t.upgraded = null; wc.loadURL(u).catch(() => {}); return; }
@@ -652,9 +656,9 @@ async function needAuth(part) {
 }
 async function lockApp() {
   const l = setting('lock'); if (l.mode !== 'app' || !l.hash || locked) return;
-  locked = true; noteLayout(); miniLayout(); clipLayout();
+  locked = true; noteLayout(); miniLayout(); clipLayout(); xlLayout();
   for (;;) { const r = await askModal('pin', { reason: 'Alethra terkunci', title: 'Masukkan PIN' }, false); if (r && SV.verifyPin(r.pin)) break; if (r) ctx.toast('PIN salah'); }
-  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true); miniLayout(true); clipLayout(true);
+  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true); miniLayout(true); clipLayout(true); xlLayout(true);
 }
 
 /* ================= menu konteks (asli Windows) ================= */
@@ -753,6 +757,7 @@ function shortcut(e, i) {
   if (a && !s && k === 'n') return run(noteToggle);
   if (a && !s && k === 'b') return run(miniToggle);
   if (a && !s && k === 'c') return run(clipToggle);
+  if (a && !s && k === 'x') return run(xlToggle);
   if (k === 'n' && s) return run(() => newIncogTab());
   if (k === 'n' && !s) return run(() => createTab('alethra://home'));
   if (k === 'w' || k === 'f4') return run(() => closeTab(activeId));
@@ -1052,7 +1057,7 @@ async function notePick() {
 // Bisa digeser, diubah ukurannya, diperkecil jadi ikon (situs tetap hidup), dan punya daftar situs favorit.
 let miniView = null, miniWeb = null, miniOpen = false, miniMin = false, MG = null, miniBase = null;
 let miniSt = { url: '', mobile: true };
-const MINI_MIN = { w: 300, h: 300 }, MINI_ICON = 48, MINI_HEAD = 78, MINI_FOOT = 18;
+const MINI_MIN = { w: 300, h: 300 }, MINI_ICON = 48, MINI_HEAD = 79, MINI_FOOT = 29, MINI_SIDE = 7;   // +1px garis tepi kotak; harus pas dengan mini.css
 const miniG = () => MG || (MG = Object.assign({}, SV.DEFAULTS.minibox, setting('minibox')));
 const miniShown = () => miniOpen && !!miniView;
 const miniAlive = () => miniWeb && alive(miniWeb.webContents);
@@ -1073,7 +1078,7 @@ function miniBounds(commit) {
   if (commit) Object.assign(g, c);
   return r;
 }
-const miniWebRect = (r) => ({ x: r.x + 1, y: r.y + MINI_HEAD, width: Math.max(0, r.width - 2), height: Math.max(0, r.height - MINI_HEAD - MINI_FOOT) });
+const miniWebRect = (r) => ({ x: r.x + 1, y: r.y + MINI_HEAD, width: Math.max(0, r.width - 1 - MINI_SIDE), height: Math.max(0, r.height - MINI_HEAD - MINI_FOOT) });   // sisa strip kanan = pegangan lebar, kaki = pegangan tinggi + zoom
 function miniLayout(raise) {
   if (!miniView || !win || win.isDestroyed() || !alive(miniView.webContents)) return;
   if (!miniOpen || locked) { miniView.setVisible(false); if (miniAlive()) miniWeb.setVisible(false); return; }
@@ -1087,12 +1092,40 @@ function miniLayout(raise) {
     if (f && !miniMin) miniView.webContents.focus();
   }
 }
+// Zoom khusus mini browser: memakai CSS zoom pada halaman (bukan zoom Chromium per-situs), supaya tab biasa di situs yang sama tidak ikut berubah.
+// Tingkat zoom diingat per situs di pengaturan (minizoom).
+const MINI_ZOOMS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+let miniZoomKey = null;
+const miniHost = () => U.hostOf(miniSt.url) || '';
+const miniZoom = () => { const h = miniHost(), z = h && (setting('minizoom') || {})[h]; return typeof z === 'number' && z >= 0.25 && z <= 5 ? z : 1; };
+async function miniApplyZoom() {
+  if (!miniAlive() || !miniSt.url) return;
+  const wc = miniWeb.webContents, z = miniZoom();
+  try {
+    if (miniZoomKey) { const k = miniZoomKey; miniZoomKey = null; await wc.removeInsertedCSS(k).catch(() => {}); }
+    if (z !== 1) miniZoomKey = await wc.insertCSS(`html{zoom:${z}!important}`);
+  } catch {}
+}
+function miniSetZoom(z) {
+  const h = miniHost(); if (!h) return;
+  const map = Object.assign({}, setting('minizoom') || {});
+  if (Math.abs(z - 1) < 0.001) delete map[h]; else map[h] = Math.round(z * 100) / 100;
+  const ks = Object.keys(map); if (ks.length > 300) delete map[ks[0]];
+  saveSetting('minizoom', map); miniApplyZoom(); miniPush();
+}
+function miniZoomStep(dir) {   // dir: 1 = perbesar, -1 = perkecil, 0 = setel ulang
+  if (!miniSt.url) return;
+  if (dir === 0) return miniSetZoom(1);
+  const z = miniZoom();
+  const n = dir > 0 ? MINI_ZOOMS.find(v => v > z + 0.001) : [...MINI_ZOOMS].reverse().find(v => v < z - 0.001);
+  if (n != null) miniSetZoom(n);
+}
 function miniState() {
   const wc = miniAlive() ? miniWeb.webContents : null;
   return {
     url: miniSt.url, title: wc && miniSt.url ? wc.getTitle() : '', loading: !!(wc && miniSt.url && wc.isLoading()),
     back: !!(wc && miniSt.url && wc.navigationHistory.canGoBack()), fwd: !!(wc && miniSt.url && wc.navigationHistory.canGoForward()),
-    mobile: miniSt.mobile, min: miniMin, sites: miniSites()
+    mobile: miniSt.mobile, min: miniMin, sites: miniSites(), zoom: miniZoom()
   };
 }
 const miniPush = () => { if (miniView && alive(miniView.webContents)) sendTo(miniView.webContents, 'mini.state', miniState()); };
@@ -1127,6 +1160,9 @@ function miniWebEnsure() {
   wc.on('before-input-event', (e, input) => {
     if (input.type !== 'keyDown') return;
     const k = (input.key || '').toLowerCase(), c = input.control || input.meta, a = input.alt;
+    if (c && !a && (k === '=' || k === '+')) { miniZoomStep(1); e.preventDefault(); return; }
+    if (c && !a && (k === '-' || k === '_')) { miniZoomStep(-1); e.preventDefault(); return; }
+    if (c && !a && k === '0') { miniZoomStep(0); e.preventDefault(); return; }
     if (k === 'f5' || (c && k === 'r' && !a)) { wc.reload(); e.preventDefault(); return; }
     if (a && k === 'arrowleft') { if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack(); e.preventDefault(); return; }
     if (a && k === 'arrowright') { if (wc.navigationHistory.canGoForward()) wc.navigationHistory.goForward(); e.preventDefault(); return; }
@@ -1322,6 +1358,159 @@ function clipDel(id) {
 }
 function clipClear() { clipList = []; clipPush(); return true; }   // item yang disematkan tidak ikut terhapus
 function clipPause(on) { clipPaused = on == null ? !clipPaused : !!on; if (!clipPaused) { try { clipLast = clipboard.readText(); } catch {} } clipPush(); return clipPaused; }
+/* ================= Penerjemah melayang (menu Tools) ================= */
+// Kotak terjemahan kecil di atas halaman: ketik/tempel teks, hasil muncul otomatis. Memakai pengaturan "Terjemahan hasil suara" (trmode):
+// Google Translate (online) atau mesin offline (Opus-MT / CTranslate2 / Bergamot / NLLB), dengan cadangan Google bila mtfb menyala.
+// Offline butuh bahasa asal yang jelas (tidak bisa "deteksi otomatis"), maka untuk deteksi otomatis dipakai Google Translate.
+// Teks yang diketik TIDAK disimpan; hanya pilihan pasangan bahasa terakhir (xlpair) dan posisi/ukuran (xlbox).
+let xlView = null, xlOpen = false, xlMin = false, XG = null, xlBase = null;
+const XL_MIN = { w: 300, h: 340 }, XL_ICON = 48, XL_MAX = 5000;
+const xlG = () => XG || (XG = Object.assign({}, SV.DEFAULTS.xlbox, setting('xlbox')));
+const xlShown = () => xlOpen && !!xlView;
+const xlPair = () => { const p = Object.assign({}, SV.DEFAULTS.xlpair, setting('xlpair')); if (p.s !== 'auto' && !U.TR_LANGS[p.s]) p.s = 'auto'; if (!U.TR_LANGS[p.t]) p.t = 'id'; return p; };
+function xlState() { return { pair: xlPair(), langs: U.TR_LANGS, min: xlMin }; }
+function xlBounds(commit) {
+  const [w, h] = win.getContentSize(), g = xlG(), c = Object.assign({}, g), top = fsActive() ? 0 : chromeH;
+  let r;
+  if (xlMin) {
+    c.ix = Math.max(0, Math.min(w - XL_ICON, c.ix < 0 ? w - XL_ICON - 12 : c.ix));
+    c.iy = Math.max(top, Math.min(h - XL_ICON, c.iy < 0 ? top + 204 : c.iy));
+    r = { x: c.ix, y: c.iy, width: XL_ICON, height: XL_ICON };
+  } else {
+    const lw = Math.min(XL_MIN.w, w), lh = Math.min(XL_MIN.h, Math.max(0, h - top));
+    c.w = Math.max(lw, Math.min(c.w, Math.max(lw, w - 8))); c.h = Math.max(lh, Math.min(c.h, Math.max(lh, h - top - 8)));
+    c.x = Math.max(0, Math.min(w - c.w, c.x < 0 ? Math.max(0, w - c.w - 16) : c.x));
+    c.y = Math.max(top, Math.min(Math.max(top, h - c.h), c.y < 0 ? top + 130 : c.y));
+    r = { x: c.x, y: c.y, width: c.w, height: c.h };
+  }
+  if (commit) Object.assign(g, c);
+  return r;
+}
+function xlLayout(raise) {
+  if (!xlView || !win || win.isDestroyed() || !alive(xlView.webContents)) return;
+  if (!xlOpen || locked) { xlView.setVisible(false); return; }
+  xlView.setBounds(xlBounds(false)); xlView.setVisible(true);
+  if (raise) {
+    const f = xlView.webContents.isFocused();
+    win.contentView.addChildView(xlView); if (overlay) win.contentView.addChildView(overlay); if (fsBar) win.contentView.addChildView(fsBar);
+    if (f && !xlMin) xlView.webContents.focus();
+  }
+}
+function xlEnsure() {
+  if (xlView && alive(xlView.webContents)) return;
+  xlView = new WebContentsView({ webPreferences: { preload: path.join(__dirname, '..', 'preload', 'internal.js'), sandbox: true, contextIsolation: true } });
+  xlView.setBackgroundColor('#00000000');
+  xlView.webContents.on('before-input-event', (e, input) => { if (shortcut(e, input)) e.preventDefault(); });
+  xlView.webContents.on('console-message', (_e, lvl, msg, line, src) => { if (lvl >= 2) log('translator console', msg, src + ':' + line); });
+  win.contentView.addChildView(xlView); xlView.setVisible(false);
+  xlView.webContents.loadURL('alethra://app/ui/xl.html');
+}
+async function xlPageSel() {   // teks yang sedang disorot di tab aktif (kosong bila tidak ada / bukan halaman web)
+  try {
+    const t = curTab(); if (!t || !/^https?:/.test(t.url)) return '';
+    const s = await t.view.webContents.executeJavaScript('String(window.getSelection&&window.getSelection().toString()||"")', true);
+    return String(s || '').trim().slice(0, XL_MAX);
+  } catch { return ''; }
+}
+async function xlOpenNow() {
+  if (setting('tools').xl === false) return;
+  const sel = xlMin || xlOpen ? '' : await xlPageSel();   // ambil sorotan sebelum fokus pindah ke kotak
+  xlEnsure(); xlOpen = true; xlBounds(true); xlLayout(true);
+  sendTo(xlView.webContents, 'xl.mode', { min: xlMin });
+  setTimeout(() => { if (xlOpen && !xlMin && alive(xlView && xlView.webContents)) { xlView.webContents.focus(); sendTo(xlView.webContents, 'xl.focus', sel); } }, 60);
+}
+function xlClose() {
+  if (!xlOpen) return;
+  xlOpen = false; xlMin = false; xlLayout();
+  if (xlView && alive(xlView.webContents)) sendTo(xlView.webContents, 'xl.mode', { min: false });
+  try { const w = curWC(); if (alive(w)) w.focus(); } catch {}
+}
+function xlSetMin(m) {
+  if (!xlOpen) return;
+  xlMin = !!m; xlBounds(true); xlLayout(true);
+  sendTo(xlView.webContents, 'xl.mode', { min: xlMin });
+}
+async function xlToggle() {
+  if (setting('tools').xl === false) return;
+  if (!xlOpen) return xlOpenNow();
+  if (xlMin) return xlSetMin(false);
+  xlClose();
+}
+function xlDrag(ph, dx, dy) {
+  if (!xlOpen || !win) return;
+  const g = xlG();
+  if (ph === 'start') { xlBounds(true); xlBase = Object.assign({}, g); return; }
+  if (!xlBase) return;
+  if (ph === 'end') { xlBase = null; saveSetting('xlbox', Object.assign({}, g)); return; }
+  dx = Math.round(+dx || 0); dy = Math.round(+dy || 0);
+  const [w, h] = win.getContentSize();
+  if (ph === 'move') { if (xlMin) { g.ix = Math.max(0, xlBase.ix + dx); g.iy = Math.max(0, xlBase.iy + dy); } else { g.x = Math.max(0, xlBase.x + dx); g.y = Math.max(0, xlBase.y + dy); } }
+  else if (ph === 'resize' && !xlMin) { g.w = Math.max(XL_MIN.w, Math.min(xlBase.w + dx, Math.max(XL_MIN.w, w - g.x))); g.h = Math.max(XL_MIN.h, Math.min(xlBase.h + dy, Math.max(XL_MIN.h, h - g.y))); }
+  else return;
+  xlView.setBounds(xlBounds(true));
+}
+// pecah teks jadi potongan pendek (per baris, lalu per kalimat) supaya aman untuk semua mesin; urutan baris kosong dipertahankan
+function xlChunks(text, max) {
+  return String(text).split('\n').map(line => {
+    line = line.trim(); if (!line) return [];
+    const out = []; let cur = '';
+    for (const part of line.split(/(?<=[.!?。！？؟])\s+/)) {
+      if (cur && (cur.length + part.length + 1) > max) { out.push(cur); cur = ''; }
+      if (part.length > max) { for (let i = 0; i < part.length; i += max) out.push(part.slice(i, i + max)); continue; }
+      cur = cur ? cur + ' ' + part : part;
+    }
+    if (cur) out.push(cur);
+    return out;
+  });
+}
+async function xlGoogle(text, sl, tl) {   // → { text, src }
+  const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + encodeURIComponent(sl) + '&tl=' + encodeURIComponent(tl) + '&dt=t&q=' + encodeURIComponent(text), { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(9000) });
+  if (!r.ok) throw new Error('Google Translate gagal (' + r.status + ')');
+  const j = await r.json();
+  let src = typeof j[2] === 'string' ? j[2] : ''; if (src === 'iw') src = 'he'; else if (src === 'jw') src = 'jv';
+  return { text: (j[0] || []).map(s => s[0] || '').join(''), src };
+}
+let xlSeq = 0;
+async function xlRun(text, sl, tl) {
+  text = String(text || '').slice(0, XL_MAX); sl = String(sl || 'auto'); tl = String(tl || '');
+  if (!text.trim()) return { ok: true, text: '', src: '', engine: '' };
+  if (!U.TR_LANGS[tl] || (sl !== 'auto' && !U.TR_LANGS[sl])) return { ok: false, err: 'Bahasa tidak dikenal' };
+  const mode = setting('trmode'), offline = ['offline', 'nllb', 'ct2', 'bergamot'].includes(mode) && sl !== 'auto';
+  const names = { offline: 'Offline · Opus-MT', ct2: 'Offline · CTranslate2', bergamot: 'Offline · Bergamot', nllb: 'Offline · NLLB' };
+  const lines = xlChunks(text, offline ? 400 : 1500);
+  if (sl === tl) return { ok: true, text, src: sl, engine: '' };
+  let engine = offline ? names[mode] : 'Google Translate', src = sl === 'auto' ? '' : sl, notice = '';
+  const doOne = async (chunk) => {
+    if (offline) {
+      try { return await OFF.translateBy(mode, chunk, sl, tl); }
+      catch (e) {
+        if (setting('mtfb') === false) throw new Error(e && e.missing ? e.message : 'Terjemahan offline gagal: ' + (e && e.message));
+        offline && (engine = 'Google Translate (cadangan)'); notice = e && e.missing ? e.message : '';
+        const g = await xlGoogle(chunk, sl, tl); return g.text;
+      }
+    }
+    const g = await xlGoogle(chunk, sl, tl); if (g.src && !src) src = g.src; return g.text;
+  };
+  try {
+    const out = [];
+    for (const parts of lines) {
+      if (!parts.length) { out.push(''); continue; }
+      const res = []; for (const c of parts) res.push(((await doOne(c)) || '').trim());
+      out.push(res.join(' '));
+    }
+    return { ok: true, text: out.join('\n').replace(/\n{3,}/g, '\n\n'), src, engine, notice };
+  } catch (e) { return { ok: false, err: e && e.message ? e.message : 'Terjemahan gagal' }; }
+}
+function xlSetPair(s, t) {
+  if (s !== 'auto' && !U.TR_LANGS[s]) return false; if (!U.TR_LANGS[t]) return false;
+  saveSetting('xlpair', { s, t }); return true;
+}
+function xlCopy(text) { text = String(text || '').slice(0, XL_MAX * 3); if (!text) return false; clipboard.writeText(text); try { clipLast = text; } catch {} return true; }
+function xlPaste(text) {   // salin lalu tempel ke halaman aktif
+  if (!xlCopy(text)) return false;
+  try { const w = curWC(); if (alive(w)) { w.focus(); setTimeout(() => { try { if (alive(w)) w.paste(); } catch {} }, 60); } } catch {}
+  return true;
+}
 /* ================= menu Tools (overlay) ================= */
 // Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play tetap ditampilkan (redup)
 // dengan keterangan, supaya pengguna tahu kenapa tidak bisa dipakai; klik membuka Pengaturan di tempat yang tepat.
@@ -1346,7 +1535,8 @@ function toolsMenuSpec() {
       : [I('split.new', 'Tampilan terpisah', { key: 'Ctrl+Alt+V' })]) : [],
     [on('note') && I('note', 'Notepad', { key: 'Ctrl+Alt+N', check: noteShown() }),
      on('mini') && I('mini', 'Mini browser', { key: 'Ctrl+Alt+B', check: miniShown() }),
-     on('clips') && I('clips', 'Riwayat clipboard', { key: 'Ctrl+Alt+C', check: clipShown() })],
+     on('clips') && I('clips', 'Riwayat clipboard', { key: 'Ctrl+Alt+C', check: clipShown() }),
+     on('xl') && I('xl', 'Penerjemah melayang', { key: 'Ctrl+Alt+X', check: xlShown() })],
     [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
      on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
@@ -1461,6 +1651,7 @@ function menuAction(id) {
     case 'note': return noteToggle();
     case 'mini': return miniToggle();
     case 'clips': return clipToggle();
+    case 'xl': return xlToggle();
     case 'goto.play': return openSettingsAt('play');
     case 'goto.mesinoff': return openSettingsAt('mesinoff');
     case 'tools.config': { const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog); if (ex) { go(ex, 'alethra://settings#tools'); return selectTab(ex.id); } return createTab('alethra://settings#tools'); }
@@ -1632,6 +1823,7 @@ const API = {
     if (k === 'tools' && v.note === false) noteClose();
     if (k === 'tools' && v.mini === false) miniClose();
     if (k === 'tools' && v.clips === false) clipClose();
+    if (k === 'tools' && v.xl === false) xlClose();
     if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'stwmodel', 'stvmodel', 'trmode'].includes(k)) STT.refresh();
     if (k === 'stt' && !v) STT.stop();
     if (k === 'splitMode' || k === 'splitRatio') { ratioLive = null; layout(); }
@@ -1683,6 +1875,7 @@ const API = {
   'mini.drag': (e, ph, dx, dy) => miniDrag(ph, dx, dy),
   'mini.mobile': (e, on) => miniSetMobile(on),
   'mini.totab': () => miniToTab(),
+  'mini.zoom': (e, dir) => miniZoomStep(dir | 0),
   'mini.site.add': (e, n, u) => {
     u = String(u || ''); if (!/^https?:\/\//i.test(u)) return false;
     const l = miniSites().filter(x => x.u !== u); l.push({ n: String(n || U.hostOf(u) || u).slice(0, 60), u }); miniSitesSave(l.slice(-40)); return true;
@@ -1700,6 +1893,17 @@ const API = {
   'ch.min': () => clipSetMin(true),
   'ch.restore': () => clipSetMin(false),
   'ch.drag': (e, ph, dx, dy) => clipDrag(ph, dx, dy),
+  /* Penerjemah melayang (menu Tools) */
+  'xl.state': () => xlState(),
+  'xl.run': (e, text, s, t) => xlRun(text, s, t),
+  'xl.pair': (e, s, t) => xlSetPair(String(s), String(t)),
+  'xl.copy': (e, text) => xlCopy(text),
+  'xl.readclip': () => { try { return String(clipboard.readText() || '').slice(0, XL_MAX); } catch { return ''; } },
+  'xl.paste': (e, text) => xlPaste(text),
+  'xl.close': () => xlClose(),
+  'xl.min': () => xlSetMin(true),
+  'xl.restore': () => xlSetMin(false),
+  'xl.drag': (e, ph, dx, dy) => xlDrag(ph, dx, dy),
   'note.pick': () => notePick(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
   'stt.resetpos': () => STT.resetPos(),
@@ -1797,7 +2001,7 @@ async function needAuthStrict() {
 }
 ipcMain.handle('api', async (e, name, ...args) => {
   if (!isInternalSender(e)) return null;
-  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && !(miniView && e.sender === miniView.webContents) && !(clipView && e.sender === clipView.webContents) && name !== 'dl.open') return null;
+  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && !(miniView && e.sender === miniView.webContents) && !(clipView && e.sender === clipView.webContents) && !(xlView && e.sender === xlView.webContents) && name !== 'dl.open') return null;
   const f = API[name]; if (!f) return null;
   try { return await f(e, ...args); } catch (err) { console.error('api', name, err); return null; }
 });
