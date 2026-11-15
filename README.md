@@ -187,6 +187,12 @@ Pemutar musik & video sederhana yang berjalan di **tab sendiri** (`alethra://pla
 
 **Bagian**: *Sedang diputar* (pemutar + antrean), *Musik* dan *Video* (semua berkas di folder yang dipindai, bisa dicari dan diurutkan), *Folder* (telusuri folder; tambah/hapus folder sumber), *Unduhan* (musik/video yang diunduh lewat Alethra), *Playlist*, dan *Riwayat*.
 
+**Tampilan daftar / gambar**: di pojok kanan atas tiap bagian (Musik, Video, Folder, Unduhan, Playlist, Riwayat) ada tombol pilihan tampilan. *Daftar* = baris seperti biasa; *Gambar* = kartu berukuran besar dengan gambar di atas judul. Pilihan diingat (disimpan di `play.json`). Gambar yang dipakai:
+- **Musik** → sampul yang tertanam di berkas (MP3/AAC = ID3v2, M4A, FLAC, OGG/OPUS); bila tidak ada, gambar di folder yang sama (`namalagu.jpg`, atau `cover`/`folder`/`front`/`album`/`albumart`/`artwork` `.jpg/.png/.webp`).
+- **Video** → gambar di folder yang sama bernama sama (`namavideo.jpg`, `namavideo-poster.jpg`, `namavideo-thumb.jpg`); bila tidak ada, satu bingkai dari video itu sendiri (hanya format/codec yang bisa dibaca Chromium).
+- Tidak ada atau tidak didukung → **gambar default AlethPlay**.
+Gambar dimuat hanya untuk kartu yang terlihat (dan hanya saat mode gambar aktif), diperkecil ke lebar 320 px, lalu disimpan sementara di memori selama aplikasi berjalan; tidak ada berkas gambar yang ditulis ke disk.
+
 **Pembukaan otomatis** (AlethPlay aktif sendiri saat berkas media dibuka; ada tab AlethPlay → dipakai, belum ada → dibuat):
 - klik berkas musik/video di halaman **Unduhan** (tombol Buka atau klik namanya, juga dari panel unduhan)
 - klik berkas di bagian **Folder** AlethPlay
@@ -197,7 +203,7 @@ Pemutar musik & video sederhana yang berjalan di **tab sendiri** (`alethra://pla
 
 **Playlist & riwayat**: menu ⋮ pada tiap baris → *Putar berikutnya*, *Tambah ke antrean*, *Tambah ke playlist…*, *Tampilkan di folder*. Antrean bisa disimpan sebagai playlist. Riwayat menyimpan 200 berkas terakhir. Posisi terakhir video panjang diingat. Semua data tersimpan di `%APPDATA%\Alethra\data\play.json` (hanya jalur berkas, bukan isinya).
 
-**Keamanan**: berkas lokal tidak pernah dibuka lewat `file://` (tetap diblokir untuk situs). Berkas hanya bisa dibaca pemutar lewat alamat `alethra://media/<token>/…` dengan token acak per sesi; hanya halaman internal Alethra yang bisa meminta daftar folder, dan hanya format musik/video yang disajikan.
+**Keamanan**: berkas lokal tidak pernah dibuka lewat `file://` (tetap diblokir untuk situs). Berkas hanya bisa dibaca pemutar lewat alamat `alethra://media/<token>/…` dengan token acak per sesi; hanya halaman internal Alethra yang bisa meminta daftar folder, dan hanya format musik/video yang disajikan. Pengambilan bingkai video untuk thumbnail memakai izin CORS khusus yang hanya diberikan ke halaman internal `alethra://`.
 
 **Format**: yang didukung Chromium — MP3, M4A/AAC, WAV, FLAC, OGG/OPUS, MP4/M4V (H.264), WEBM, MKV, MOV (tergantung codec). Format lain (mis. AVI, WMV, HEVC) menampilkan pesan dengan tombol *Buka dengan aplikasi lain*.
 

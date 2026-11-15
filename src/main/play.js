@@ -1,11 +1,12 @@
 /* AlethPlay — pemutar musik & video (alethra://play).
    Sisi main: pemindaian folder, penyajian file media lokal (dengan Range, tanpa membuka file:// ke situs web),
    penyimpanan playlist/riwayat, dan pembukaan otomatis file media. UI ada di renderer/pages/play.{html,js}. */
-const { app, dialog, shell } = require('electron');
+const { app, dialog, shell, nativeImage } = require('electron');
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { Readable } = require('stream');
 const { fileURLToPath } = require('url');
 const ctx = require('./ctx');
+const cover = require('./cover');
 
 const AUDIO = ['.mp3', '.m4a', '.aac', '.wav', '.flac', '.ogg', '.oga', '.opus', '.weba'];
 const VIDEO = ['.mp4', '.m4v', '.webm', '.mkv', '.mov', '.ogv'];
@@ -42,6 +43,8 @@ function serve(req) {
   if (!file || !isMedia(file)) return new Response('Not found', { status: 404 });
   let st; try { st = fs.statSync(file); if (!st.isFile()) throw 0; } catch { return new Response('Not found', { status: 404 }); }
   const size = st.size, h = { 'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'accept-ranges': 'bytes', 'cache-control': 'no-store' };
+  const org = req.headers.get('origin');   // hanya halaman internal Alethra (mis. alethra://play) yang boleh membaca piksel video untuk thumbnail
+  if (org && /^alethra:\/\/[a-z]+$/.test(org)) { h['access-control-allow-origin'] = org; h.vary = 'Origin'; }
   if (!size) { h['content-length'] = '0'; return new Response(null, { status: 200, headers: h }); }
   let start = 0, end = size - 1, code = 200;
   const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get('range') || '');
@@ -55,6 +58,32 @@ function serve(req) {
   const rs = fs.createReadStream(file, { start, end });
   rs.on('error', () => {});
   return new Response(Readable.toWeb(rs), { status: code, headers: h });
+}
+
+/* ---------- gambar sampul / thumbnail (tampilan daftar gambar) ---------- */
+const THUMB_W = 320;
+const thumbCache = new Map();
+let thumbBusy = 0; const thumbWait = [];
+const slot = () => new Promise(res => { const go = () => { thumbBusy++; res(); }; thumbBusy < 4 ? go() : thumbWait.push(go); });
+const release = () => { thumbBusy--; const n = thumbWait.shift(); if (n) n(); };
+function toDataUrl(c) {
+  const ni = nativeImage.createFromBuffer(c.data);
+  if (!ni.isEmpty()) {
+    const r = ni.getSize().width > THUMB_W ? ni.resize({ width: THUMB_W, quality: 'good' }) : ni;
+    return 'data:image/jpeg;base64,' + r.toJPEG(82).toString('base64');
+  }
+  return c.data.length <= 400 * 1024 ? 'data:' + c.mime + ';base64,' + c.data.toString('base64') : '';   // mis. WebP yang tidak bisa dibaca nativeImage
+}
+// '' = tidak ada gambar (UI memakai gambar default AlethPlay; untuk video UI mencoba mengambil frame sendiri)
+async function thumb(p) {
+  p = path.resolve(p); let st; try { st = fs.statSync(p); } catch { return ''; }
+  const key = p + '|' + st.mtimeMs + '|' + st.size;
+  if (thumbCache.has(key)) return thumbCache.get(key);
+  let out = '';
+  await slot();
+  try { const c = await cover.find(p, kindOf(p)); if (c) out = toDataUrl(c); } catch { out = ''; } finally { release(); }
+  thumbCache.set(key, out); if (thumbCache.size > 3000) thumbCache.delete(thumbCache.keys().next().value);
+  return out;
 }
 
 /* ---------- sumber folder ---------- */
@@ -128,7 +157,7 @@ function api(U) {
         d.history = clampArr(v, 300).filter(x => x && typeof x.p === 'string' && isMedia(x.p)).map(x => ({ p: str(x.p, 600), n: str(x.n, 300), k: kindOf(x.p), t: +x.t || Date.now() }));
       } else if (key === 'state') {
         if (!v || typeof v !== 'object') return false;
-        d.state = { vol: Math.max(0, Math.min(1, +v.vol)) || 0, muted: !!v.muted, shuffle: !!v.shuffle, repeat: ['off', 'all', 'one'].includes(v.repeat) ? v.repeat : 'off' };
+        d.state = { vol: Math.max(0, Math.min(1, +v.vol)) || 0, muted: !!v.muted, shuffle: !!v.shuffle, repeat: ['off', 'all', 'one'].includes(v.repeat) ? v.repeat : 'off', view: v.view === 'grid' ? 'grid' : 'list' };
       } else if (key === 'resume') {
         if (!v || typeof v !== 'object') return false;
         const o = {}; Object.keys(v).slice(-200).forEach(k => { if (isMedia(k) && Number.isFinite(+v[k])) o[str(k, 600)] = Math.round(+v[k]); });
@@ -178,6 +207,7 @@ function api(U) {
     },
     'play.resolve': (e, paths) => clampArr(paths, 3000).map(p => { if (typeof p !== 'string' || !isMedia(p)) return null; return describe(p) || lost(p); }).filter(Boolean),
     'play.downloads': () => ctx.dlList.slice().reverse().filter(d => d.state === 'completed' && d.path && isMedia(d.path)).map(d => describe(d.path)).filter(Boolean),
+    'play.thumb': (e, p) => (known(p) && isMedia(p) ? thumb(p) : ''),   // hanya file yang pernah ditampilkan AlethPlay
     'play.reveal': (e, p) => { if (known(p) && exists(p)) shell.showItemInFolder(path.resolve(p)); },
     'play.external': (e, p) => { if (known(p) && isMedia(p) && exists(p)) shell.openPath(path.resolve(p)); }
   };

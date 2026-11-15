@@ -3,7 +3,7 @@
   await pageInit();
   const D = (await api('play.get')) || {};
   let lists = D.lists || [], hist = D.history || [], resume = D.resume || {};
-  const st = Object.assign({ vol: 1, muted: false, shuffle: false, repeat: 'off' }, D.state || {});
+  const st = Object.assign({ vol: 1, muted: false, shuffle: false, repeat: 'off', view: 'list' }, D.state || {});
   const PLAY = '<svg class="i f" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>', PAUSE = '<svg class="i f" viewBox="0 0 24 24"><path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z"/></svg>';
   const NAV = [['np', 'Sedang diputar', 'volume'], ['music', 'Musik', 'music'], ['video', 'Video', 'video'], ['folder', 'Folder', 'folder'], ['dl', 'Unduhan', 'download'], ['pl', 'Playlist', 'list'], ['hist', 'Riwayat', 'clock']];
   const el = (h) => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstChild; };
@@ -195,6 +195,78 @@
   }
   function renderMini() { const p = cur() && cur().p; $$('#lv .it[data-p]').forEach(r => r.classList.toggle('now', r.dataset.p === p)); }
 
+  /* ================= tampilan daftar gambar ================= */
+  // Mode daftar = baris biasa. Mode gambar = baris yang sama dengan CSS kartu (class "grid" pada .lst); gambar dimuat malas, hanya yang terlihat.
+  // Sumber gambar: musik → sampul di tag / folder (main: play.thumb); video → sampul di folder, bila tidak ada satu frame video
+  // (hanya format yang bisa dibaca Chromium). Bila tidak ada → gambar default AlethPlay (.dfl).
+  const gridOn = () => st.view === 'grid';
+  const allVid = (a) => a.length > 0 && a.every(x => x.k === 'v');
+  const mkBox = (wide) => { const b = el('<div></div>'); b.className = 'lst' + (gridOn() ? ' grid' : '') + (wide ? ' wide' : ''); return b; };
+  const THUMBS = new Map(), inflight = new Map(), PEND = new Set(); let io = null;
+  function newObserver() {
+    if (io) io.disconnect(); PEND.clear();
+    const o = io = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting || !gridOn()) return;   // saat mode daftar tetap menunggu (PEND), dimuat ketika pindah ke mode gambar
+      o.unobserve(e.target); PEND.delete(e.target); e.target._ld && e.target._ld();
+    }), { root: lv, rootMargin: '400px 0px' });
+  }
+  function lazyThumb(r, it) {
+    const c = THUMBS.get(it.p);
+    if (c) { if (gridOn()) setThumb(r, c); return; }   // sudah ada: tanpa kedip
+    PEND.add(r); io && io.observe(r);
+  }
+  function setThumb(r, u) {
+    const ic = $('.ic', r), im = $('.th', r); if (!ic || !im) return;
+    im.onerror = () => ic.classList.remove('has'); im.src = u; ic.classList.add('has');
+  }
+  function getThumb(it) {
+    if (THUMBS.has(it.p)) return Promise.resolve(THUMBS.get(it.p));
+    if (inflight.has(it.p)) return inflight.get(it.p);
+    const pr = (async () => {
+      let u = ''; try { u = await api('play.thumb', it.p) || ''; } catch {}
+      if (!u && it.k === 'v') u = await vidFrame(it);
+      THUMBS.set(it.p, u); if (THUMBS.size > 1500) THUMBS.delete(THUMBS.keys().next().value);
+      inflight.delete(it.p); return u;
+    })();
+    inflight.set(it.p, pr); return pr;
+  }
+  // frame video lewat <video> tersembunyi, maksimal 2 sekaligus. Gagal / codec tidak didukung / lebih dari 9 dtk → '' (pakai gambar default)
+  let vBusy = 0; const vWait = [];
+  const vidFrame = (it) => new Promise(res => {
+    const run = () => { vBusy++; captureFrame(it).then(u => { vBusy--; const n = vWait.shift(); if (n) n(); res(u); }); };
+    vBusy < 2 ? run() : vWait.push(run);
+  });
+  function captureFrame(it) {
+    return new Promise(res => {
+      const x = document.createElement('video'); let done = false, tm = 0;
+      const end = (u) => { if (done) return; done = true; clearTimeout(tm); x.onloadedmetadata = x.onseeked = x.oncanplay = x.onerror = null; x.removeAttribute('src'); try { x.load(); } catch {} res(u || ''); };
+      const draw = () => {
+        try {
+          const w = x.videoWidth, h = x.videoHeight; if (!w || !h) return end('');
+          const k = Math.min(1, 320 / w), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+          c.getContext('2d').drawImage(x, 0, 0, c.width, c.height); end(c.toDataURL('image/jpeg', .8));
+        } catch { end(''); }
+      };
+      tm = setTimeout(() => end(''), 9000);
+      x.muted = true; x.preload = 'auto'; x.crossOrigin = 'anonymous'; x.playsInline = true;
+      x.onerror = () => end('');
+      x.onloadedmetadata = () => { const d = x.duration; x.currentTime = isFinite(d) && d > 0 ? Math.min(Math.max(d * .1, 1), d / 2, 60) : .1; };
+      x.onseeked = () => { if (x.readyState >= 2) draw(); else x.oncanplay = draw; };
+      x.src = it.u;
+    });
+  }
+  function viewToggle() {
+    const s = el(`<div class="seg" role="group" aria-label="Tampilan"><button data-v="list" title="Tampilan daftar">${ICON('list')}</button><button data-v="grid" title="Tampilan gambar">${ICON('grid')}</button></div>`);
+    $$('button', s).forEach(b => { b.classList.toggle('on', b.dataset.v === st.view); b.onclick = () => setView(b.dataset.v); });
+    return s;
+  }
+  function setView(v2) {
+    if (st.view === v2) return; st.view = v2; saveState();
+    $$('.lst', lv).forEach(b => b.classList.toggle('grid', gridOn()));
+    $$('.seg button', lv).forEach(b => b.classList.toggle('on', b.dataset.v === st.view));
+    if (gridOn() && io) PEND.forEach(r => { io.unobserve(r); io.observe(r); });   // baris yang sudah terlihat tidak memicu ulang sendiri
+  }
+
   /* ================= daftar & menu ================= */
   let pm = null; const closeMenu = () => { if (pm) { pm.remove(); pm = null; $$('.it.menu').forEach(r => r.classList.remove('menu')); } };
   document.addEventListener('mousedown', e => { if (pm && !pm.contains(e.target)) closeMenu(); });
@@ -223,7 +295,7 @@
   // satu baris media. o.sub(it) = teks kedua, o.extra = item menu tambahan
   function itemRow(it, list, o = {}) {
     const p = cur() && cur().p;
-    const r = el(`<div class="it${it.missing ? ' miss' : ''}${p === it.p ? ' now' : ''}" data-p="${esc(it.p)}"><div class="ic">${ICON(it.k === 'v' ? 'video' : 'music', 18)}</div><div class="tx"><div class="t" title="${esc(it.p)}">${esc(base(it.n))}</div><div class="s">${esc(o.sub ? o.sub(it) : extOf(it.n) + ' · ' + fmtBytes(it.s))}</div></div><div class="acts"><button class="ib" data-more title="Opsi">${ICON('more')}</button></div></div>`);
+    const r = el(`<div class="it${it.missing ? ' miss' : ''}${p === it.p ? ' now' : ''}" data-p="${esc(it.p)}"><div class="ic"><span class="ico">${ICON(it.k === 'v' ? 'video' : 'music')}</span><span class="dfl">${ICON('alethplay')}</span><img class="th" alt="" draggable="false"></div><div class="tx"><div class="t" title="${esc(it.p)}">${esc(base(it.n))}</div><div class="s">${esc(o.sub ? o.sub(it) : extOf(it.n) + ' · ' + fmtBytes(it.s))}</div></div><div class="acts"><button class="ib" data-more title="Opsi">${ICON('more')}</button></div></div>`);
     r.onclick = (e) => {
       if (e.target.closest('[data-more]')) {
         r.classList.add('menu');
@@ -234,9 +306,10 @@
       }
       if (it.missing) return toast('Berkas tidak ditemukan'); playList(list, list.indexOf(it));
     };
+    if (!it.missing) { r._ld = () => getThumb(it).then(u => { if (u && r.isConnected) setThumb(r, u); }); lazyThumb(r, it); }
     return r;
   }
-  const head = (title, sub, extra) => { const h = el(`<div class="hd"><div><h1>${esc(title)}</h1><p class="sub">${esc(sub || '')}</p></div><div class="ex"></div></div>`); (extra || []).forEach(b => $('.ex', h).appendChild(b)); return h; };
+  const head = (title, sub, extra) => { const h = el(`<div class="hd"><div><h1>${esc(title)}</h1><p class="sub">${esc(sub || '')}</p></div><div class="ex"></div></div>`); (extra || []).forEach(b => $('.ex', h).appendChild(b)); $('.ex', h).appendChild(viewToggle()); return h; };
   const btn = (ic, t, fn, cls) => { const b = el(`<button class="btn ${cls || ''}">${ic ? ICON(ic) : ''}<span>${esc(t)}</span></button>`); b.onclick = fn; return b; };
   const empty = (m, b) => { const e = el(`<div class="empty">${esc(m)}</div>`); (b || []).forEach(x => e.appendChild(el('<br>')) && e.appendChild(x)); return e; };
   // daftar bertahap (300 baris per halaman) supaya folder besar tetap ringan
@@ -253,7 +326,7 @@
   NAV.forEach(([k, n, ic]) => { const b = el(`<button class="nv" data-s="${k}" title="${n}">${ICON(ic)}<span>${n}</span></button>`); b.onclick = () => { if (k === 'folder') fdir = ''; if (k === 'pl') plId = ''; go(k); }; NV.appendChild(b); });
   function go(k) { sec = k; closeMenu(); $$('.nv', NV).forEach(b => b.classList.toggle('on', b.dataset.s === k)); np.hidden = k !== 'np'; lv.hidden = k === 'np'; if (k !== 'np') render(); }
   async function render() {
-    const my = ++rt; lv.innerHTML = '<div class="empty">Memuat…</div>'; let nodes = [];
+    const my = ++rt; newObserver(); lv.innerHTML = '<div class="empty">Memuat…</div>'; let nodes = [];
     try {
       if (sec === 'music' || sec === 'video') nodes = await viewLib(sec === 'music' ? 'a' : 'v');
       else if (sec === 'folder') nodes = await viewFolder();
@@ -267,7 +340,7 @@
     if (!lib) lib = await api('play.library') || [];
     const all = lib.filter(x => x.k === kind), title = kind === 'a' ? 'Musik' : 'Video';
     const tb = el(`<div class="tb"><label class="search">${ICON('search', 16)}<input type="search" placeholder="Cari ${title.toLowerCase()}…" autocomplete="off"></label><select><option value="n">Nama</option><option value="m">Terbaru</option></select></div>`);
-    const box = el('<div class="lst"></div>'), q = $('input', tb), sel = $('select', tb);
+    const box = mkBox(kind === 'v'), q = $('input', tb), sel = $('select', tb);
     const draw = () => {
       const kw = q.value.trim().toLowerCase(); let l = all.filter(x => !kw || x.n.toLowerCase().includes(kw));
       l = sel.value === 'm' ? l.sort((a, b) => b.m - a.m) : l.sort(natural);
@@ -281,13 +354,13 @@
   }
   async function viewFolder() {
     if (!fdir) {
-      const src = await api('play.sources') || [], box = el('<div class="lst"></div>');
+      const src = await api('play.sources') || [], box = mkBox();
       src.forEach(s => { const r = el(`<div class="it"><div class="ic">${ICON('folder', 18)}</div><div class="tx"><div class="t">${esc(s.n)}</div><div class="s">${esc(s.p)}</div></div><div class="acts">${s.user ? `<button class="ib" title="Hapus dari daftar">${ICON('close', 16)}</button>` : ''}</div></div>`);
         r.onclick = async (e) => { if (e.target.closest('.ib')) { await api('play.removeFolder', s.p); lib = null; return render(); } fdir = s.p; render(); }; box.appendChild(r); });
       return [head('Folder', 'Telusuri folder di perangkat', [btn('plus', 'Tambah folder…', async () => { const r = await api('play.addFolder'); if (r) { lib = null; render(); } }, 'pri')]), box];
     }
     const d = await api('play.dir', fdir); if (!d) { fdir = ''; return [empty('Folder tidak bisa dibuka.')]; }
-    const box = el('<div class="lst"></div>');
+    const box = mkBox(allVid(d.files));
     d.dirs.forEach(f => { const r = el(`<div class="it"><div class="ic">${ICON('folder', 18)}</div><div class="tx"><div class="t">${esc(f.n)}</div></div></div>`); r.onclick = () => { fdir = f.p; render(); }; box.appendChild(r); });
     fill(box, d.files, it => itemRow(it, d.files));
     if (!d.dirs.length && !d.files.length) box.appendChild(empty('Tidak ada subfolder atau berkas musik/video di sini.'));
@@ -295,12 +368,12 @@
     return [back, head(d.dir.split(/[\\/]/).filter(Boolean).pop() || d.dir, d.files.length + ' berkas · ' + d.dirs.length + ' subfolder', d.files.length ? playBtns(d.files) : []), box];
   }
   async function viewDl() {
-    const items = await api('play.downloads') || [], box = el('<div class="lst"></div>');
+    const items = await api('play.downloads') || [], box = mkBox(allVid(items));
     if (!items.length) box.appendChild(empty('Belum ada musik atau video yang diunduh lewat Alethra.')); else fill(box, items, it => itemRow(it, items, { sub: x => extOf(x.n) + ' · ' + fmtBytes(x.s) + ' · ' + when(x.m) }));
     return [head('Unduhan', items.length + ' berkas media', items.length ? playBtns(items) : []), box];
   }
   async function viewHist() {
-    const items = hist.length ? await api('play.resolve', hist.map(x => x.p)) || [] : [], box = el('<div class="lst"></div>');
+    const items = hist.length ? await api('play.resolve', hist.map(x => x.p)) || [] : [], box = mkBox(allVid(items));
     const at = new Map(hist.map(x => [x.p, x.t]));
     if (!items.length) box.appendChild(empty('Belum ada riwayat pemutaran.')); else fill(box, items, it => itemRow(it, items, { sub: x => (x.missing ? 'Berkas tidak ditemukan · ' : extOf(x.n) + ' · ') + when(at.get(x.p)), extra: x => [{ t: 'Hapus dari riwayat', ic: 'eraser', fn: () => { hist = hist.filter(h => h.p !== x.p); saveHist(); render(); } }] }));
     return [head('Riwayat', items.length + ' diputar terakhir', [...(items.length ? [btn('trash', 'Hapus riwayat', async () => { if (await askConfirm('Hapus riwayat pemutaran?', 'Berkas di komputer tidak ikut terhapus.', 'Hapus', true)) { hist = []; saveHist(); render(); } })] : [])]), box];
@@ -309,12 +382,12 @@
     const mkNew = btn('plus', 'Playlist baru', async () => { const r = await askText('Playlist baru', [{ l: 'Nama playlist', v: '' }], 'Buat'); if (r && r[0].trim()) { plId = newList(r[0].trim(), []).id; render(); } }, 'pri');
     const l = lists.find(x => x.id === plId);
     if (!l) {
-      plId = ''; const box = el('<div class="lst"></div>');
+      plId = ''; const box = mkBox();
       if (!lists.length) box.appendChild(empty('Belum ada playlist. Buat satu, atau pilih “Tambah ke playlist” pada lagu atau video.'));
       lists.forEach(x => { const r = el(`<div class="it"><div class="ic">${ICON('list', 18)}</div><div class="tx"><div class="t">${esc(x.name)}</div><div class="s">${x.items.length} item</div></div></div>`); r.onclick = () => { plId = x.id; render(); }; box.appendChild(r); });
       return [head('Playlist', lists.length + ' playlist', [mkNew]), box];
     }
-    const items = l.items.length ? await api('play.resolve', l.items.map(x => x.p)) || [] : [], box = el('<div class="lst"></div>');
+    const items = l.items.length ? await api('play.resolve', l.items.map(x => x.p)) || [] : [], box = mkBox(allVid(items));
     if (!items.length) box.appendChild(empty('Playlist ini kosong. Tambahkan lagu atau video lewat menu ⋮ pada daftar.'));
     else fill(box, items, it => itemRow(it, items, { sub: x => x.missing ? 'Berkas tidak ditemukan' : extOf(x.n) + ' · ' + fmtBytes(x.s), extra: x => [{ t: 'Hapus dari playlist', ic: 'eraser', fn: () => { l.items = l.items.filter(y => y.p !== x.p); saveLists(); render(); } }] }));
     const back = el(`<button class="back">${ICON('arrowleft')}<span>Semua playlist</span></button>`); back.onclick = () => { plId = ''; render(); };
