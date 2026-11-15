@@ -240,7 +240,7 @@ async function run(j) {
   if (!text || noise(text)) return;
   me.ctxTail = (me.ctxTail + ' ' + text).slice(-200);
   place(j.seq, { orig: text, tr: '' }); logPut(j, { orig: text }); touch();
-  const tgt = SV.setting('trLang'); let tr = '', trFail = '';
+  const tgt = SV.setting('sttTr') || SV.setting('trLang'); let tr = '', trFail = '';
   try { tr = await translateText(text, j.lang, tgt); } catch (e) { trFail = e.message || 'Terjemahan gagal'; }
   if (S !== me) return;
   if (tr && tr.trim() === text.trim()) tr = '';
@@ -256,7 +256,10 @@ async function translateText(text, src, tgt) {
     try { return await OFF.translateBy(mode, text, sl, tgt); }
     catch (e) { if (SV.setting('mtfb') === false) throw new Error(e && e.missing ? e.message : 'Terjemahan offline gagal: ' + (e && e.message)); }
   }
-  try { return await SV.trOne(text, tgt); } catch { throw new Error('Google Translate gagal, periksa internet'); }
+  let r = '';
+  try { r = await SV.trOne(text, tgt); } catch { throw new Error('Google Translate gagal, periksa internet'); }
+  if (!r || !r.trim()) throw new Error('Google Translate tidak memberi hasil (mungkin dibatasi), coba lagi');
+  return r;
 }
 // kalimat bernomor urut: yang terlambat masuk ke slot "sebelumnya", tidak menimpa yang lebih baru
 function place(seq, patch) {

@@ -1935,6 +1935,7 @@ const API = {
     if (k === 'accent' && v && !/^#[0-9a-f]{6}$/i.test(v)) return false;
     if (k === 'dlDir' && v && !fs.existsSync(v)) return false;
     if (k === 'trLang' && !U.TR_LANGS[v]) return false;
+    if (k === 'sttTr' && v && !U.TR_LANGS[v]) return false;
     if (k === 'barstyle' && !['abu', 'biru', 'hangat', 'putih'].includes(v)) return false;
     if (k === 'barcol' && v && !/^#[0-9a-f]{6}$/i.test(v)) return false;
     if (k === 'doh' && !U.DOH[v]) return false;

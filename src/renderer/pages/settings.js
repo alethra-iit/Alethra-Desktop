@@ -269,7 +269,7 @@
       else if (S.trmode === 'nllb' && !(OEs.nllb && OEs.nllb.installed)) warn = S.mtfb ? 'Model NLLB belum terpasang; sementara memakai terjemahan online.' : 'Model NLLB belum terpasang.';
       const sumBox = el('<div class="list"></div>');
       sumBox.appendChild(row('Mesin: ' + engName + ' · ' + (isLocal ? 'Model: ' : 'Penyedia: ') + modelName + ' · Terjemahan: ' + trName,
-        warn || ('Siap dipakai · Bahasa tujuan: ' + (S.trLangs[S.trLang] || S.trLang)),
+        warn || ('Siap dipakai · Bahasa tujuan: ' + (S.trLangs[S.sttTr || S.trLang] || S.sttTr || S.trLang)),
         warn && (isLocal || S.trmode === 'nllb') ? (() => { const b = document.createElement('button'); b.className = 'btn sm pri'; b.textContent = 'Kelola model…'; b.onclick = goOff; return b; })() : null));
       const sd = sumBox.querySelector('.d'); if (sd) sd.style.color = warn ? 'var(--danger)' : 'var(--sub)';
       A(sumBox);
@@ -314,9 +314,10 @@
       }
       if (S.trmode === 'offline' || S.trmode === 'ct2' || S.trmode === 'bergamot') {
         const n = (S.trmode === 'offline' ? OEs.mt : S.trmode === 'ct2' ? (OEs.ct2 || []) : ((OEs.bg || {}).pairs || [])).filter(p => p.installed).length;
-        sr.push(button('Bahasa terjemahan offline', n ? n + ' model terpasang. Bahasa tujuan: ' + (S.trLangs[S.trLang] || S.trLang) : 'Belum ada model terpasang. Pilih bahasa lalu unduh.', 'Kelola bahasa…', goOff));
+        sr.push(button('Bahasa terjemahan offline', n ? n + ' model terpasang. Bahasa tujuan: ' + (S.trLangs[S.sttTr || S.trLang] || S.sttTr || S.trLang) : 'Belum ada model terpasang. Pilih bahasa lalu unduh.', 'Kelola bahasa…', goOff));
       }
       const LG = [['', 'Otomatis (deteksi bahasa)'], ['en-US', 'Inggris'], ['id-ID', 'Indonesia'], ['ja-JP', 'Jepang'], ['ko-KR', 'Korea'], ['zh-CN', 'Mandarin'], ['es-ES', 'Spanyol'], ['ar-SA', 'Arab'], ['hi-IN', 'Hindi'], ['fr-FR', 'Prancis'], ['de-DE', 'Jerman'], ['pt-BR', 'Portugis'], ['ru-RU', 'Rusia'], ['it-IT', 'Italia'], ['nl-NL', 'Belanda'], ['tr-TR', 'Turki'], ['th-TH', 'Thai'], ['vi-VN', 'Vietnam'], ['ms-MY', 'Melayu']];
+      sr.push(select('Bahasa tujuan terjemahan suara', 'Bahasa hasil terjemahan khusus Terjemahan Suara. "Ikuti" memakai Bahasa tujuan di Play → Umum.', [['', 'Ikuti Bahasa tujuan umum (' + (S.trLangs[S.trLang] || S.trLang) + ')'], ...Object.entries(S.trLangs)], S.sttTr || '', v => set('sttTr', v)));
       sr.push(select('Bahasa ucapan video', 'Memilih bahasa sendiri lebih cepat dan akurat daripada Otomatis. Dipakai juga untuk memilih model terjemahan offline. Vosk selalu memakai bahasa modelnya.', LG, S.stlang, v => set('stlang', v)),
         select('Kecepatan teks', 'Makin cepat, makin banyak permintaan API per menit', [['fast', 'Cepat (potongan maks ±3,8 dtk)'], ['bal', 'Seimbang (±5,5 dtk, disarankan)'], ['eco', 'Hemat (±8,5 dtk, jatah gratis awet)']], S.stspeed, v => set('stspeed', v)),
         button('Pengaturan audio', audSummary(), 'Buka', () => { sec = 'audio'; history.replaceState(null, '', '#audio'); renderSec(true); }));
