@@ -64,6 +64,7 @@ function sources(dlDir) {
   const out = [], seen = new Set();
   const add = (p, n, user) => { try { p = path.resolve(p); } catch { return; } const k = p.toLowerCase(); if (!p || seen.has(k) || !fs.existsSync(p)) return; seen.add(k); out.push({ id: idOf(p), n, p, user: !!user }); };
   for (const [k, n] of [['music', 'Musik'], ['videos', 'Video'], ['downloads', 'Unduhan']]) { try { add(app.getPath(k), n, false); } catch {} }
+  add('D:\\Katabba\\Videos', 'Katabba Videos', false);   // folder tetap (hanya muncul bila ada)
   if (dlDir) add(dlDir, 'Unduhan Alethra', false);
   store().folders.forEach(p => add(p, path.basename(p) || p, true));
   return out;

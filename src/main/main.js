@@ -1675,7 +1675,7 @@ function toolsMenuSpec() {
      on('transcript') && I('transcript.side', 'Riwayat terjemahan suara', { key: 'Ctrl+Alt+H' }),
      on('xl') && I('xl', 'Penerjemah melayang', { key: 'Ctrl+Alt+X', check: xlShown() })],
     // Suara & video
-    [on('play') && I('open.play', 'AlethPlay', { key: 'Ctrl+Alt+P', ic: 'music' }),
+    [on('play') && I('open.play', 'AlethPlay', { key: 'Ctrl+Alt+P', ic: 'alethplay' }),
      on('sm') && I('sm', 'Sound Master', { key: 'Ctrl+Alt+M', check: smShown() }),
      on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web })],

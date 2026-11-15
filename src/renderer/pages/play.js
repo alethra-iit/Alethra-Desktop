@@ -19,7 +19,7 @@
   let toastT; const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); };
 
   /* ================= kerangka ================= */
-  $('#ap').innerHTML = `<nav class="sb" id="sb"><div class="lg">${ICON('music', 20)}<span>AlethPlay</span></div></nav>
+  $('#ap').innerHTML = `<nav class="sb" id="sb"><div class="lg">${ICON('alethplay', 22)}<span>AlethPlay</span></div></nav>
     <main class="mn">
       <section class="view" id="np" data-k="a">
         <div id="npEmpty" class="empty" style="flex:1"><div style="font-size:16px;font-weight:600;color:var(--fg)">Belum ada yang diputar</div>
