@@ -1535,11 +1535,12 @@ const smG = () => SMG || (SMG = Object.assign({}, SV.DEFAULTS.smbox, setting('sm
 const smShown = () => smOpen && !!smView;
 const smCfg = (t) => t.sm || { v: 100, b: 0, voice: false };
 const smIsDef = (c) => c.v === 100 && !c.b && !c.voice;
-const smWeb = (t) => /^https?:/.test(t.url || '');
+const smPlay = (t) => /^alethra:\/\/play(?:[/?#]|$)/.test(t.url || '');   // AlethPlay (<video> yang sama untuk musik & video) ikut bisa diatur
+const smWeb = (t) => /^https?:/.test(t.url || '') || smPlay(t);
 function smList() {
   return ctx.tabs.filter(t => t.audible || (t.sm && !smIsDef(t.sm)) || (smWeb(t) && (smAll || t.id === activeId))).map(t => {
     const c = smCfg(t), s = t.smStat || {};
-    return { id: t.id, title: t.title || U.prettyUrl(t.url) || 'Tab', host: smWeb(t) ? U.hostOf(t.url) : '', icon: t.icon, audible: !!t.audible, muted: !!t.muted, active: t.id === activeId, incog: !!t.incog,
+    return { id: t.id, title: t.title || U.prettyUrl(t.url) || 'Tab', host: /^https?:/.test(t.url || '') ? U.hostOf(t.url) : (smPlay(t) ? 'AlethPlay' : ''), icon: t.icon, audible: !!t.audible, muted: !!t.muted, active: t.id === activeId, incog: !!t.incog,
       web: smWeb(t), v: c.v, b: c.b, voice: !!c.voice, bad: s.bad || 0, ok: s.ok || 0, susp: !!s.susp };
   });
 }

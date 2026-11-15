@@ -26,7 +26,7 @@
           <div>Pilih lagu atau video dari Musik, Video, Folder, atau Unduhan.</div>
           <button class="btn pri" id="open">${ICON('open')} Buka berkas…</button></div>
         <div id="npMain" class="col" hidden>
-          <div class="stage" id="stage"><video id="v" preload="metadata"></video><div class="art">${ICON('music')}<div class="an" id="an"></div></div></div>
+          <div class="stage" id="stage"><video id="v" preload="metadata" crossorigin="anonymous"></video><div class="art">${ICON('music')}<div class="an" id="an"></div></div></div>
           <div class="err" id="err" hidden><span id="errt"></span><button class="btn sm" id="ext">Buka dengan aplikasi lain</button></div>
         </div>
         <aside class="q" id="q" hidden><div class="qh"><b id="qn">Antrean</b><span style="display:flex;gap:6px"><button class="btn sm" id="qs">Simpan</button><button class="btn sm" id="qc">Kosongkan</button></span></div><div class="lst" id="ql"></div></aside>
@@ -199,9 +199,9 @@
   // Mode daftar = baris biasa. Mode gambar = baris yang sama dengan CSS kartu (class "grid" pada .lst); gambar dimuat malas, hanya yang terlihat.
   // Sumber gambar: musik → sampul di tag / folder (main: play.thumb); video → sampul di folder, bila tidak ada satu frame video
   // (hanya format yang bisa dibaca Chromium). Bila tidak ada → gambar default AlethPlay (.dfl).
-  const gridOn = () => st.view === 'grid';
+  const gridOn = () => st.view === 'grid' || st.view === 'small';   // 'small' = kartu gambar setengah ukuran 'grid'
   const allVid = (a) => a.length > 0 && a.every(x => x.k === 'v');
-  const mkBox = (wide) => { const b = el('<div></div>'); b.className = 'lst' + (gridOn() ? ' grid' : '') + (wide ? ' wide' : ''); return b; };
+  const mkBox = (wide) => { const b = el('<div></div>'); b.className = 'lst' + (gridOn() ? ' grid' : '') + (st.view === 'small' ? ' sm' : '') + (wide ? ' wide' : ''); return b; };
   const THUMBS = new Map(), inflight = new Map(), PEND = new Set(); let io = null;
   function newObserver() {
     if (io) io.disconnect(); PEND.clear();
@@ -256,13 +256,13 @@
     });
   }
   function viewToggle() {
-    const s = el(`<div class="seg" role="group" aria-label="Tampilan"><button data-v="list" title="Tampilan daftar">${ICON('list')}</button><button data-v="grid" title="Tampilan gambar">${ICON('grid')}</button></div>`);
+    const s = el(`<div class="seg" role="group" aria-label="Tampilan"><button data-v="list" title="Tampilan daftar">${ICON('list')}</button><button data-v="small" title="Tampilan gambar kecil">${ICON('grid3')}</button><button data-v="grid" title="Tampilan gambar">${ICON('grid')}</button></div>`);
     $$('button', s).forEach(b => { b.classList.toggle('on', b.dataset.v === st.view); b.onclick = () => setView(b.dataset.v); });
     return s;
   }
   function setView(v2) {
     if (st.view === v2) return; st.view = v2; saveState();
-    $$('.lst', lv).forEach(b => b.classList.toggle('grid', gridOn()));
+    $$('.lst', lv).forEach(b => { b.classList.toggle('grid', gridOn()); b.classList.toggle('sm', st.view === 'small'); });
     $$('.seg button', lv).forEach(b => b.classList.toggle('on', b.dataset.v === st.view));
     if (gridOn() && io) PEND.forEach(r => { io.unobserve(r); io.observe(r); });   // baris yang sudah terlihat tidak memicu ulang sendiri
   }
