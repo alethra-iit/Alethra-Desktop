@@ -43,6 +43,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Riwayat clipboard | Menu Tools → Riwayat clipboard (Ctrl+Alt+C). Daftar teks yang baru disalin (lihat bagian *Riwayat clipboard* di bawah) |
 | Penerjemah melayang | Menu Tools → Penerjemah melayang (Ctrl+Alt+X). Kotak terjemahan kecil di atas halaman (lihat bagian *Penerjemah melayang* di bawah) |
 | Sound Master | Menu Tools → Sound Master (Ctrl+Alt+M). Penguat volume per tab sampai 600 %, Bass boost, Voice boost, dan daftar tab yang berbunyi (lihat bagian *Sound Master* di bawah) |
+| AlethPlay (pemutar musik & video) | Menu Tools → AlethPlay (Ctrl+Alt+P). Tab khusus untuk memutar musik/video dari folder perangkat dan unduhan; file media yang dibuka dari Unduhan, Windows (Buka dengan / aplikasi default), atau diseret ke jendela otomatis diputar di sini (lihat bagian *AlethPlay* di bawah) |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
 | Izin situs | Bilah izin + manajer di Pengaturan |
 | Pengelola sandi | Terenkripsi (Windows DPAPI), isi otomatis saat kolom diklik |
@@ -180,6 +181,27 @@ Menu Tools → **Penerjemah melayang** (atau Ctrl+Alt+X) membuka kotak terjemaha
 - **Privasi:** teks yang diketik tidak disimpan; hanya pasangan bahasa terakhir dan posisi/ukuran kotak (`xlbox`).
 - **Geser & ukuran:** tarik bilah atas untuk memindahkan; tarik tepi kanan, tepi bawah, atau pojok kanan bawah untuk mengubah ukuran; tombol − memperkecil jadi ikon bulat.
 - **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Penerjemah melayang*.
+
+## AlethPlay
+Pemutar musik & video sederhana yang berjalan di **tab sendiri** (`alethra://play`). Buka dari **Tools → AlethPlay** atau **Ctrl+Alt+P**; hanya ada satu tab AlethPlay, memanggilnya lagi akan berpindah ke tab itu.
+
+**Bagian**: *Sedang diputar* (pemutar + antrean), *Musik* dan *Video* (semua berkas di folder yang dipindai, bisa dicari dan diurutkan), *Folder* (telusuri folder; tambah/hapus folder sumber), *Unduhan* (musik/video yang diunduh lewat Alethra), *Playlist*, dan *Riwayat*.
+
+**Pembukaan otomatis** (AlethPlay aktif sendiri saat berkas media dibuka; ada tab AlethPlay → dipakai, belum ada → dibuat):
+- klik berkas musik/video di halaman **Unduhan** (tombol Buka atau klik namanya, juga dari panel unduhan)
+- klik berkas di bagian **Folder** AlethPlay
+- membuka berkas dari Windows: *Buka dengan → Alethra*, atau menjadikan Alethra aplikasi default untuk format itu (installer mendaftarkan MP3, M4A, AAC, WAV, FLAC, OGG, OPUS, MP4, M4V, WEBM, MKV, MOV)
+- menyeret berkas media ke jendela Alethra
+
+**Kontrol**: Putar/Jeda, Berikutnya, Sebelumnya, Progress bar (seek), Volume + bisu, Acak, Ulangi (mati / semua / satu lagu), layar penuh dan gambar-dalam-gambar untuk video. Pintasan (saat halaman AlethPlay aktif): Spasi putar/jeda · ←/→ mundur/maju 5 dtk (J/L 10 dtk) · ↑/↓ volume · M bisu · N/P berikutnya/sebelumnya · S acak · R ulangi · F layar penuh. Tombol media keyboard juga bekerja.
+
+**Playlist & riwayat**: menu ⋮ pada tiap baris → *Putar berikutnya*, *Tambah ke antrean*, *Tambah ke playlist…*, *Tampilkan di folder*. Antrean bisa disimpan sebagai playlist. Riwayat menyimpan 200 berkas terakhir. Posisi terakhir video panjang diingat. Semua data tersimpan di `%APPDATA%\Alethra\data\play.json` (hanya jalur berkas, bukan isinya).
+
+**Keamanan**: berkas lokal tidak pernah dibuka lewat `file://` (tetap diblokir untuk situs). Berkas hanya bisa dibaca pemutar lewat alamat `alethra://media/<token>/…` dengan token acak per sesi; hanya halaman internal Alethra yang bisa meminta daftar folder, dan hanya format musik/video yang disajikan.
+
+**Format**: yang didukung Chromium — MP3, M4A/AAC, WAV, FLAC, OGG/OPUS, MP4/M4V (H.264), WEBM, MKV, MOV (tergantung codec). Format lain (mis. AVI, WMV, HEVC) menampilkan pesan dengan tombol *Buka dengan aplikasi lain*.
+
+**Pengaturan**: Pengaturan → Tools → Suara & video → *AlethPlay* untuk menampilkan/menyembunyikan dari menu Tools. Bila dimatikan, berkas media dibuka dengan aplikasi bawaan Windows seperti sebelumnya.
 
 ## Sound Master
 Menu Tools → **Sound Master** (atau Ctrl+Alt+M) membuka panel melayang untuk mengatur suara tiap tab, tanpa pindah tab.

@@ -8,6 +8,7 @@ const { setting, saveSetting } = SV;
 const STT = require('./stt');
 const OFF = require('./offline');
 const UPD = require('./updater');
+const PLAY = require('./play');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'alethra', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 app.setName('Alethra');
@@ -284,6 +285,7 @@ function createTab(url, o = {}) {
 }
 function go(t, url) {
   if (!url) return;
+  if (/^file:/i.test(url) && PLAY.isMedia(PLAY.fromUrl(url)) && PLAY.openFiles([PLAY.fromUrl(url)])) return;   // file media lokal (mis. diseret ke jendela) → AlethPlay
   if (!SV.localOk(url)) { ctx.toast('Berkas lokal diblokir'); return; }
   if (/^view-source:/i.test(url) === false && !/^(https?|alethra|file|about|data):/i.test(url)) url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
   t.url = url; t.view.webContents.loadURL(url).catch(() => {});
@@ -334,6 +336,13 @@ function openInternal(name) {
   if (ex) return selectTab(ex.id);
   createTab('alethra://' + name);
 }
+/* AlethPlay: satu tab bersama. File yang akan diputar menunggu di PLAY (play.pending); tab hanya diberi tahu supaya mengambilnya. */
+function openPlayTab() {
+  const ex = ctx.tabs.find(t => internalName(t.url) === 'play' && !t.incog);
+  if (ex) { selectTab(ex.id); sendTo(ex.view.webContents, 'play-open'); } else createTab('alethra://play');
+}
+ctx.openPlayTab = openPlayTab;
+function playToggle() { if (setting('tools').play === false) return; openInternal('play'); }
 function focusOmni(sel = true) {
   if (fsActive() && win && !win.isDestroyed()) { closePopups(); return openMenu('tools', fsbarPos().r + 48); }   // layar penuh: bilah alamat tersembunyi, pakai kotak alamat di menu Tools
   if (!alive(chromeWC)) return; chromeWC.focus(); sendTo(chromeWC, 'focus-omni', sel); }
@@ -357,7 +366,7 @@ function wire(t) {
     createTab(d.url, { incog: t.incog, activate: d.disposition !== 'background-tab', index: ctx.tabs.indexOf(t) + 1 });
     return { action: 'deny' };
   });
-  const guardNav = (e, url) => { if (!SV.localOk(url) || (/^alethra:/.test(url) && !t.url.startsWith('alethra://') && false)) e.preventDefault(); };
+  const guardNav = (e, url) => { if (/^file:/i.test(url) && PLAY.isMedia(PLAY.fromUrl(url)) && PLAY.openFiles([PLAY.fromUrl(url)])) return e.preventDefault(); if (!SV.localOk(url) || (/^alethra:/.test(url) && !t.url.startsWith('alethra://') && false)) e.preventDefault(); };
   wc.on('will-navigate', guardNav); wc.on('will-redirect', guardNav);
   wc.on('page-title-updated', (_e, title) => { t.title = title; if (!t.incog && /^https?:/.test(t.url)) { const h = ctx.hist.data[ctx.hist.data.length - 1]; if (h && h.u === t.url) h.t = title; } pushTabs(); });
   wc.on('page-favicon-updated', (_e, f) => { t.icon = f[0] || ''; pushTabs(); });
@@ -759,6 +768,7 @@ function shortcut(e, i) {
   if (a && !s && k === 'c') return run(clipToggle);
   if (a && !s && k === 'x') return run(xlToggle);
   if (a && !s && k === 'm') return run(smToggle);
+  if (a && !s && k === 'p') return run(playToggle);
   if (k === 'n' && s) return run(() => newIncogTab());
   if (k === 'n' && !s) return run(() => createTab('alethra://home'));
   if (k === 'w' || k === 'f4') return run(() => closeTab(activeId));
@@ -1665,7 +1675,8 @@ function toolsMenuSpec() {
      on('transcript') && I('transcript.side', 'Riwayat terjemahan suara', { key: 'Ctrl+Alt+H' }),
      on('xl') && I('xl', 'Penerjemah melayang', { key: 'Ctrl+Alt+X', check: xlShown() })],
     // Suara & video
-    [on('sm') && I('sm', 'Sound Master', { key: 'Ctrl+Alt+M', check: smShown() }),
+    [on('play') && I('open.play', 'AlethPlay', { key: 'Ctrl+Alt+P', ic: 'music' }),
+     on('sm') && I('sm', 'Sound Master', { key: 'Ctrl+Alt+M', check: smShown() }),
      on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web })],
     // Alat melayang
@@ -2084,6 +2095,9 @@ const API = {
   'hist.remove': (e, ts, u) => { ctx.hist.data = ctx.hist.data.filter(x => !(x.ts === ts && x.u === u)); ctx.hist.save(); },
   'hist.clear': () => { ctx.hist.data = []; ctx.hist.save(); },
 
+  /* AlethPlay */
+  ...PLAY.api(SV),
+
   /* unduhan */
   'dl.list': () => SV.listDownloads(),
   'dl.act': (e, id, a) => SV.dlAct(id, a),
@@ -2192,8 +2206,9 @@ function createWindow() {
   chromeWC.on('did-finish-load', () => { if (!ctx.booted) { ctx.booted = true; try { boot(); } catch (e) { log('BOOT', e); } } });
 }
 function urlArgs(argv) { return argv.slice(1).filter(a => /^https?:\/\//i.test(a)); }
+const mediaArgs = (argv, cwd) => PLAY.argFiles(argv, cwd);   // file musik/video yang dibuka dari Windows (Buka dengan / aplikasi default)
 function boot() {
-  const urls = urlArgs(process.argv);
+  const urls = urlArgs(process.argv), media = mediaArgs(process.argv);
   let restored = false;
   // Sesi penuh dipulihkan bila "Lanjutkan sesi sebelumnya" menyala. Tab sematan selalu dipulihkan, apa pun pengaturannya.
   const sd = ctx.sess.data || {}, saved = Array.isArray(sd.tabs) ? sd.tabs : [];
@@ -2207,17 +2222,19 @@ function boot() {
     cleanGroups(); restored = full;
   }
   urls.forEach(u => createTab(u));
-  if (!restored && !urls.length) createTab('alethra://home');
+  if (!restored && !urls.length && !media.length) createTab('alethra://home');
+  if (media.length && !PLAY.openFiles(media) && !ctx.tabs.length) createTab('alethra://home');
   if (setting('lock').mode === 'app' && setting('lock').hash) lockApp();
 }
 
-app.on('second-instance', (_e, argv) => {
+app.on('second-instance', (_e, argv, cwd) => {
   if (!win) return; if (win.isMinimized()) win.restore(); win.focus();
   urlArgs(argv).forEach(u => createTab(u));
+  const media = mediaArgs(argv, cwd); if (media.length) PLAY.openFiles(media);
 });
 app.on('web-contents-created', (_e, c) => { c.on('will-attach-webview', ev => ev.preventDefault()); });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { quitting = true; try { OFF.shutdown(); } catch {} try { saveSession(); } catch {} wipeIncog(); [ctx.settings, ctx.bm, ctx.hist, ctx.perms, ctx.pw, ctx.off, ctx.dlStore, ctx.notes, ctx.clips].forEach(s => s && s.flush()); });
+app.on('before-quit', () => { quitting = true; try { OFF.shutdown(); } catch {} try { saveSession(); } catch {} wipeIncog(); [ctx.settings, ctx.bm, ctx.hist, ctx.perms, ctx.pw, ctx.off, ctx.dlStore, ctx.notes, ctx.clips, ctx.play].forEach(s => s && s.flush()); });
 
 app.whenReady().then(() => {
   ctx.dataDir = path.join(app.getPath('userData'), 'data');
@@ -2232,6 +2249,8 @@ app.whenReady().then(() => {
   ctx.sess = new Store(ctx.dataDir, 'session.json', {});
   ctx.notes = new Store(ctx.dataDir, 'notes.json', {});
   ctx.clips = new Store(ctx.dataDir, 'clips.json', {});
+  ctx.play = new Store(ctx.dataDir, 'play.json', {});
+  ctx.setting = setting; ctx.win = () => win;
   clipStart();
   ctx.dlList = (ctx.dlStore.data || []).map(d => d.state === 'progressing' || d.state === 'paused' ? Object.assign(d, { state: 'interrupted' }) : d);
   SV.setupSession(session.defaultSession, false);

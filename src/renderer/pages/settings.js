@@ -248,6 +248,7 @@
       }
       if (toolsSub === 'suara') {
       A(grp('Suara & video')); A(box([
+        tg('play', 'AlethPlay', 'Ctrl+Alt+P. Pemutar musik & video di tab khusus: putar dari folder perangkat atau unduhan, playlist, dan riwayat. Bila dimatikan, file media dibuka dengan aplikasi bawaan Windows'),
         tg('sm', 'Sound Master', 'Ctrl+Alt+M. Penguat volume tab sampai 600 %, Bass boost, Voice boost, dan daftar tab yang sedang berbunyi. Tidak bisa menguatkan suara ber-DRM atau dari server lain tanpa izin CORS'),
         tg('vq', 'Kualitas video…'),
         tg('pip', 'Gambar dalam gambar')]));

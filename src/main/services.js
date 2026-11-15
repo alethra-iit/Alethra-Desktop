@@ -3,6 +3,7 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { pathToFileURL } = require('url');
 const U = require('./util');
 const ctx = require('./ctx');
+const PLAY = require('./play');
 
 const DEFAULTS = {
   theme: 'system', amoled: false, barstyle: 'abu', barcol: '', accent: '', engine: 'google', customEngine: '', httpsOnly: false, suggest: true,
@@ -22,7 +23,7 @@ const DEFAULTS = {
   // kotak terjemahan suara di luar layar penuh. Kosong ('') = ikut tema terang/gelap.
   stb: { bgop: 100, bgcol: '', color: '', size: 20, bold: true, width: 720, height: 168, radius: 16, border: true, prev: true, shadow: 'auto' },
   // item menu Tools yang ditampilkan
-  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, adsite: true, split: true, note: true, mini: true, clips: true, xl: true, sm: true, transcript: true },
+  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, adsite: true, split: true, note: true, mini: true, clips: true, xl: true, sm: true, transcript: true, play: true },
   // posisi & ukuran Notepad melayang (-1 = otomatis); ix/iy = posisi ikon saat diperkecil
   notebox: { x: -1, y: -1, w: 340, h: 340, ix: -1, iy: -1 },
   // posisi & ukuran Mini browser melayang (-1 = otomatis) dan daftar situs favoritnya
@@ -64,13 +65,14 @@ function localOk(u) {
 }
 
 /* ---------- protokol alethra:// ---------- */
-const PAGES = ['home', 'settings', 'bookmarks', 'history', 'downloads', 'offline', 'passwords', 'transcript', 'error', 'blocked', 'about'];
+const PAGES = ['home', 'settings', 'bookmarks', 'history', 'downloads', 'offline', 'passwords', 'transcript', 'play', 'error', 'blocked', 'about'];
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 function handleAlethra(req) {
   const u = new URL(req.url);
   const site = req.headers.get('sec-fetch-site'), dest = req.headers.get('sec-fetch-dest');
   // Situs web tidak boleh membuka halaman internal lewat tautan/iframe
   if (site === 'cross-site' && (dest === 'document' || dest === 'iframe' || dest === 'frame')) return new Response('Forbidden', { status: 403 });
+  if (u.hostname === 'media') return PLAY.serve(req);   // file musik/video lokal untuk AlethPlay (hanya lewat token)
   const root = path.join(__dirname, '..', 'renderer');
   let file;
   if (u.hostname === 'wallpaper') file = path.join(ctx.dataDir, 'wallpaper.img');
@@ -252,6 +254,7 @@ function dlAct(id, a) {
   if (a === 'pause' && it) it.pause();
   else if (a === 'resume' && it && it.canResume()) it.resume();
   else if (a === 'cancel' && it) it.cancel();
+  else if (a === 'open' && rec.path && PLAY.openFiles([rec.path])) { /* musik/video dibuka di tab AlethPlay */ }
   else if (a === 'open' && rec.path) shell.openPath(rec.path).then(r => { if (r) ctx.toast('Berkas tidak ditemukan'); });
   else if (a === 'show' && rec.path) shell.showItemInFolder(rec.path);
   else if (a === 'retry') session.fromPartition(rec.incog ? 'incog' : 'persist:main').downloadURL(rec.url);

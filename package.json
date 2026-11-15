@@ -82,6 +82,37 @@
       "node_modules/vosk-koffi/**",
       "node_modules/koffi/**",
       "node_modules/ctranslate2/ct2.win32-x64-msvc.node"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "mp3",
+          "m4a",
+          "aac",
+          "wav",
+          "flac",
+          "ogg",
+          "oga",
+          "opus",
+          "weba"
+        ],
+        "name": "Musik",
+        "description": "Berkas musik",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "mp4",
+          "m4v",
+          "webm",
+          "mkv",
+          "mov",
+          "ogv"
+        ],
+        "name": "Video",
+        "description": "Berkas video",
+        "role": "Viewer"
+      }
     ]
   },
   "dependencies": {
