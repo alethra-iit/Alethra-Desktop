@@ -169,7 +169,8 @@ function jobInfo() { const o = {}; for (const j of jobs.values()) o[j.id] = { do
 // teks lengkap yang bisa disalin pengguna (untuk laporan atau pencarian solusi)
 function errDetail(job, e) {
   return ['Alethra ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch,
-    'Waktu: ' + new Date().toISOString(), 'Model: ' + job.id + ' (' + job.kind + ')', 'Sumber unduhan: ' + hfBase() + (SV.setting('hfmirror') ? ' (cermin dari Pengaturan)' : process.env.ALETHRA_HF ? ' (variabel ALETHRA_HF)' : ''),
+    'Waktu: ' + new Date().toISOString(), 'Model: ' + job.id + ' (' + job.kind + ')', (() => { let o = ''; try { o = job.lastUrl ? new URL(job.lastUrl).origin : ''; } catch {} return o && o !== hfBase() ? 'Sumber unduhan: ' + o + ' (bukan Hugging Face)' : 'Sumber unduhan: ' + hfBase() + (SV.setting('hfmirror') ? ' (cermin dari Pengaturan)' : process.env.ALETHRA_HF ? ' (variabel ALETHRA_HF)' : ''); })(),
+    job.lastUrl ? 'Alamat berkas: ' + job.lastUrl : '',
     'Tahap: ' + (job.phase || '-') + ' · ' + job.done + ' / ' + job.total + ' byte', 'Galat: ' + String((e && e.message) || e), e && e.cause ? 'Penyebab: ' + String(e.cause.message || e.cause) : ''].filter(Boolean).join('\n');
 }
 // uji cepat apakah sumber unduhan bisa dijangkau
@@ -243,9 +244,17 @@ async function fetchTo(url, dest, size, job) {
   const part = dest + '.part'; let have = 0;
   try { have = fs.statSync(part).size; } catch {}
   if (size && have > size) { try { fs.unlinkSync(part); } catch {} have = 0; }
-  const r = await net.fetch(url, { headers: have ? { Range: 'bytes=' + have + '-' } : {}, signal: job.ctl.signal });
+  job.lastUrl = url;
+  const doFetch = (extra) => net.fetch(url, { headers: Object.assign(have ? { Range: 'bytes=' + have + '-' } : {}, extra || {}), signal: job.ctl.signal });
+  let r = await doFetch();
+  // sebagian server/CDN/proxy menjawab 406 (Not Acceptable) bila header bawaan tidak cocok: coba sekali lagi dengan header polos
+  if (r.status === 406) r = await doFetch({ Accept: '*/*', 'Accept-Encoding': 'identity' });
   if (r.status === 416 && size && have === size) { fs.renameSync(part, dest); job.done += have; push(); return; }
-  if (r.status !== 200 && r.status !== 206) throw httpErr(r.status, path.basename(dest));
+  if (r.status !== 200 && r.status !== 206) {
+    // berkas non-Hugging Face (mis. Bergamot dari server Mozilla): sebut host aslinya, jangan "Hugging Face"
+    let host = '', hfHost = ''; try { host = new URL(url).host; } catch {} try { hfHost = new URL(hfBase()).host; } catch {}
+    throw host && host !== hfHost ? new Error(`Berkas ${path.basename(dest)} gagal diunduh dari ${host} (HTTP ${r.status})`) : httpErr(r.status, path.basename(dest));
+  }
   if (r.status === 200) have = 0;
   job.done += have;
   const ws = fs.createWriteStream(part, { flags: have ? 'a' : 'w' });
