@@ -83,7 +83,7 @@
     $$('[data-i]', d).forEach(b => b.onclick = () => { const p = PRESETS[+b.dataset.i]; d.remove(); set('sta', Object.assign({}, DEFSTA, p[2])); });
   }
 
-  let OE = null, mtS = '', mtT = '', playSub = 'umum', mirCustom = false;
+  let OE = null, mtS = '', mtT = '', playSub = 'umum', offSub = 'umum', toolsSub = 'halaman', mirCustom = false;
   // baris model (suara atau terjemahan): unduh / batal / pakai / hapus, dengan bilah kemajuan yang diperbarui langsung
   function oeRow(map) {
     return (m0) => {
@@ -225,6 +225,11 @@
         }
         return r;
       };
+      const TS = [['halaman', 'Halaman'], ['terjemahan', 'Terjemahan'], ['suara', 'Suara & video'], ['alat', 'Alat melayang'], ['situs', 'Situs']];
+      const tpills = el('<div style="display:flex;gap:6px;flex-wrap:wrap;margin:14px 0"></div>');
+      TS.forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'btn sm' + (toolsSub === k ? ' pri' : ''); b.textContent = l; b.onclick = () => { toolsSub = k; renderSec(false); }; tpills.appendChild(b); });
+      A(tpills);
+      if (toolsSub === 'halaman') {
       A(grp('Halaman')); A(box([
         tg('find', 'Cari di halaman', 'Ctrl+F'),
         tg('print', 'Cetak…', 'Ctrl+P'),
@@ -232,23 +237,32 @@
         tg('offline', 'Simpan halaman offline', 'Ctrl+S'),
         tg('reader', 'Mode baca', 'Ctrl+Alt+R'),
         tg('split', 'Tampilan terpisah', 'Ctrl+Alt+V. Dua halaman berdampingan, mis. video + catatan')]));
+      }
+      if (toolsSub === 'terjemahan') {
       A(grp('Terjemahan')); A(box([
         tgp('translate', 'Terjemahkan halaman', 'Ctrl+Alt+T. Juga perlu dinyalakan di Play → Terjemahkan situs', 'ptr', 'Terjemahkan situs'),
         tg('chat', 'Terjemahkan chat live', 'YouTube dan Twitch'),
         tgp('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara', 'stt', 'Terjemahan Suara'),
         tg('transcript', 'Riwayat terjemahan suara', 'Ctrl+Alt+H. Daftar kalimat hasil Terjemahan Suara'),
         tg('xl', 'Penerjemah melayang', 'Ctrl+Alt+X. Kotak terjemahan kecil di atas halaman: ketik atau tempel teks (atau sorot teks di halaman lalu buka), hasil muncul otomatis. Memakai mesin dari pengaturan Terjemahan hasil suara')]));
+      }
+      if (toolsSub === 'suara') {
       A(grp('Suara & video')); A(box([
         tg('sm', 'Sound Master', 'Ctrl+Alt+M. Penguat volume tab sampai 600 %, Bass boost, Voice boost, dan daftar tab yang sedang berbunyi. Tidak bisa menguatkan suara ber-DRM atau dari server lain tanpa izin CORS'),
         tg('vq', 'Kualitas video…'),
         tg('pip', 'Gambar dalam gambar')]));
+      }
+      if (toolsSub === 'alat') {
       A(grp('Alat melayang')); A(box([
         tg('note', 'Notepad', 'Ctrl+Alt+N. Catatan melayang di atas halaman: bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya banyak lembar kerja. Tetap terbuka saat berpindah tab'),
         tg('mini', 'Mini browser', 'Ctrl+Alt+B. Jendela web kecil yang melayang di atas halaman, mis. kamus, Google Terjemahan, atau chat. Bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya daftar situs favorit'),
         tg('clips', 'Riwayat clipboard', 'Ctrl+Alt+C. Daftar teks yang baru disalin: ketuk untuk menyalin lagi, atau tempel langsung ke halaman. Riwayat hanya di memori (hilang saat Alethra ditutup), kecuali item yang disematkan. Tidak merekam di tab Incognito')]));
+      }
+      if (toolsSub === 'situs') {
       A(grp('Situs')); A(box([
         tg('emu', 'Mode perangkat (ponsel/tablet)', 'Ctrl+Shift+M. Lebar halaman dipersempit seperti layar ponsel'),
         tg('adsite', 'Blokir iklan di situs ini', 'Per situs')]));
+      }
       A(box([button('Tampilkan semua', 'Kembalikan semua item ke menu Tools', 'Atur ulang', () => set('tools', S.stDefs.tools))]));
     }
     if (sec === 'play') {
@@ -381,6 +395,11 @@
       OE = await api('oe.list') || { stt: [], mt: [], ct2: [], bg: { pairs: [] }, jobs: {}, langs: {}, groups: [] };
       if (!OE.ct2) OE.ct2 = []; if (!OE.bg) OE.bg = { pairs: [] };
       A(el('<p class="sub">Alat offline untuk Terjemahan Suara. Suara ke teks: sherpa-onnx, Whisper (Transformers.js), atau Vosk. Terjemahan: Opus-MT, CTranslate2, Bergamot atau NLLB-200 600M. Unduhan model bisa dijeda dan dilanjutkan. Pilih satu mesin suara dan satu mesin terjemahan, bebas dikombinasikan (mis. sherpa-onnx + NLLB). Model hanya perlu diunduh sekali, lalu berjalan di PC ini tanpa internet. Mesin dimuat saat Terjemahan Suara dinyalakan dan dilepas dari memori beberapa detik setelah dimatikan.</p>'));
+      const OS = [['umum', 'Umum'], ['suara', 'Suara ke teks'], ['terjemahan', 'Terjemahan'], ['uji', 'Uji kecepatan']];
+      const opills = el('<div style="display:flex;gap:6px;flex-wrap:wrap;margin:14px 0"></div>');
+      OS.forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'btn sm' + (offSub === k ? ' pri' : ''); b.textContent = l; b.onclick = () => { offSub = k; renderSec(false); }; opills.appendChild(b); });
+      A(opills);
+      if (offSub === 'umum') {
       A(grp('Sumber unduhan model'));
       {
         const MIR = [['', 'Hugging Face (resmi)'], ['https://hf-mirror.com', 'hf-mirror.com (cermin)'], ['custom', 'Alamat lain…']];
@@ -402,7 +421,9 @@
       A(box([
         select('Mesin suara ke teks', '', [['cloud', 'Whisper cloud'], ['offline', 'Offline · sherpa-onnx'], ['tjs', 'Offline · Whisper (Transformers.js)'], ['vosk', 'Offline · Vosk']], S.stengine, v => set('stengine', v)),
         select('Terjemahan hasil suara', '', [['online', 'Online (Google Translate)'], ['offline', 'Offline · Opus-MT'], ['ct2', 'Offline · CTranslate2'], ['bergamot', 'Offline · Bergamot'], ['nllb', 'Offline · NLLB-200 600M (Transformers.js)']], S.trmode, v => set('trmode', v))]));
+      }
 
+      if (offSub === 'suara') {
       /* ----- model suara ke teks (tiga mesin) ----- */
       const SELK = { sherpa: 'stmodel', tjs: 'stwmodel', vosk: 'stvmodel' };
       const sttRows = (ms) => box(ms.map(oeRow(m => ({ id: m.id, title: m.title, desc: m.note, mb: m.mb, installed: m.installed, bytes: m.bytes, sel: S[SELK[m.engine]] === m.id, pick: () => set(SELK[m.engine], m.id) }))));
@@ -429,8 +450,9 @@
         const other = OE.stt.filter(m => m.engine !== eg && m.installed);
         if (other.length) A(el(`<p class="sub" style="font-size:12.5px;margin:10px 0 0">${other.length} model mesin lain masih terpasang (${esc(fmtBytes(other.reduce((a, m) => a + m.bytes, 0)))}). Ganti mesin di atas untuk mengelolanya.</p>`));
       }
+      }
 
-      if (!['offline', 'ct2', 'bergamot', 'nllb'].includes(S.trmode)) {
+      if (offSub === 'terjemahan' && !['offline', 'ct2', 'bergamot', 'nllb'].includes(S.trmode)) {
         A(grp('Terjemahan offline'));
         A(el('<p class=\"sub\" style=\"font-size:12.5px;margin:0 0 8px\">Terjemahan hasil suara memakai Google Translate (online), jadi tidak ada model yang perlu diunduh. Pilih Opus-MT, CTranslate2, Bergamot atau NLLB-200 di atas untuk melihat daftar bahasa dan model yang bisa diunduh.</p>'));
       }
@@ -444,7 +466,7 @@
         ct2: { name: 'CTranslate2', list: OE.ct2, desc: 'CTranslate2 (Opus-MT)', mb: 80, help: 'Model Opus-MT yang sama, dijalankan oleh CTranslate2 (mesin native), jadi lebih cepat dan lebih hemat memori daripada Opus-MT biasa dengan mutu terjemahan setara. ±80-155 MB per arah; bahasa lewat Inggris bila tidak ada pasangan langsung. Beberapa pasangan mungkin tidak tersedia di Hugging Face.' },
         bergamot: { name: 'Bergamot', list: OE.bg.pairs, desc: 'Bergamot (mesin Firefox)', mb: 30, help: 'Mesin terjemahan Firefox: model sangat kecil (±15-45 MB per arah) dan cepat di CPU biasa. Daftar bahasa diambil dari server Mozilla, jadi tidak semua pasangan ada. Bahasa lewat Inggris bila tidak ada pasangan langsung.' }
       }[S.trmode];
-      if (PF) {
+      if (PF && offSub === 'terjemahan') {
         A(grp('Terjemahan offline · ' + PF.name));
         A(el(`<p class="sub" style="font-size:12.5px;margin:0 0 8px">${esc(PF.help)}</p>`));
         if (S.trmode === 'bergamot' && !PF.list.length) A(el(`<p class="sub" style="font-size:12.5px;margin:0 0 8px;color:var(--danger)">${esc(OE.bg.err || 'Daftar model Bergamot belum bisa dimuat.')} Periksa koneksi internet, lalu buka halaman ini lagi.</p>`));
@@ -473,7 +495,7 @@
         else A(box(pairs.map(oeRow(p => ({ id: p.id, title: LN[p.src] + ' → ' + LN[p.tgt], desc: PF.desc, mb: p.mb || PF.mb, installed: p.installed, bytes: p.bytes, sel: false })))));
       }
       /* ----- NLLB ----- */
-      if (S.trmode === 'nllb') {
+      if (S.trmode === 'nllb' && offSub === 'terjemahan') {
         A(grp('Terjemahan offline · NLLB-200 600M (Transformers.js)'));
         A(el('<p class="sub" style="font-size:12.5px;margin:0 0 8px">Satu model untuk semua pasangan bahasa (±200 bahasa), tanpa lewat Inggris, jadi lebih akurat daripada Opus-MT untuk pasangan seperti Jepang → Indonesia. Lebih besar dan lebih lambat: ±900 MB unduhan, ±1,5 GB RAM saat dipakai. Cocok dipasangkan dengan sherpa-onnx atau Whisper.</p>'));
         const NL = OE.nllb || { id: 'nllb-600m', title: 'NLLB-200 600M', mb: 900, installed: false, bytes: 0 };
@@ -487,6 +509,7 @@
       }
 
       /* ----- uji kecepatan ----- */
+      if (offSub === 'uji') {
       A(grp('Uji kecepatan terjemahan'));
       {
         const out = el('<div class="list" style="display:none;margin-top:10px"></div>'), note = el('<p class="sub" style="font-size:12.5px;margin:8px 0 0;display:none"></p>');
@@ -515,12 +538,15 @@
           row('Bandingkan mesin terjemahan', 'Menjalankan satu kalimat di semua mesin yang sudah terpasang untuk pasangan bahasa di atas (Opus-MT, CTranslate2, Bergamot, NLLB), lalu menampilkan waktu, RAM, dan hasilnya. Matikan Terjemahan Suara dan tutup aplikasi berat lain dulu agar adil. Bisa sampai satu menit.', bb)]));
         A(out); A(note);
       }
+      }
 
       /* ----- kinerja & penyimpanan ----- */
+      if (offSub === 'umum') {
       A(grp('Kinerja dan penyimpanan'));
       A(box([
         select('Thread CPU', 'Otomatis memakai setengah inti CPU (2-4). Naikkan bila PC kuat; turunkan bila video tersendat.', [[0, 'Otomatis'], [1, '1'], [2, '2'], [3, '3'], [4, '4'], [6, '6'], [8, '8']], S.ofthreads | 0, v => set('ofthreads', +v)),
         button('Penyimpanan model', fmtBytes(OE.total) + ' dipakai · ' + OE.root, 'Buka folder', () => api('oe.dir'))]));
+      }
     }
     if (sec === 'audio') {
       A(el('<p class="sub">Mengatur cara audio video diproses sebelum diubah jadi teks. Perubahan langsung diterapkan ke Terjemahan Suara yang sedang berjalan.</p>'));
