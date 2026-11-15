@@ -170,7 +170,7 @@ function jobInfo() { const o = {}; for (const j of jobs.values()) o[j.id] = { do
 function errDetail(job, e) {
   return ['Alethra ' + app.getVersion() + ' · Electron ' + process.versions.electron + ' · ' + process.platform + ' ' + process.arch,
     'Waktu: ' + new Date().toISOString(), 'Model: ' + job.id + ' (' + job.kind + ')', (() => { let o = ''; try { o = job.lastUrl ? new URL(job.lastUrl).origin : ''; } catch {} return o && o !== hfBase() ? 'Sumber unduhan: ' + o + ' (bukan Hugging Face)' : 'Sumber unduhan: ' + hfBase() + (SV.setting('hfmirror') ? ' (cermin dari Pengaturan)' : process.env.ALETHRA_HF ? ' (variabel ALETHRA_HF)' : ''); })(),
-    job.lastUrl ? 'Alamat berkas: ' + job.lastUrl : '',
+    job.lastUrl ? 'Alamat berkas: ' + job.lastUrl : '', job.tries ? 'Percobaan HTTP: ' + job.tries : '', job.lastResp ? 'Respons server: ' + job.lastResp : '',
     'Tahap: ' + (job.phase || '-') + ' · ' + job.done + ' / ' + job.total + ' byte', 'Galat: ' + String((e && e.message) || e), e && e.cause ? 'Penyebab: ' + String(e.cause.message || e.cause) : ''].filter(Boolean).join('\n');
 }
 // uji cepat apakah sumber unduhan bisa dijangkau
@@ -246,14 +246,23 @@ async function fetchTo(url, dest, size, job) {
   if (size && have > size) { try { fs.unlinkSync(part); } catch {} have = 0; }
   job.lastUrl = url;
   const doFetch = (extra) => net.fetch(url, { headers: Object.assign(have ? { Range: 'bytes=' + have + '-' } : {}, extra || {}), signal: job.ctl.signal });
-  let r = await doFetch();
-  // sebagian server/CDN/proxy menjawab 406 (Not Acceptable) bila header bawaan tidak cocok: coba sekali lagi dengan header polos
-  if (r.status === 406) r = await doFetch({ Accept: '*/*', 'Accept-Encoding': 'identity' });
+  // sebagian server/CDN/proxy menjawab 406 (Not Acceptable) bila header bawaan tidak cocok: coba beberapa variasi header sebelum menyerah
+  const FF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0';
+  const ATTEMPTS = [null,
+    { Accept: '*/*', 'Accept-Encoding': 'identity' },
+    { 'User-Agent': FF_UA, Accept: '*/*', 'Accept-Language': 'en-US,en;q=0.5' },
+    { 'User-Agent': FF_UA, Accept: '*/*', 'Accept-Encoding': 'identity', 'Accept-Language': 'en-US,en;q=0.5', 'Cache-Control': 'no-cache' }];
+  const tried = []; let r;
+  for (const extra of ATTEMPTS) { r = await doFetch(extra); tried.push(r.status); if (r.status !== 406) break; }
+  job.tries = tried.join(' → ');
   if (r.status === 416 && size && have === size) { fs.renameSync(part, dest); job.done += have; push(); return; }
   if (r.status !== 200 && r.status !== 206) {
     // berkas non-Hugging Face (mis. Bergamot dari server Mozilla): sebut host aslinya, jangan "Hugging Face"
     let host = '', hfHost = ''; try { host = new URL(url).host; } catch {} try { hfHost = new URL(hfBase()).host; } catch {}
-    throw host && host !== hfHost ? new Error(`Berkas ${path.basename(dest)} gagal diunduh dari ${host} (HTTP ${r.status})`) : httpErr(r.status, path.basename(dest));
+    // rekam siapa yang menolak (server, perantara, isi pesan) untuk laporan galat
+    try { const h = r.headers, body = (await r.text()).replace(/\s+/g, ' ').slice(0, 200); job.lastResp = ['server=' + (h.get('server') || '-'), 'via=' + (h.get('via') || '-'), 'type=' + (h.get('content-type') || '-'), 'x-cache=' + (h.get('x-cache') || '-')].join(', ') + (body ? ' · isi: ' + body : ''); } catch {}
+    const hint = r.status === 406 ? ' — kemungkinan ditolak oleh jaringan/proxy/antivirus; coba jaringan lain (mis. hotspot) atau pakai mode CTranslate2' : '';
+    throw host && host !== hfHost ? new Error(`Berkas ${path.basename(dest)} gagal diunduh dari ${host} (HTTP ${r.status})${hint}`) : httpErr(r.status, path.basename(dest));
   }
   if (r.status === 200) have = 0;
   job.done += have;
