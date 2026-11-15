@@ -226,14 +226,29 @@
         return r;
       };
       A(grp('Halaman')); A(box([
-        tg('find', 'Cari di halaman', 'Ctrl+F'), tg('print', 'Cetak…', 'Ctrl+P'), tg('pdf', 'Simpan sebagai PDF'), tg('offline', 'Simpan halaman offline', 'Ctrl+S')]));
-      A(grp('Terjemahan & baca')); A(box([
+        tg('find', 'Cari di halaman', 'Ctrl+F'),
+        tg('print', 'Cetak…', 'Ctrl+P'),
+        tg('pdf', 'Simpan sebagai PDF'),
+        tg('offline', 'Simpan halaman offline', 'Ctrl+S'),
+        tg('reader', 'Mode baca', 'Ctrl+Alt+R'),
+        tg('split', 'Tampilan terpisah', 'Ctrl+Alt+V. Dua halaman berdampingan, mis. video + catatan')]));
+      A(grp('Terjemahan')); A(box([
         tgp('translate', 'Terjemahkan halaman', 'Ctrl+Alt+T. Juga perlu dinyalakan di Play → Terjemahkan situs', 'ptr', 'Terjemahkan situs'),
         tg('chat', 'Terjemahkan chat live', 'YouTube dan Twitch'),
         tgp('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara', 'stt', 'Terjemahan Suara'),
-        tg('reader', 'Mode baca', 'Ctrl+Alt+R'), tg('transcript', 'Riwayat terjemahan suara', 'Ctrl+Alt+H. Daftar kalimat hasil Terjemahan Suara')]));
-      A(grp('Video & situs')); A(box([
-        tg('vq', 'Kualitas video…'), tg('pip', 'Gambar dalam gambar'), tg('emu', 'Mode perangkat (ponsel/tablet)', 'Ctrl+Shift+M. Lebar halaman dipersempit seperti layar ponsel'), tg('adsite', 'Blokir iklan di situs ini', 'Per situs'), tg('split', 'Tampilan terpisah', 'Ctrl+Alt+V. Dua halaman berdampingan, mis. video + catatan'), tg('xl', 'Penerjemah melayang', 'Ctrl+Alt+X. Kotak terjemahan kecil di atas halaman: ketik atau tempel teks (atau sorot teks di halaman lalu buka), hasil muncul otomatis. Memakai mesin dari pengaturan Terjemahan hasil suara'), tg('sm', 'Sound Master', 'Ctrl+Alt+M. Penguat volume tab sampai 600 %, Bass boost, Voice boost, dan daftar tab yang sedang berbunyi. Tidak bisa menguatkan suara ber-DRM atau dari server lain tanpa izin CORS'), tg('clips', 'Riwayat clipboard', 'Ctrl+Alt+C. Daftar teks yang baru disalin: ketuk untuk menyalin lagi, atau tempel langsung ke halaman. Riwayat hanya di memori (hilang saat Alethra ditutup), kecuali item yang disematkan. Tidak merekam di tab Incognito'), tg('mini', 'Mini browser', 'Ctrl+Alt+B. Jendela web kecil yang melayang di atas halaman, mis. kamus, Google Terjemahan, atau chat. Bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya daftar situs favorit'), tg('note', 'Notepad', 'Ctrl+Alt+N. Catatan melayang di atas halaman: bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya banyak lembar kerja. Tetap terbuka saat berpindah tab')]));
+        tg('transcript', 'Riwayat terjemahan suara', 'Ctrl+Alt+H. Daftar kalimat hasil Terjemahan Suara'),
+        tg('xl', 'Penerjemah melayang', 'Ctrl+Alt+X. Kotak terjemahan kecil di atas halaman: ketik atau tempel teks (atau sorot teks di halaman lalu buka), hasil muncul otomatis. Memakai mesin dari pengaturan Terjemahan hasil suara')]));
+      A(grp('Suara & video')); A(box([
+        tg('sm', 'Sound Master', 'Ctrl+Alt+M. Penguat volume tab sampai 600 %, Bass boost, Voice boost, dan daftar tab yang sedang berbunyi. Tidak bisa menguatkan suara ber-DRM atau dari server lain tanpa izin CORS'),
+        tg('vq', 'Kualitas video…'),
+        tg('pip', 'Gambar dalam gambar')]));
+      A(grp('Alat melayang')); A(box([
+        tg('note', 'Notepad', 'Ctrl+Alt+N. Catatan melayang di atas halaman: bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya banyak lembar kerja. Tetap terbuka saat berpindah tab'),
+        tg('mini', 'Mini browser', 'Ctrl+Alt+B. Jendela web kecil yang melayang di atas halaman, mis. kamus, Google Terjemahan, atau chat. Bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya daftar situs favorit'),
+        tg('clips', 'Riwayat clipboard', 'Ctrl+Alt+C. Daftar teks yang baru disalin: ketuk untuk menyalin lagi, atau tempel langsung ke halaman. Riwayat hanya di memori (hilang saat Alethra ditutup), kecuali item yang disematkan. Tidak merekam di tab Incognito')]));
+      A(grp('Situs')); A(box([
+        tg('emu', 'Mode perangkat (ponsel/tablet)', 'Ctrl+Shift+M. Lebar halaman dipersempit seperti layar ponsel'),
+        tg('adsite', 'Blokir iklan di situs ini', 'Per situs')]));
       A(box([button('Tampilkan semua', 'Kembalikan semua item ke menu Tools', 'Atur ulang', () => set('tools', S.stDefs.tools))]));
     }
     if (sec === 'play') {

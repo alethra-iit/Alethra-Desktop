@@ -191,7 +191,7 @@ Menu Tools → **Sound Master** (atau Ctrl+Alt+M) membuka panel melayang untuk m
 - **Batasan:** suara ber-DRM (mis. layanan streaming berbayar), sumber dari server lain tanpa izin CORS, dan suara yang dibuat sendiri oleh situs lewat Web Audio (mis. sebagian game) tidak bisa diatur; panel menampilkan peringatan bila hal ini terdeteksi. Elemen seperti itu sengaja dibiarkan apa adanya supaya suaranya tidak malah senyap.
 - **Privasi & penyimpanan:** pengaturan disimpan per tab di memori dan hilang saat tab ditutup; hanya posisi/ukuran panel (`smbox`) yang disimpan. Tidak ada data yang dikirim ke mana pun.
 - **Geser & ukuran:** tarik bilah atas untuk memindahkan; pegangan kanan bawah untuk mengubah ukuran; tombol − memperkecil jadi ikon bulat.
-- **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Sound Master*.
+- **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Sound Master* (kategori *Suara & video*).
 
 ## Notepad
 Menu Tools → **Notepad** (atau Ctrl+Alt+N) membuka catatan melayang di atas halaman, sama seperti Notepad di menu titik tiga Alethra Browser (Android).

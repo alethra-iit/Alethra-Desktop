@@ -1647,27 +1647,33 @@ function toolsMenuSpec() {
   const cfg = setting('tools'), rd = STT.readiness();
   const on = (k) => cfg[k] !== false;
   const groups = [
+    // Halaman
     [on('find') && I('find', 'Cari di halaman', { key: 'Ctrl+F', off: !web }),
      on('print') && I('print', 'Cetak…', { key: 'Ctrl+P', off: !web }),
      on('pdf') && I('pdf', 'Simpan sebagai PDF', { off: !web }),
-     on('offline') && I('offline.save', 'Simpan halaman offline', { key: 'Ctrl+S', off: !web })],
-    [on('translate') && (setting('ptr') !== false ? I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }) : I('goto.play', 'Terjemahkan halaman', { dim: true, ic: 'translate', note: 'Dimatikan di Play' })),
-     on('chat') && I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
-     on('stt') && (rd.ok ? I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web }) : I('goto.' + rd.sec, 'Terjemahan Suara', { dim: true, ic: 'mic', note: rd.short })),
+     on('offline') && I('offline.save', 'Simpan halaman offline', { key: 'Ctrl+S', off: !web }),
      on('reader') && I('reader', 'Mode baca', { key: 'Ctrl+Alt+R', off: !web }),
-     on('transcript') && I('transcript.side', 'Riwayat terjemahan suara', { key: 'Ctrl+Alt+H' })],
+     on('split') && !inSplit(activeId) && I('split.new', 'Tampilan terpisah', { key: 'Ctrl+Alt+V' })],
     // Tampilan terpisah: item berubah sesuai keadaan (belum split / sedang split)
     on('split') ? (inSplit(activeId)
       ? [I('split.close', 'Tutup tampilan terpisah', { key: 'Ctrl+Alt+V' }), I('split.swap', 'Tukar posisi panel'), I('split.mode', 'Susunan: ' + ({ auto: 'otomatis', h: 'berdampingan', v: 'atas-bawah' }[setting('splitMode')] || 'otomatis')), I('split.reset', 'Samakan lebar panel (50:50)')]
-      : [I('split.new', 'Tampilan terpisah', { key: 'Ctrl+Alt+V' })]) : [],
+      : []) : [],
+    // Terjemahan
+    [on('translate') && (setting('ptr') !== false ? I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }) : I('goto.play', 'Terjemahkan halaman', { dim: true, ic: 'translate', note: 'Dimatikan di Play' })),
+     on('chat') && I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
+     on('stt') && (rd.ok ? I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web }) : I('goto.' + rd.sec, 'Terjemahan Suara', { dim: true, ic: 'mic', note: rd.short })),
+     on('transcript') && I('transcript.side', 'Riwayat terjemahan suara', { key: 'Ctrl+Alt+H' }),
+     on('xl') && I('xl', 'Penerjemah melayang', { key: 'Ctrl+Alt+X', check: xlShown() })],
+    // Suara & video
+    [on('sm') && I('sm', 'Sound Master', { key: 'Ctrl+Alt+M', check: smShown() }),
+     on('vq') && I('vq', 'Kualitas video…', { off: !web }),
+     on('pip') && I('pip', 'Gambar dalam gambar', { off: !web })],
+    // Alat melayang
     [on('note') && I('note', 'Notepad', { key: 'Ctrl+Alt+N', check: noteShown() }),
      on('mini') && I('mini', 'Mini browser', { key: 'Ctrl+Alt+B', check: miniShown() }),
-     on('clips') && I('clips', 'Riwayat clipboard', { key: 'Ctrl+Alt+C', check: clipShown() }),
-     on('xl') && I('xl', 'Penerjemah melayang', { key: 'Ctrl+Alt+X', check: xlShown() }),
-     on('sm') && I('sm', 'Sound Master', { key: 'Ctrl+Alt+M', check: smShown() })],
-    [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
-     on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
-     on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
+     on('clips') && I('clips', 'Riwayat clipboard', { key: 'Ctrl+Alt+C', check: clipShown() })],
+    // Situs
+    [on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
      on('adsite') && I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web })]
   ].map(g => g.filter(Boolean)).filter(g => g.length);
   const out = [];
