@@ -42,6 +42,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 | Mini browser | Menu Tools → Mini browser (Ctrl+Alt+B). Jendela web kecil yang melayang di atas halaman (lihat bagian *Mini browser* di bawah) |
 | Riwayat clipboard | Menu Tools → Riwayat clipboard (Ctrl+Alt+C). Daftar teks yang baru disalin (lihat bagian *Riwayat clipboard* di bawah) |
 | Penerjemah melayang | Menu Tools → Penerjemah melayang (Ctrl+Alt+X). Kotak terjemahan kecil di atas halaman (lihat bagian *Penerjemah melayang* di bawah) |
+| Sound Master | Menu Tools → Sound Master (Ctrl+Alt+M). Penguat volume per tab sampai 600 %, Bass boost, Voice boost, dan daftar tab yang berbunyi (lihat bagian *Sound Master* di bawah) |
 | Video mini | Diganti Picture-in-Picture bawaan Chromium |
 | Izin situs | Bilah izin + manajer di Pengaturan |
 | Pengelola sandi | Terenkripsi (Windows DPAPI), isi otomatis saat kolom diklik |
@@ -84,7 +85,7 @@ Mesin jalan di proses terpisah (tidak membuat browser tersendat) dan dilepas dar
 ## Pintasan keyboard
 Ctrl+T tab baru · Ctrl+Shift+N Incognito · Ctrl+W tutup · Ctrl+Tab ganti tab · Ctrl+1…9 · Ctrl+L alamat · Ctrl+F cari ·
 Ctrl+D bookmark · Ctrl+H histori · Ctrl+J unduhan · Ctrl+P cetak · Ctrl+S simpan offline · Ctrl +/−/0 zoom ·
-F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad · Ctrl+Alt+B Mini browser · Ctrl+Alt+C Riwayat clipboard · Ctrl+Alt+X Penerjemah melayang
+F11 layar penuh · F12 devtools · Ctrl+U sumber · Ctrl+Shift+Del hapus data · Alt+←/→ · Ctrl+, pengaturan · Ctrl+Alt+N Notepad · Ctrl+Alt+B Mini browser · Ctrl+Alt+C Riwayat clipboard · Ctrl+Alt+X Penerjemah melayang · Ctrl+Alt+M Sound Master
 
 Data pengguna: `%APPDATA%\Alethra\data`.
 
@@ -179,6 +180,18 @@ Menu Tools → **Penerjemah melayang** (atau Ctrl+Alt+X) membuka kotak terjemaha
 - **Privasi:** teks yang diketik tidak disimpan; hanya pasangan bahasa terakhir dan posisi/ukuran kotak (`xlbox`).
 - **Geser & ukuran:** tarik bilah atas untuk memindahkan; tarik tepi kanan, tepi bawah, atau pojok kanan bawah untuk mengubah ukuran; tombol − memperkecil jadi ikon bulat.
 - **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Penerjemah melayang*.
+
+## Sound Master
+Menu Tools → **Sound Master** (atau Ctrl+Alt+M) membuka panel melayang untuk mengatur suara tiap tab, tanpa pindah tab.
+- **Volume 0 % – 600 %:** slider dan kotak angka (selangkah 1 %), plus tombol cepat 0/100/200/300/400/600 %. Angka di atas 300 % ditandai merah karena suara mudah pecah.
+- **Bass boost:** 0 – 100 % (menaikkan frekuensi rendah sampai +14 dB).
+- **Voice boost:** tombol on/off. Memotong gemuruh, menonjolkan rentang suara bicara, dan meratakan dinamika sehingga dialog/podcast yang pelan lebih jelas tanpa ledakan ikut keras.
+- **Tab yang berbunyi:** panel mendaftar tab yang sedang mengeluarkan suara (dan tab aktif). Ketuk judul tab untuk **pindah ke tab itu dengan satu klik**. Centang *Semua tab* untuk mengatur juga tab yang belum berbunyi. Tombol *Atur ulang* mengembalikan tab ke 100 % tanpa efek.
+- **Cara kerja:** elemen `<audio>`/`<video>` di halaman (termasuk di dalam iframe) diarahkan ke grafik Web Audio. Penguat dilengkapi limiter supaya tidak pecah kasar. Mesin baru dipasang ke sebuah tab setelah pengaturannya diubah; tab yang tidak disentuh tidak dimodifikasi sama sekali. Tab yang sudah dikembalikan ke 100 % tetap lewat grafik (suara tetap normal).
+- **Batasan:** suara ber-DRM (mis. layanan streaming berbayar), sumber dari server lain tanpa izin CORS, dan suara yang dibuat sendiri oleh situs lewat Web Audio (mis. sebagian game) tidak bisa diatur; panel menampilkan peringatan bila hal ini terdeteksi. Elemen seperti itu sengaja dibiarkan apa adanya supaya suaranya tidak malah senyap.
+- **Privasi & penyimpanan:** pengaturan disimpan per tab di memori dan hilang saat tab ditutup; hanya posisi/ukuran panel (`smbox`) yang disimpan. Tidak ada data yang dikirim ke mana pun.
+- **Geser & ukuran:** tarik bilah atas untuk memindahkan; pegangan kanan bawah untuk mengubah ukuran; tombol − memperkecil jadi ikon bulat.
+- **Menampilkan/menyembunyikan item:** Pengaturan → Tools → *Sound Master*.
 
 ## Notepad
 Menu Tools → **Notepad** (atau Ctrl+Alt+N) membuka catatan melayang di atas halaman, sama seperti Notepad di menu titik tiga Alethra Browser (Android).

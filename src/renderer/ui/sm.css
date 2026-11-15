@@ -1,0 +1,50 @@
+html,body{background:transparent!important;overflow:hidden;height:100%;margin:0;user-select:none}
+#box{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--surf);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+#box[hidden],#ico[hidden]{display:none}
+.mh{display:flex;align-items:center;gap:2px;height:40px;padding:0 4px 0 12px;flex:none;cursor:grab;touch-action:none}
+.mh.drag{cursor:grabbing}.mh svg.i{color:var(--sub)}.mh .t{flex:1;margin-left:6px;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb{width:32px;height:32px;border:0;background:none;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.mb:hover{background:var(--surf2)}.mb svg.i{width:18px;height:18px}
+#ml{flex:1;min-height:0;overflow:auto;padding:0 8px 6px}
+.mc{border:1px solid var(--line);border-radius:12px;background:var(--bg);margin-bottom:8px;overflow:hidden}
+.mc.act{border-color:var(--acc)}
+.mt{display:flex;align-items:center;gap:8px;padding:8px 8px 6px 10px;cursor:pointer;min-width:0}
+.mt:hover,.mt:focus-visible{background:var(--surf2);outline:0}
+.mt img,.mt .fv{width:16px;height:16px;flex:none;border-radius:4px;object-fit:cover}
+.mt svg.i{width:16px;height:16px;color:var(--sub);flex:none}
+.mt .nm{flex:1;min-width:0}
+.mt .nm b{display:block;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt .nm span{display:block;font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eq{display:inline-flex;align-items:flex-end;gap:2px;height:14px;flex:none}
+.eq i{width:3px;background:var(--acc);border-radius:1px;animation:eq 0.9s ease-in-out infinite}
+.eq i:nth-child(1){height:6px}.eq i:nth-child(2){height:12px;animation-delay:.2s}.eq i:nth-child(3){height:8px;animation-delay:.4s}
+@keyframes eq{0%,100%{transform:scaleY(.45)}50%{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){.eq i{animation:none}}
+.mg{padding:0 10px 4px}
+.vr{display:flex;align-items:center;gap:6px;height:34px}
+.vr label{width:50px;flex:none;font-size:11.5px;color:var(--sub)}
+.vr input[type=range]{flex:1;min-width:0;height:20px;accent-color:var(--acc);cursor:pointer;margin:0}
+.vr .nv{width:56px;flex:none;display:flex;align-items:center;justify-content:flex-end;gap:1px;font-size:12px}
+.vr .nv input{width:38px;height:24px;border:1px solid var(--line);border-radius:7px;background:var(--surf);color:var(--fg);text-align:right;padding:0 4px;font-size:12px;outline:0;user-select:text;-moz-appearance:textfield}
+.vr .nv input::-webkit-inner-spin-button,.vr .nv input::-webkit-outer-spin-button{display:none}
+.vr .nv input:focus{border-color:var(--acc)}
+.vr .nv.hot input{color:var(--danger)}
+.pr{display:flex;gap:4px;padding:0 0 4px 56px}
+.pr button{flex:1;min-width:0;height:22px;padding:0;border:1px solid var(--line);border-radius:11px;background:none;color:var(--fg);font-size:11px;cursor:pointer}
+.pr button:hover{background:var(--surf2)}.pr button.on{background:var(--acc);color:var(--onacc);border-color:var(--acc)}
+.vt{display:flex;align-items:center;gap:8px;height:34px}
+.vt label.l{flex:1;font-size:12.5px}.vt small{display:block;color:var(--sub);font-size:11px}
+.vt .sw{transform:scale(.8);transform-origin:right center}
+.wn{margin:0 10px 8px;padding:6px 8px;border-radius:8px;background:var(--surf2);color:var(--sub);font-size:11px;line-height:1.4}
+.mr{display:flex;justify-content:flex-end;padding:0 6px 6px}
+.mr button{height:24px;padding:0 10px;border:0;background:none;border-radius:8px;color:var(--sub);font-size:11.5px;cursor:pointer}
+.mr button:hover{background:var(--surf2);color:var(--fg)}
+.em{padding:34px 18px;text-align:center;color:var(--sub);font-size:12.5px;line-height:1.55}
+.mf{display:flex;align-items:center;gap:8px;height:34px;padding:0 0 0 12px;flex:none;color:var(--sub);font-size:11.5px}
+.mf label{flex:1;display:flex;align-items:center;gap:8px;cursor:pointer}
+.mf input{accent-color:var(--acc);margin:0}
+.rz{width:40px;height:34px;display:flex;align-items:center;justify-content:center;cursor:nwse-resize;touch-action:none}
+.rz svg.i{width:12px;height:12px}
+#ico{position:absolute;inset:0;border-radius:24px;border:1px solid var(--line);background:var(--surf);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.95;touch-action:none}
+#ico:hover,#ico:focus-visible{opacity:1;background:var(--surf2)}#ico:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+#ico svg.i{width:22px;height:22px}

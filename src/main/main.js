@@ -69,6 +69,7 @@ function applyTheme() {
   if (miniView && alive(miniView.webContents)) sendTo(miniView.webContents, 'settings', st);
   if (clipView && alive(clipView.webContents)) sendTo(clipView.webContents, 'settings', st);
   if (xlView && alive(xlView.webContents)) sendTo(xlView.webContents, 'settings', st);
+  if (smView && alive(smView.webContents)) sendTo(smView.webContents, 'settings', st);
   try { renderOverlay(); } catch {}
 }
 function publicSettings() {
@@ -155,7 +156,7 @@ function layout() {
   ctx.tabs.forEach(t => { const r = G.rects[t.id]; t.view.setVisible(!!r); if (r) t.view.setBounds(t.emu ? emuApply(t, r) : r); });
   ctx.sendChrome('split', G.chrome);
   renderOverlay();
-  noteLayout(true); miniLayout(true); clipLayout(true); xlLayout(true);
+  noteLayout(true); miniLayout(true); clipLayout(true); xlLayout(true); smLayout(true);
 }
 // panel tempat sebuah tab berada (koordinat jendela); null bila tab tidak sedang terlihat
 const paneBox = (id) => { const r = lastGeo && lastGeo.rects[id]; return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
@@ -252,6 +253,7 @@ function pushTabs() {
   if (pushT) return;
   pushT = setImmediate(() => {
     pushT = null; ctx.sendChrome('groups', ctx.groups); ctx.sendChrome('tabs', tabState()); saveSessionSoon();
+    smPush();
     if (OV.modal && OV.modal.type === 'tabs') sendOv('tabsearch', tabSearchData());   // palet pencarian tab terbuka: perbarui isinya
   });
 }
@@ -390,6 +392,7 @@ function wire(t) {
   });
   wc.on('render-process-gone', () => { ctx.toast('Tab berhenti bekerja, memuat ulang…'); setTimeout(() => { try { wc.reload(); } catch {} }, 600); });
   wc.on('audio-state-changed', (e) => { t.audible = e.audible; pushTabs(); });
+  wc.on('did-frame-finish-load', () => { if (t.smTouched || (t.sm && !smIsDef(t.sm))) smApply(t); });   // Sound Master: pasang ulang di halaman/iframe baru
   wc.on('enter-html-full-screen', () => { if (STT.activeTabId() === t.id) STT.setFs(true); htmlFs = true; fsId = t.id; win.setFullScreen(true); ctx.sendChrome('fullscreen', true); layout(); });
   wc.on('leave-html-full-screen', () => { if (STT.activeTabId() === t.id) STT.setFs(false); htmlFs = false; fsId = null; if (!userFs) win.setFullScreen(false); ctx.sendChrome('fullscreen', false); layout(); });
   wc.on('found-in-page', (_e, r) => ctx.sendChrome('find', { open: true, ordinal: r.activeMatchOrdinal, total: r.matches }));
@@ -653,9 +656,9 @@ async function needAuth(part) {
 }
 async function lockApp() {
   const l = setting('lock'); if (l.mode !== 'app' || !l.hash || locked) return;
-  locked = true; noteLayout(); miniLayout(); clipLayout(); xlLayout();
+  locked = true; noteLayout(); miniLayout(); clipLayout(); xlLayout(); smLayout();
   for (;;) { const r = await askModal('pin', { reason: 'Alethra terkunci', title: 'Masukkan PIN' }, false); if (r && SV.verifyPin(r.pin)) break; if (r) ctx.toast('PIN salah'); }
-  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true); miniLayout(true); clipLayout(true); xlLayout(true);
+  locked = false; lastAuth = Date.now(); endModal(null); noteLayout(true); miniLayout(true); clipLayout(true); xlLayout(true); smLayout(true);
 }
 
 /* ================= menu konteks (asli Windows) ================= */
@@ -755,6 +758,7 @@ function shortcut(e, i) {
   if (a && !s && k === 'b') return run(miniToggle);
   if (a && !s && k === 'c') return run(clipToggle);
   if (a && !s && k === 'x') return run(xlToggle);
+  if (a && !s && k === 'm') return run(smToggle);
   if (k === 'n' && s) return run(() => newIncogTab());
   if (k === 'n' && !s) return run(() => createTab('alethra://home'));
   if (k === 'w' || k === 'f4') return run(() => closeTab(activeId));
@@ -1511,6 +1515,129 @@ function xlPaste(text) {   // salin lalu tempel ke halaman aktif
   try { const w = curWC(); if (alive(w)) { w.focus(); setTimeout(() => { try { if (alive(w)) w.paste(); } catch {} }, 60); } } catch {}
   return true;
 }
+/* ================= Sound Master (menu Tools) ================= */
+// Penguat volume per tab (0-600 %), Bass boost, dan Voice boost, plus daftar tab yang sedang berbunyi dengan pindah-tab satu klik.
+// Mesinnya ada di inject/sm.js (Web Audio di dalam halaman). Mesin hanya dipasang ke sebuah tab setelah pengguna mengubah pengaturannya,
+// dan pengaturan disimpan per tab di memori (t.sm), hilang saat tab ditutup. Hanya posisi/ukuran panel (smbox) yang disimpan.
+let smView = null, smOpen = false, smMin = false, SMG = null, smBase = null, smTimer = null, smAll = false;
+const SM_MIN = { w: 340, h: 380 }, SM_ICON = 48;
+const smG = () => SMG || (SMG = Object.assign({}, SV.DEFAULTS.smbox, setting('smbox')));
+const smShown = () => smOpen && !!smView;
+const smCfg = (t) => t.sm || { v: 100, b: 0, voice: false };
+const smIsDef = (c) => c.v === 100 && !c.b && !c.voice;
+const smWeb = (t) => /^https?:/.test(t.url || '');
+function smList() {
+  return ctx.tabs.filter(t => t.audible || (t.sm && !smIsDef(t.sm)) || (smWeb(t) && (smAll || t.id === activeId))).map(t => {
+    const c = smCfg(t), s = t.smStat || {};
+    return { id: t.id, title: t.title || U.prettyUrl(t.url) || 'Tab', host: smWeb(t) ? U.hostOf(t.url) : '', icon: t.icon, audible: !!t.audible, muted: !!t.muted, active: t.id === activeId, incog: !!t.incog,
+      web: smWeb(t), v: c.v, b: c.b, voice: !!c.voice, bad: s.bad || 0, ok: s.ok || 0, susp: !!s.susp };
+  });
+}
+const smState = () => ({ tabs: smList(), all: smAll, min: smMin });
+const smPush = () => { if (smOpen && smView && alive(smView.webContents)) sendTo(smView.webContents, 'sm.state', smState()); };
+// pasang/perbarui mesin di semua frame tab (iframe lintas-situs ikut). Perintah pendek dulu; frame yang belum punya mesin dapat skrip lengkap.
+async function smApply(t) {
+  const wc = t.view.webContents;
+  if (!alive(wc) || !smWeb(t)) return;
+  const c = smCfg(t);
+  if (smIsDef(c) && !t.smTouched) return;   // tab yang belum pernah diatur tidak disentuh sama sekali
+  const arg = JSON.stringify(c), short = `window.__alSM?window.__alSM.set(${arg}):null`, full = injectScript('sm.js') + `\n;window.__alSM.set(${arg})`;
+  let frames = []; try { frames = wc.mainFrame.framesInSubtree; } catch { return; }
+  const rs = await Promise.all(frames.map(async f => {
+    try { let r = await f.executeJavaScript(short, true); if (r == null) r = await f.executeJavaScript(full, true); return r; } catch { return null; }
+  }));
+  const s = { n: 0, ok: 0, bad: 0, susp: false }; let any = false;
+  rs.forEach(r => { if (r && typeof r === 'object') { any = true; s.n += r.n | 0; s.ok += r.ok | 0; s.bad += r.bad | 0; if (r.st && r.st !== 'running' && r.ok) s.susp = true; } });
+  if (any) { t.smTouched = true; t.smStat = s; }
+  smPush();
+}
+function smSet(id, p) {
+  const t = ctx.tabs.find(x => x.id === id); if (!t || !p || typeof p !== 'object') return false;
+  const c = Object.assign({}, smCfg(t));
+  if (p.v !== undefined) { const v = Math.round(+p.v); if (!isFinite(v)) return false; c.v = Math.max(0, Math.min(600, v)); }
+  if (p.b !== undefined) { const b = Math.round(+p.b); if (!isFinite(b)) return false; c.b = Math.max(0, Math.min(100, b)); }
+  if (p.voice !== undefined) c.voice = !!p.voice;
+  t.sm = smIsDef(c) ? null : c;
+  t.smTouched = t.smTouched || !!t.sm;
+  clearTimeout(t.smT); t.smT = setTimeout(() => smApply(t), 30);   // geseran slider digabung supaya ringan
+  smPush();
+  return true;
+}
+function smPoll() {   // selagi panel terbuka: jaga mesin tetap aktif (mis. konteks audio yang tertidur) dan perbarui status
+  if (!smOpen) return;
+  ctx.tabs.forEach(t => { if (t.smTouched) smApply(t); });
+  smPush();
+}
+function smBounds(commit) {
+  const [w, h] = win.getContentSize(), g = smG(), c = Object.assign({}, g), top = fsActive() ? 0 : chromeH;
+  let r;
+  if (smMin) {
+    c.ix = Math.max(0, Math.min(w - SM_ICON, c.ix < 0 ? w - SM_ICON - 12 : c.ix));
+    c.iy = Math.max(top, Math.min(h - SM_ICON, c.iy < 0 ? top + 260 : c.iy));
+    r = { x: c.ix, y: c.iy, width: SM_ICON, height: SM_ICON };
+  } else {
+    const lw = Math.min(SM_MIN.w, w), lh = Math.min(SM_MIN.h, Math.max(0, h - top));
+    c.w = Math.max(lw, Math.min(c.w, Math.max(lw, w - 8))); c.h = Math.max(lh, Math.min(c.h, Math.max(lh, h - top - 8)));
+    c.x = Math.max(0, Math.min(w - c.w, c.x < 0 ? Math.max(0, w - c.w - 16) : c.x));
+    c.y = Math.max(top, Math.min(Math.max(top, h - c.h), c.y < 0 ? top + 110 : c.y));
+    r = { x: c.x, y: c.y, width: c.w, height: c.h };
+  }
+  if (commit) Object.assign(g, c);
+  return r;
+}
+function smLayout(raise) {
+  if (!smView || !win || win.isDestroyed() || !alive(smView.webContents)) return;
+  if (!smOpen || locked) { smView.setVisible(false); return; }
+  smView.setBounds(smBounds(false)); smView.setVisible(true);
+  if (raise) {
+    win.contentView.addChildView(smView); if (overlay) win.contentView.addChildView(overlay); if (fsBar) win.contentView.addChildView(fsBar);
+  }
+}
+function smEnsure() {
+  if (smView && alive(smView.webContents)) return;
+  smView = new WebContentsView({ webPreferences: { preload: path.join(__dirname, '..', 'preload', 'internal.js'), sandbox: true, contextIsolation: true } });
+  smView.setBackgroundColor('#00000000');
+  smView.webContents.on('before-input-event', (e, input) => { if (shortcut(e, input)) e.preventDefault(); });
+  smView.webContents.on('console-message', (_e, lvl, msg, line, src) => { if (lvl >= 2) log('soundmaster console', msg, src + ':' + line); });
+  win.contentView.addChildView(smView); smView.setVisible(false);
+  smView.webContents.loadURL('alethra://app/ui/sm.html');
+}
+function smOpenNow() {
+  if (setting('tools').sm === false) return;
+  smEnsure(); smOpen = true; smBounds(true); smLayout(true);
+  sendTo(smView.webContents, 'sm.mode', { min: smMin }); smPush();
+  clearInterval(smTimer); smTimer = setInterval(smPoll, 1500);
+}
+function smClose() {
+  if (!smOpen) return;
+  smOpen = false; smMin = false; clearInterval(smTimer); smTimer = null; smLayout();
+  if (smView && alive(smView.webContents)) sendTo(smView.webContents, 'sm.mode', { min: false });
+  try { const w = curWC(); if (alive(w)) w.focus(); } catch {}
+}
+function smSetMin(m) {
+  if (!smOpen) return;
+  smMin = !!m; smBounds(true); smLayout(true);
+  sendTo(smView.webContents, 'sm.mode', { min: smMin }); smPush();
+}
+function smToggle() {
+  if (setting('tools').sm === false) return;
+  if (!smOpen) return smOpenNow();
+  if (smMin) return smSetMin(false);
+  smClose();
+}
+function smDrag(ph, dx, dy) {
+  if (!smOpen || !win) return;
+  const g = smG();
+  if (ph === 'start') { smBounds(true); smBase = Object.assign({}, g); return; }
+  if (!smBase) return;
+  if (ph === 'end') { smBase = null; saveSetting('smbox', Object.assign({}, g)); return; }
+  dx = Math.round(+dx || 0); dy = Math.round(+dy || 0);
+  const [w, h] = win.getContentSize();
+  if (ph === 'move') { if (smMin) { g.ix = Math.max(0, smBase.ix + dx); g.iy = Math.max(0, smBase.iy + dy); } else { g.x = Math.max(0, smBase.x + dx); g.y = Math.max(0, smBase.y + dy); } }
+  else if (ph === 'resize' && !smMin) { g.w = Math.max(SM_MIN.w, Math.min(smBase.w + dx, Math.max(SM_MIN.w, w - g.x))); g.h = Math.max(SM_MIN.h, Math.min(smBase.h + dy, Math.max(SM_MIN.h, h - g.y))); }
+  else return;
+  smView.setBounds(smBounds(true));
+}
 /* ================= menu Tools (overlay) ================= */
 // Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play tetap ditampilkan (redup)
 // dengan keterangan, supaya pengguna tahu kenapa tidak bisa dipakai; klik membuka Pengaturan di tempat yang tepat.
@@ -1536,7 +1663,8 @@ function toolsMenuSpec() {
     [on('note') && I('note', 'Notepad', { key: 'Ctrl+Alt+N', check: noteShown() }),
      on('mini') && I('mini', 'Mini browser', { key: 'Ctrl+Alt+B', check: miniShown() }),
      on('clips') && I('clips', 'Riwayat clipboard', { key: 'Ctrl+Alt+C', check: clipShown() }),
-     on('xl') && I('xl', 'Penerjemah melayang', { key: 'Ctrl+Alt+X', check: xlShown() })],
+     on('xl') && I('xl', 'Penerjemah melayang', { key: 'Ctrl+Alt+X', check: xlShown() }),
+     on('sm') && I('sm', 'Sound Master', { key: 'Ctrl+Alt+M', check: smShown() })],
     [on('vq') && I('vq', 'Kualitas video…', { off: !web }),
      on('pip') && I('pip', 'Gambar dalam gambar', { off: !web }),
      on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
@@ -1652,6 +1780,7 @@ function menuAction(id) {
     case 'mini': return miniToggle();
     case 'clips': return clipToggle();
     case 'xl': return xlToggle();
+    case 'sm': return smToggle();
     case 'goto.play': return openSettingsAt('play');
     case 'goto.mesinoff': return openSettingsAt('mesinoff');
     case 'tools.config': { const ex = ctx.tabs.find(x => internalName(x.url) === 'settings' && !x.incog); if (ex) { go(ex, 'alethra://settings#tools'); return selectTab(ex.id); } return createTab('alethra://settings#tools'); }
@@ -1684,7 +1813,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open', 'site.open', 'site.act', 'note.state', 'note.save', 'note.close', 'note.min', 'note.restore', 'note.drag', 'note.clip', 'note.export', 'note.pick']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open', 'site.open', 'site.act', 'note.state', 'note.save', 'note.close', 'note.min', 'note.restore', 'note.drag', 'note.clip', 'note.export', 'note.pick', 'sm.state', 'sm.set', 'sm.reset', 'sm.switch', 'sm.all', 'sm.close', 'sm.min', 'sm.restore', 'sm.drag']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -1824,6 +1953,7 @@ const API = {
     if (k === 'tools' && v.mini === false) miniClose();
     if (k === 'tools' && v.clips === false) clipClose();
     if (k === 'tools' && v.xl === false) xlClose();
+    if (k === 'tools' && v.sm === false) smClose();
     if (['sta', 'stspeed', 'stlang', 'stengine', 'stmodel', 'stwmodel', 'stvmodel', 'trmode'].includes(k)) STT.refresh();
     if (k === 'stt' && !v) STT.stop();
     if (k === 'splitMode' || k === 'splitRatio') { ratioLive = null; layout(); }
@@ -1904,6 +2034,15 @@ const API = {
   'xl.min': () => xlSetMin(true),
   'xl.restore': () => xlSetMin(false),
   'xl.drag': (e, ph, dx, dy) => xlDrag(ph, dx, dy),
+  'sm.state': () => smState(),
+  'sm.set': (e, id, p) => smSet(+id, p),
+  'sm.reset': (e, id) => smSet(+id, { v: 100, b: 0, voice: false }),
+  'sm.switch': (e, id) => { const t = ctx.tabs.find(x => x.id === +id); if (t) selectTab(t.id); return !!t; },
+  'sm.all': (e, on) => { smAll = !!on; smPush(); return smAll; },
+  'sm.close': () => smClose(),
+  'sm.min': () => smSetMin(true),
+  'sm.restore': () => smSetMin(false),
+  'sm.drag': (e, ph, dx, dy) => smDrag(ph, dx, dy),
   'note.pick': () => notePick(),
   'stt.drag': (e, dx, dy) => STT.drag(+dx || 0, +dy || 0),
   'stt.resetpos': () => STT.resetPos(),
@@ -2001,7 +2140,7 @@ async function needAuthStrict() {
 }
 ipcMain.handle('api', async (e, name, ...args) => {
   if (!isInternalSender(e)) return null;
-  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && !(miniView && e.sender === miniView.webContents) && !(clipView && e.sender === clipView.webContents) && !(xlView && e.sender === xlView.webContents) && name !== 'dl.open') return null;
+  if (UIONLY.has(name) && e.sender !== chromeWC && !(overlay && e.sender === overlay.webContents) && !(fsBar && e.sender === fsBar.webContents) && !(noteView && e.sender === noteView.webContents) && !(miniView && e.sender === miniView.webContents) && !(clipView && e.sender === clipView.webContents) && !(xlView && e.sender === xlView.webContents) && !(smView && e.sender === smView.webContents) && name !== 'dl.open') return null;
   const f = API[name]; if (!f) return null;
   try { return await f(e, ...args); } catch (err) { console.error('api', name, err); return null; }
 });
