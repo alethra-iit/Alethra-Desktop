@@ -45,6 +45,36 @@ html,body{height:100%;overflow:hidden}
 .lst.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:16px 14px;align-items:start}
 .lst.grid.wide{grid-template-columns:repeat(auto-fill,minmax(224px,1fr))}
 .lst.grid .empty,.lst.grid .more{grid-column:1/-1}
+/* pilih banyak */
+.it .ic{position:relative}.it .ic .ck{display:none}
+#lv.selmode{padding-bottom:84px}
+#lv.selmode .it .acts{display:none}#lv.selmode .it[data-p]{user-select:none}
+#lv.selmode .it[data-p] .ic .ck{display:flex;position:absolute;inset:0;z-index:2;align-items:center;justify-content:center;border-radius:inherit;border:2px solid var(--sub);background:var(--bg);color:transparent;box-sizing:border-box}
+#lv.selmode .it.pk .ic .ck{background:var(--acc);border-color:var(--acc);color:var(--onacc)}
+#lv.selmode .lst.grid .it[data-p] .ic .ck{inset:auto;left:6px;top:6px;width:24px;height:24px;border-radius:50%;border-color:#fff;background:rgba(0,0,0,.5)}
+#lv.selmode .lst.grid .it.pk .ic .ck{background:var(--acc);border-color:var(--acc)}
+#lv.selmode .lst.grid.sm .it[data-p] .ic .ck{left:4px;top:4px;width:20px;height:20px}
+.it.pk{background:var(--surf2)}.lst.grid .it.pk{box-shadow:inset 0 0 0 2px var(--acc)}
+.btn.on{background:var(--acc);color:var(--onacc);border-color:transparent}
+.sbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:6;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;width:max-content;max-width:calc(100% - 24px);padding:8px 10px;background:var(--bg);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.sbar[hidden],.sbar .btn[hidden]{display:none}.sbar b{font-size:13px;margin:0 4px}.sbar .btn:disabled{opacity:.4;pointer-events:none}
+/* tabel detail: judul, format, durasi, ukuran, tanggal. Kepala kolom lengket di atas; durasi dimuat malas */
+:root{--dcols:36px minmax(0,1fr) 64px 64px 84px 118px 32px}
+.it .cl,.it .ic .dur{display:none}
+.dth{position:sticky;top:0;z-index:3;display:grid;grid-template-columns:var(--dcols);gap:12px;align-items:center;padding:7px 10px;margin-bottom:4px;border-bottom:1px solid var(--line);background:var(--bg);font-size:12px;color:var(--sub)}
+.dth[hidden]{display:none}.dth.stuck{box-shadow:0 -20px 0 var(--bg)}
+.dth button{display:flex;align-items:center;gap:4px;min-width:0;padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.dth button:hover,.dth button.on{color:var(--fg)}.dth i{font-style:normal;font-size:9px}
+.dth .r{text-align:right;justify-content:flex-end}
+.lst.detail .it[data-p]{display:grid;grid-template-columns:var(--dcols);gap:12px;min-height:46px}
+.lst.detail .it[data-p] .cl{display:contents}
+.lst.detail .it[data-p] .cl span{font-size:12.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lst.detail .it[data-p] .cl .cd,.lst.detail .it[data-p] .cl .cs{text-align:right;font-variant-numeric:tabular-nums}
+.lst.detail .it[data-p] .tx .s{display:none}
+/* lencana durasi di kartu gambar */
+.lst.grid .it .ic .dur{display:block;position:absolute;right:5px;bottom:5px;z-index:1;padding:1px 5px;border-radius:5px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;line-height:1.4;font-variant-numeric:tabular-nums}
+.lst.grid .it .ic .dur:empty{display:none}
+.lst.grid.sm .it .ic .dur{right:3px;bottom:3px;padding:0 3px;border-radius:4px;font-size:9.5px}
 /* gambar kecil: setengah ukuran kartu gambar */
 .lst.grid.sm{grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:10px 8px}
 .lst.grid.sm.wide{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
@@ -100,6 +130,7 @@ html,body{height:100%;overflow:hidden}
 .cb:hover{background:var(--surf2)}.cb:disabled{opacity:.35;pointer-events:none}
 .cb.on{color:var(--acc)}.cb.on:after{content:"";position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:currentColor}
 .cb svg.i{width:19px;height:19px}.cb svg.f{fill:currentColor}
+.cb.sp{width:auto;min-width:40px;padding:0 9px;border-radius:18px;font-size:12px;font-weight:700}
 .cb.big{width:46px;height:46px;background:var(--acc);color:var(--onacc)}.cb.big:hover{background:var(--acc);opacity:.88}.cb.big svg.i{width:22px;height:22px}
 .vol{width:88px}
 input[type=range]{-webkit-appearance:none;appearance:none;height:16px;background:transparent;margin:0;cursor:pointer;--p:0%}
@@ -119,6 +150,6 @@ body.fs #np{padding:0;position:fixed;inset:0;background:#000}body.fs .stage{bord
 body.fs .pl{position:fixed;left:0;right:0;bottom:0;border:0;background:linear-gradient(transparent,rgba(0,0,0,.82));color:#fff;--fg:#fff;--sub:#c9c9cf;--surf2:rgba(255,255,255,.28);--acc:#fff;--onacc:#111;padding-top:28px;transition:opacity .2s}
 body.fs.idle .pl{opacity:0;pointer-events:none}body.fs.idle{cursor:none}
 @media(max-width:900px){#np{flex-direction:column}.q{width:auto;max-height:36%}}
-@media(max-width:760px){.lst.grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.lst.grid.wide{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.lst.grid.sm{grid-template-columns:repeat(auto-fill,minmax(64px,1fr))}.lst.grid.sm.wide{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}.ap{grid-template-columns:56px minmax(0,1fr)}.nv{justify-content:center;padding:0}.nv span,.sb .lg span{display:none}.sb .lg{justify-content:center;padding:2px 0 12px}.vol{display:none}.view{padding:16px}.pl{padding:8px 12px}}
+@media(max-width:760px){:root{--dcols:36px minmax(0,1fr) 60px 80px 32px}.lst.detail .it[data-p] .cl .ce,.lst.detail .it[data-p] .cl .cm,.dth .ce,.dth .cm{display:none}.lst.grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.lst.grid.wide{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.lst.grid.sm{grid-template-columns:repeat(auto-fill,minmax(64px,1fr))}.lst.grid.sm.wide{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}.ap{grid-template-columns:56px minmax(0,1fr)}.nv{justify-content:center;padding:0}.nv span,.sb .lg span{display:none}.sb .lg{justify-content:center;padding:2px 0 12px}.vol{display:none}.view{padding:16px}.pl{padding:8px 12px}}
 </style></head><body><div class="ap" id="ap"></div><div id="toast"></div>
 <script src="alethra://app/shared.js"></script><script src="alethra://app/pages/play.js"></script></body></html>

@@ -157,7 +157,7 @@ function api(U) {
         d.history = clampArr(v, 300).filter(x => x && typeof x.p === 'string' && isMedia(x.p)).map(x => ({ p: str(x.p, 600), n: str(x.n, 300), k: kindOf(x.p), t: +x.t || Date.now() }));
       } else if (key === 'state') {
         if (!v || typeof v !== 'object') return false;
-        d.state = { vol: Math.max(0, Math.min(1, +v.vol)) || 0, muted: !!v.muted, shuffle: !!v.shuffle, repeat: ['off', 'all', 'one'].includes(v.repeat) ? v.repeat : 'off', view: v.view === 'grid' || v.view === 'small' ? v.view : 'list' };
+        d.state = { vol: Math.max(0, Math.min(1, +v.vol)) || 0, muted: !!v.muted, shuffle: !!v.shuffle, repeat: ['off', 'all', 'one'].includes(v.repeat) ? v.repeat : 'off', view: ['grid', 'small', 'detail'].includes(v.view) ? v.view : 'list', rate: Math.max(0.25, Math.min(3, +v.rate || 1)) };
       } else if (key === 'resume') {
         if (!v || typeof v !== 'object') return false;
         const o = {}; Object.keys(v).slice(-200).forEach(k => { if (isMedia(k) && Number.isFinite(+v[k])) o[str(k, 600)] = Math.round(+v[k]); });
