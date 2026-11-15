@@ -248,6 +248,7 @@ async function run(j) {
   me.lat = ' · tunda ' + ((Date.now() - j.t) / 1000).toFixed(1) + ' dtk'; setStatus(trFail || null);
 }
 // terjemahan: offline (Opus-MT, CTranslate2, Bergamot atau NLLB) bila dipilih, dengan cadangan Google Translate; selain itu Google Translate
+let mmBlock = 0;   // MyMemory dilewati sampai waktu ini bila jatah hariannya habis
 async function translateText(text, src, tgt) {
   text = text.slice(0, 500);
   const mode = SV.setting('trmode');
@@ -256,10 +257,22 @@ async function translateText(text, src, tgt) {
     try { return await OFF.translateBy(mode, text, sl, tgt); }
     catch (e) { if (SV.setting('mtfb') === false) throw new Error(e && e.missing ? e.message : 'Terjemahan offline gagal: ' + (e && e.message)); }
   }
-  let r = '';
-  try { r = await SV.trOne(text, tgt); } catch { throw new Error('Google Translate gagal, periksa internet'); }
-  if (!r || !r.trim()) throw new Error('Google Translate tidak memberi hasil (mungkin dibatasi), coba lagi');
-  return r;
+  const gg = async () => {
+    let r = '';
+    try { r = await SV.trOne(text, tgt); } catch { throw new Error('Google Translate gagal, periksa internet'); }
+    if (!r || !r.trim()) throw new Error('Google Translate tidak memberi hasil (mungkin dibatasi), coba lagi');
+    return r;
+  };
+  const mm = async () => {
+    if (Date.now() < mmBlock) throw new Error('Jatah MyMemory habis, dicoba lagi nanti');
+    try { return await SV.mmOne(text, String(src || '').split('-')[0].toLowerCase() === 'zh' ? 'zh' : (src || 'auto'), tgt, SV.setting('mymemEmail')); }
+    catch (e) { if (e && e.quota) mmBlock = Date.now() + 15 * 60 * 1000; throw e; }
+  };
+  const first = mode === 'mymemory';
+  const order = first ? [mm, gg] : (SV.setting('mymemfb') === false ? [gg] : [gg, mm]);
+  const errs = [];
+  for (const f of order) { try { return await f(); } catch (e) { errs.push(e && e.message ? e.message : 'gagal'); } }
+  throw new Error(errs.join(' · '));
 }
 // kalimat bernomor urut: yang terlambat masuk ke slot "sebelumnya", tidak menimpa yang lebih baru
 function place(seq, patch) {

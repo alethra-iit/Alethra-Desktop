@@ -272,7 +272,7 @@
       const curM = isLocal && OEs.stt.find(m => m.id === S[SELK[S.stengine]] && m.installed);
       const goOff = () => { sec = 'mesinoff'; history.replaceState(null, '', '#mesinoff'); renderSec(true); };
       /* ringkasan di atas + sub-bagian, supaya halaman tidak panjang */
-      const trName = { online: 'Google Translate', offline: 'Opus-MT', ct2: 'CTranslate2', bergamot: 'Bergamot', nllb: 'NLLB' }[S.trmode] || S.trmode;
+      const trName = { online: 'Google Translate', mymemory: 'MyMemory', offline: 'Opus-MT', ct2: 'CTranslate2', bergamot: 'Bergamot', nllb: 'NLLB' }[S.trmode] || S.trmode;
       const engName = S.stengine === 'cloud' ? 'Whisper cloud' : ENGN[S.stengine];
       const modelName = isLocal ? (curM ? curM.title : 'belum terpasang') : ({ groq: 'Groq', openai: 'OpenAI', custom: 'Server sendiri' }[S.stprov] || S.stprov);
       let warn = '';
@@ -322,7 +322,11 @@
         if (S.stkeyMask) { const kd = document.createElement('button'); kd.className = 'btn sm danger'; kd.textContent = 'Hapus'; kd.onclick = () => api('stt.key', ''); kb.appendChild(kd); }
         sr.push(row('Kunci API', S.stkeyMask || (S.stprov === 'custom' ? 'Opsional untuk server lokal' : 'Belum diisi. Dapatkan gratis di console.groq.com'), kb));
       }
-      sr.push(select('Terjemahan hasil suara', 'Online memakai Google Translate. Opus-MT: model kecil per pasangan bahasa. CTranslate2: model Opus-MT yang dijalankan mesin lebih cepat. Bergamot: mesin Firefox, model paling kecil dan cepat. NLLB: satu model besar, lebih akurat untuk bahasa langka. Keduanya bisa dipakai dengan mesin suara apa pun.', [['online', 'Online (Google Translate)'], ['offline', 'Offline · Opus-MT (ringan, per pasangan)'], ['ct2', 'Offline · CTranslate2 (Opus-MT, lebih cepat)'], ['bergamot', 'Offline · Bergamot (mesin Firefox, sangat ringan)'], ['nllb', 'Offline · NLLB-200 600M (Transformers.js, semua bahasa)']], S.trmode, v => set('trmode', v)));
+      sr.push(select('Terjemahan hasil suara', 'Online memakai Google Translate. Opus-MT: model kecil per pasangan bahasa. CTranslate2: model Opus-MT yang dijalankan mesin lebih cepat. Bergamot: mesin Firefox, model paling kecil dan cepat. NLLB: satu model besar, lebih akurat untuk bahasa langka. Keduanya bisa dipakai dengan mesin suara apa pun.', [['online', 'Online (Google Translate)'], ['mymemory', 'Online (MyMemory, gratis tanpa kunci)'], ['offline', 'Offline · Opus-MT (ringan, per pasangan)'], ['ct2', 'Offline · CTranslate2 (Opus-MT, lebih cepat)'], ['bergamot', 'Offline · Bergamot (mesin Firefox, sangat ringan)'], ['nllb', 'Offline · NLLB-200 600M (Transformers.js, semua bahasa)']], S.trmode, v => set('trmode', v)));
+      sr.push(toggle('mymemfb', 'Cadangan MyMemory', 'Bila Google Translate gagal atau kosong, coba MyMemory (gratis, tanpa kunci). Anonim 5.000 karakter/hari. Teks yang diterjemahkan dikirim ke api.mymemory.translated.net'));
+      { const mi = document.createElement('input'); mi.className = 'inp'; mi.style.width = '260px'; mi.placeholder = 'email@contoh.com (opsional)'; mi.value = S.mymemEmail || '';
+        mi.onchange = async () => { const v = mi.value.trim(); if (!(await set('mymemEmail', v))) { alert('Alamat email tidak valid'); mi.value = S.mymemEmail || ''; } };
+        sr.push(row('Email untuk MyMemory', 'Opsional. Dengan email, jatah naik dari 5.000 jadi 50.000 karakter per hari tanpa verifikasi. Email ikut dikirim ke MyMemory.', mi)); }
       if (S.trmode === 'nllb') {
         sr.push(button('Model NLLB-200 600M', OEs.nllb && OEs.nllb.installed ? 'Terpasang (' + fmtBytes(OEs.nllb.bytes) + '). Satu model untuk semua pasangan bahasa.' : 'Belum terpasang (±900 MB). Unduh dulu. Butuh ±1,5 GB RAM saat dipakai.', 'Kelola model…', goOff));
       }
@@ -420,7 +424,7 @@
       A(grp('Mesin'));
       A(box([
         select('Mesin suara ke teks', '', [['cloud', 'Whisper cloud'], ['offline', 'Offline · sherpa-onnx'], ['tjs', 'Offline · Whisper (Transformers.js)'], ['vosk', 'Offline · Vosk']], S.stengine, v => set('stengine', v)),
-        select('Terjemahan hasil suara', '', [['online', 'Online (Google Translate)'], ['offline', 'Offline · Opus-MT'], ['ct2', 'Offline · CTranslate2'], ['bergamot', 'Offline · Bergamot'], ['nllb', 'Offline · NLLB-200 600M (Transformers.js)']], S.trmode, v => set('trmode', v))]));
+        select('Terjemahan hasil suara', '', [['online', 'Online (Google Translate)'], ['mymemory', 'Online (MyMemory)'], ['offline', 'Offline · Opus-MT'], ['ct2', 'Offline · CTranslate2'], ['bergamot', 'Offline · Bergamot'], ['nllb', 'Offline · NLLB-200 600M (Transformers.js)']], S.trmode, v => set('trmode', v))]));
       }
 
       if (offSub === 'suara') {
@@ -454,7 +458,7 @@
 
       if (offSub === 'terjemahan' && !['offline', 'ct2', 'bergamot', 'nllb'].includes(S.trmode)) {
         A(grp('Terjemahan offline'));
-        A(el('<p class=\"sub\" style=\"font-size:12.5px;margin:0 0 8px\">Terjemahan hasil suara memakai Google Translate (online), jadi tidak ada model yang perlu diunduh. Pilih Opus-MT, CTranslate2, Bergamot atau NLLB-200 di atas untuk melihat daftar bahasa dan model yang bisa diunduh.</p>'));
+        A(el('<p class=\"sub\" style=\"font-size:12.5px;margin:0 0 8px\">Terjemahan hasil suara memakai layanan online (Google Translate atau MyMemory), jadi tidak ada model yang perlu diunduh. Pilih Opus-MT, CTranslate2, Bergamot atau NLLB-200 di atas untuk melihat daftar bahasa dan model yang bisa diunduh.</p>'));
       }
       /* ----- terjemahan offline ----- */
       const LN = OE.langs; const base = (v) => String(v || '').split('-')[0].toLowerCase();

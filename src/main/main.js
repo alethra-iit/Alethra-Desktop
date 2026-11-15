@@ -1947,7 +1947,8 @@ const API = {
     if (['clock', 'sta', 'stf', 'stb', 'tools'].includes(k)) { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = (k === 'stf' || k === 'stb') ? STT.sanitize(k, o) : o; }
     if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;
     if (k === 'stengine' && !['cloud', 'offline', 'tjs', 'vosk'].includes(v)) return false;
-    if (k === 'trmode' && !['online', 'offline', 'nllb', 'ct2', 'bergamot'].includes(v)) return false;
+    if (k === 'trmode' && !['online', 'mymemory', 'offline', 'nllb', 'ct2', 'bergamot'].includes(v)) return false;
+    if (k === 'mymemEmail' && v && !/^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(v)) return false;
     if (['stmodel', 'stwmodel', 'stvmodel'].includes(k) && !OFF.validModel(v, k)) return false;
     if (k === 'ofthreads' && !(Number.isInteger(v) && v >= 0 && v <= 16)) return false;
     if (k === 'stspeed' && !['fast', 'bal', 'eco'].includes(v)) return false;

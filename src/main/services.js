@@ -15,7 +15,7 @@ const DEFAULTS = {
     { n: 'Wikipedia', u: 'https://id.wikipedia.org' }, { n: 'GitHub', u: 'https://github.com' }],
   clock: { c: 'analog', p: 'mid', z: 1, k: 't', al: 'c', d2: 0, h24: true, q: false, y: true, n: true, b: true },
   logo: true, grad: false, wall: 0, dim: 1,
-  ptr: true, stt: true, stengine: 'cloud', stmodel: '', stwmodel: '', stvmodel: '', trmode: 'online', sttTr: '', upauto: true, mtfb: true, hfmirror: '', sthist: true, stauto: false, stside: false, splitMode: 'auto', splitRatio: 0.5, ofthreads: 0, stprov: 'groq', stspeed: 'bal', stlang: '', stcurl: '', stcmodel: 'whisper-1',
+  ptr: true, stt: true, stengine: 'cloud', stmodel: '', stwmodel: '', stvmodel: '', trmode: 'online', sttTr: '', mymemfb: true, mymemEmail: '', upauto: true, mtfb: true, hfmirror: '', sthist: true, stauto: false, stside: false, splitMode: 'auto', splitRatio: 0.5, ofthreads: 0, stprov: 'groq', stspeed: 'bal', stlang: '', stcurl: '', stcmodel: 'whisper-1',
   sta: { pg: 1, min: 0, max: 0, sens: 2.8, dur: 300, ns: 0, gate: 0, hp: 80, lp: 0, auto: 6, minlen: 2, filt: true, meter: false, legacy: false },
   // layar penuh. bgop -1 = ikut opsi lama `bg` (dim=62, solid=100, none=0). width/height/sizepx 0 = otomatis.
   stf: { size: 'md', pos: 'bottom', bg: 'dim', color: 'white', orig: true, bgop: -1, bgcol: '#000000', sizepx: 0, width: 0, height: 0, radius: 12, offy: 0, bold: true, shadow: 'auto' },
@@ -281,6 +281,32 @@ async function trOne(text, lang) {
   if (!r.ok) return '';
   const j = await r.json(); return (j[0] || []).map(s => s[0] || '').join('');
 }
+// MyMemory (gratis, tanpa kunci): anonim 5.000 karakter/hari, dengan email 50.000/hari. Batas satu permintaan ±500 byte, jadi teks dipecah.
+// Peringatan kuota kadang datang sebagai "terjemahan" biasa (status 200), jadi dikenali dari isinya dan dianggap gagal (e.quota = true).
+const MM_LANG = { zh: 'zh-CN' };
+const mmDecode = (t) => String(t || '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+function mmChunks(text, max) {
+  const parts = text.match(/[^。！？.!?\n]+[。！？.!?]*\s*/g) || [text], out = []; let cur = '';
+  const push = (p) => { if (Buffer.byteLength(cur + p) > max && cur) { out.push(cur); cur = ''; } cur += p; };
+  for (let p of parts) { while (Buffer.byteLength(p) > max) { let k = Math.floor(max / 3); push(p.slice(0, k)); p = p.slice(k); } push(p); }
+  if (cur.trim()) out.push(cur); return out;
+}
+async function mmOne(text, src, tgt, email) {
+  const sl = src && src !== 'auto' ? (MM_LANG[src] || src) : 'Autodetect', tl = MM_LANG[tgt] || tgt;
+  if (sl === tl) return text;
+  let out = '';
+  for (const q of mmChunks(String(text), 450)) {
+    if (!q.trim()) { out += q; continue; }
+    const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(q) + '&langpair=' + encodeURIComponent(sl + '|' + tl) + (email ? '&de=' + encodeURIComponent(email) : '');
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+    let j = null; try { j = await r.json(); } catch {}
+    const t = j && j.responseData && j.responseData.translatedText, st = j ? +j.responseStatus : r.status;
+    if (r.status === 429 || (j && j.quotaFinished) || /MYMEMORY WARNING|USED ALL AVAILABLE FREE/i.test(String(t || '') + ' ' + String((j && j.responseDetails) || ''))) { const e = new Error('Jatah harian MyMemory habis'); e.quota = true; throw e; }
+    if (!r.ok || st !== 200 || !t) throw new Error('MyMemory gagal' + (j && j.responseDetails ? ': ' + String(j.responseDetails).slice(0, 80) : ' (HTTP ' + r.status + ')'));
+    out += mmDecode(t);
+  }
+  return out;
+}
 async function trBatch(arr, lang) {
   try {
     const [sl, tl] = splitLang(lang);
@@ -380,6 +406,6 @@ function applyDoh() {
   } catch (e) { console.error('doh', e.message); }
 }
 
-module.exports = { CHROME_MAJOR, trOne, DEFAULTS, setting, saveSetting, UA, MOBILE_UA, isMobileSite, localOk, offDir, setupSession, getPerm, setPerm, listPerms, PERM_LABEL,
+module.exports = { CHROME_MAJOR, trOne, mmOne, DEFAULTS, setting, saveSetting, UA, MOBILE_UA, isMobileSite, localOk, offDir, setupSession, getPerm, setPerm, listPerms, PERM_LABEL,
   dlAct, recordSaved, listDownloads, dlSummary, dlPush, dlDir, pwFind, pwPut, dec, enc, initTranslate, saveOffline, exportBookmarksHtml, importBookmarksHtml,
   verifyPin, setPin, hashPin, clearData, applyDoh, EXT };
