@@ -178,7 +178,8 @@ function fsbarPos() {
 }
 function renderFsBar() {
   if (!fsBar || !win || win.isDestroyed()) return;
-  if (!fsActive() || OV.modal) { fsBar.setVisible(false); return; }
+  // fsId != null = elemen halaman (video/AlethPlay) sedang layar penuh: bilah disembunyikan agar tidak mengganggu tontonan. Tetap tampil di layar penuh F11.
+  if (!fsActive() || fsId != null || OV.modal) { fsBar.setVisible(false); return; }
   const [w] = win.getContentSize(), p = fsDrag ? fsDrag.cur : fsbarPos();
   fsBar.setBounds({ x: Math.max(0, w - p.r - FSB.w), y: p.y, width: FSB.w, height: FSB.h });
   fsBar.setVisible(true);
@@ -1964,6 +1965,7 @@ const API = {
     if (['stmodel', 'stwmodel', 'stvmodel'].includes(k) && !OFF.validModel(v, k)) return false;
     if (k === 'ofthreads' && !(Number.isInteger(v) && v >= 0 && v <= 16)) return false;
     if (k === 'stspeed' && !['fast', 'bal', 'eco'].includes(v)) return false;
+    if (k === 'playresume' && !['off', 'auto', 'ask'].includes(v)) return false;
     if (k === 'hfmirror' && v && !/^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)[^\s]*$/i.test(v)) return false;
     if (k === 'splitMode' && !['auto', 'h', 'v'].includes(v)) return false;
     if (k === 'splitRatio' && !(typeof v === 'number' && v >= 0.15 && v <= 0.85)) return false;

@@ -144,6 +144,8 @@ input[type=range]:disabled{opacity:.4;cursor:default}
 .pm .hh{padding:4px 10px;font-size:11px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.5px}
 #toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:18px;font-size:13px;z-index:70;opacity:0;pointer-events:none;transition:opacity .15s;max-width:80vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #toast.on{opacity:1}
+#rsm{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);display:none;align-items:center;gap:4px;background:var(--fg);color:var(--bg);padding:6px 6px 6px 14px;border-radius:20px;font-size:13px;z-index:71;max-width:92vw;box-shadow:var(--shadow)}#rsm.on{display:flex}
+#rsm button{border:0;cursor:pointer;font:inherit;border-radius:14px;padding:5px 12px;background:var(--acc);color:var(--onacc)}#rsm .x{background:none;color:inherit;padding:5px 9px;opacity:.7}#rsm .x:hover{opacity:1}
 /* layar penuh (video) */
 body.fs .ap{display:block}body.fs .sb,body.fs .q,body.fs .view:not(#np){display:none}
 body.fs #np{padding:0;position:fixed;inset:0;background:#000}body.fs .stage{border-radius:0}body.fs .err{display:none}
@@ -151,5 +153,5 @@ body.fs .pl{position:fixed;left:0;right:0;bottom:0;border:0;background:linear-gr
 body.fs.idle .pl{opacity:0;pointer-events:none}body.fs.idle{cursor:none}
 @media(max-width:900px){#np{flex-direction:column}.q{width:auto;max-height:36%}}
 @media(max-width:760px){:root{--dcols:36px minmax(0,1fr) 60px 80px 32px}.lst.detail .it[data-p] .cl .ce,.lst.detail .it[data-p] .cl .cm,.dth .ce,.dth .cm{display:none}.lst.grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.lst.grid.wide{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.lst.grid.sm{grid-template-columns:repeat(auto-fill,minmax(64px,1fr))}.lst.grid.sm.wide{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}.ap{grid-template-columns:56px minmax(0,1fr)}.nv{justify-content:center;padding:0}.nv span,.sb .lg span{display:none}.sb .lg{justify-content:center;padding:2px 0 12px}.vol{display:none}.view{padding:16px}.pl{padding:8px 12px}}
-</style></head><body><div class="ap" id="ap"></div><div id="toast"></div>
+</style></head><body><div class="ap" id="ap"></div><div id="toast"></div><div id="rsm"><span>Lanjutkan video?</span><button id="rsmGo"></button><button class="x" id="rsmX" title="Tutup" aria-label="Tutup">✕</button></div>
 <script src="alethra://app/shared.js"></script><script src="alethra://app/pages/play.js"></script></body></html>

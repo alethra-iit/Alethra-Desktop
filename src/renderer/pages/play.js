@@ -1,6 +1,6 @@
 /* AlethPlay — antarmuka pemutar musik & video (alethra://play). Data & file lewat API play.* di main (play.js). */
 (async function () {
-  await pageInit();
+  let S = {}; S = (await pageInit(s => { S = s || S; })) || S;
   const D = (await api('play.get')) || {};
   let lists = D.lists || [], hist = D.history || [], resume = D.resume || {};
   const st = Object.assign({ vol: 1, muted: false, shuffle: false, repeat: 'off', view: 'list', rate: 1 }, D.state || {});
@@ -60,13 +60,19 @@
     if (!ok.length) return toast('Berkas tidak ditemukan');
     Q = ok.slice(); buildOrder(Math.max(0, Q.indexOf(target))); load(pos); go('np');
   }
+  let rsmT; const hideRsm = () => { clearTimeout(rsmT); $('#rsm').classList.remove('on'); };
+  function offerResume(t) {
+    clearTimeout(rsmT); $('#rsmGo').textContent = 'Lanjutkan dari ' + fmtT(t); $('#rsm').classList.add('on');
+    $('#rsmGo').onclick = () => { if (isFinite(v.duration)) v.currentTime = Math.min(t, Math.max(0, v.duration - 1)); hideRsm(); };
+    $('#rsmX').onclick = hideRsm; rsmT = setTimeout(hideRsm, 12000);
+  }
   function load(i) {
-    pos = i; const it = cur(); if (!it) return stop();
+    hideRsm(); pos = i; const it = cur(); if (!it) return stop();
     v.src = it.u; v.playbackRate = st.rate; hideErr(); v.play().catch(() => {});
     hist = hist.filter(x => x.p !== it.p); hist.unshift({ p: it.p, n: it.n, k: it.k, t: Date.now() }); if (hist.length > 200) hist.length = 200; saveHist();
     ui();
   }
-  function stop() { Q = []; order = []; pos = -1; v.pause(); v.removeAttribute('src'); v.load(); hideErr(); ui(); }
+  function stop() { hideRsm(); Q = []; order = []; pos = -1; v.pause(); v.removeAttribute('src'); v.load(); hideErr(); ui(); }
   function next(auto) {
     if (!Q.length) return;
     if (pos + 1 < order.length) return load(pos + 1);
@@ -104,7 +110,9 @@
   v.addEventListener('playing', () => { errN = 0; hideErr(); });
   v.addEventListener('loadedmetadata', () => {
     const it = cur(); $('#td').textContent = fmtT(v.duration); $('#seek').disabled = !isFinite(v.duration);
-    const r = it && it.k === 'v' && resume[it.p]; if (r > 5 && r < v.duration - 10) v.currentTime = r;
+    // Lanjutkan dari posisi terakhir sesuai pengaturan Play → Video: off (default) = dari awal · auto = langsung lanjut · ask = mulai dari awal + tombol "Lanjutkan dari …"
+    const r = it && it.k === 'v' && resume[it.p], mode = S.playresume || 'off';
+    if (r > 5 && r < v.duration - 10) { if (mode === 'auto') v.currentTime = r; else if (mode === 'ask') offerResume(r); }
   });
   v.addEventListener('timeupdate', () => {
     const d = v.duration || 0, t = v.currentTime;
@@ -195,16 +203,22 @@
     if (has && 'mediaSession' in navigator) { try { navigator.mediaSession.metadata = new MediaMetadata({ title: base(it.n), artist: 'AlethPlay' }); navigator.mediaSession.playbackState = v.paused ? 'paused' : 'playing'; } catch {} }
     uiVol(); renderQueue(); renderMini();
   }
+  let qPos = -1;
   function renderQueue() {
     const ql = $('#ql'); if (!Q.length) { ql.innerHTML = ''; return; }
     $('#qn').textContent = 'Antrean · ' + Q.length;
+    const keepTop = ql.scrollTop, moved = qPos !== pos; qPos = pos;
     ql.innerHTML = '';
-    const from = Math.max(0, pos - 3), to = Math.min(order.length, from + 200);
+    // Tampilkan seluruh antrean (termasuk lagu/video sebelum yang sedang diputar). Antrean sangat besar dijendelakan di sekitar posisi sekarang.
+    const N = order.length, from = N <= 600 ? 0 : Math.max(0, pos - 150), to = N <= 600 ? N : Math.min(N, from + 600);
     for (let k = from; k < to; k++) {
       const it = Q[order[k]], r = el(`<div class="it${k === pos ? ' now' : ''}" data-p="${esc(it.p)}"><div class="ic">${ICON(it.k === 'v' ? 'video' : 'music', 15)}</div><div class="tx"><div class="t">${esc(base(it.n))}</div></div><div class="acts"><button class="ib" title="Hapus dari antrean">${ICON('close', 15)}</button></div></div>`);
       r.onclick = (e) => { if (e.target.closest('.ib')) removeAt(k); else load(k); };
       ql.appendChild(r);
     }
+    // Posisi gulir dipertahankan saat render ulang (mis. jeda/putar); pindah ke item yang sedang diputar hanya bila lagunya berganti.
+    const now = ql.querySelector('.it.now');
+    if (moved && now) ql.scrollTop = Math.max(0, now.offsetTop - ql.offsetTop - Math.round(ql.clientHeight / 3)); else ql.scrollTop = keepTop;
   }
   function renderMini() { const p = cur() && cur().p; $$('#lv .it[data-p]').forEach(r => r.classList.toggle('now', r.dataset.p === p)); }
 

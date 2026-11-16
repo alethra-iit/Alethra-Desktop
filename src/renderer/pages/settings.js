@@ -294,6 +294,7 @@
       A(pills);
       if (playSub === 'umum') {
       A(grp('Video')); A(box([
+        select('Lanjutkan video dari posisi terakhir', 'Berlaku untuk video di AlethPlay yang durasinya lebih dari 30 detik. Mati: selalu mulai dari awal. Otomatis: langsung lanjut dari posisi terakhir. Tanya dulu: video mulai dari awal dan muncul tombol "Lanjutkan dari …"', [['off', 'Mati (selalu dari awal)'], ['auto', 'Otomatis'], ['ask', 'Tanya dulu']], S.playresume || 'off', v => set('playresume', v)),
         toggle('adblock', 'Blokir iklan YouTube', 'Hilangkan iklan video dan banner di YouTube'),
         row('Perkecil video', 'Tools → Gambar dalam gambar (PiP bawaan Chromium), bisa dipakai di situs apa pun', null)]));
       A(grp('Terjemahan')); A(box([
