@@ -1,10 +1,11 @@
 (function () {
-  // Dua tombol melayang saat layar penuh: Tools dan titik tiga (menu utama).
+  // Tiga tombol kotak melayang saat layar penuh (1 baris × 3 kolom): Tools, titik tiga (menu utama), dan ✕ (keluar layar penuh).
   // Angka = jarak tepi kanan tombol ke tepi kanan bilah (px); main menambahkan posisi bilah yang sedang dipakai.
   // Bilah bisa digeser: tahan lalu seret tombol mana pun. Posisi disimpan (pengaturan fsbarpos).
-  $('#fsT').innerHTML = ICON('tools', 20); $('#fsM').innerHTML = ICON('more', 20);
-  $('#fsT').onclick = () => api('tools.open', 48);
-  $('#fsM').onclick = () => api('menu.open', 2);
+  $('#fsT').innerHTML = ICON('tools', 20); $('#fsM').innerHTML = ICON('more', 20); $('#fsX').innerHTML = ICON('close', 20);
+  $('#fsT').onclick = () => api('tools.open', 94);
+  $('#fsM').onclick = () => api('menu.open', 48);
+  $('#fsX').onclick = () => api('fs.toggle');
   alethra.on('fsbar', s => { $('#fsT').classList.toggle('on', !!s && s.menu === 'tools'); $('#fsM').classList.toggle('on', !!s && s.menu === 'main'); });
   // warna & transparansi tombol (Pengaturan → Widget → Tombol menu layar penuh)
   const look = s => {

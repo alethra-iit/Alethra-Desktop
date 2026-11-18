@@ -161,9 +161,9 @@ function layout() {
 }
 // panel tempat sebuah tab berada (koordinat jendela); null bila tab tidak sedang terlihat
 const paneBox = (id) => { const r = lastGeo && lastGeo.rects[id]; return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; };
-// Layar penuh: toolbar tersembunyi, jadi dua tombol melayang (Tools & titik tiga) di pojok kanan atas membuka menu dari overlay
+// Layar penuh: toolbar tersembunyi, jadi tiga tombol melayang (Tools, titik tiga, ✕ keluar) di pojok kanan atas; dua pertama membuka menu dari overlay
 const fsActive = () => !!htmlFs;
-const FSB = { w: 96, h: 44 };
+const FSB = { w: 136, h: 44 };   // 3 tombol kotak 40px sebaris: Tools | ⋮ | ✕ (keluar layar penuh)
 // tombol layar penuh mengirim jarak dari tepi kanan tombol ke tepi kanan bilahnya; tambahkan posisi bilah sekarang
 const fsRight = (e, right) => (fsBar && e.sender === fsBar.webContents ? fsbarPos().r + (right | 0) : right);
 let fsDrag = null;
@@ -345,7 +345,7 @@ function openPlayTab() {
 ctx.openPlayTab = openPlayTab;
 function playToggle() { if (setting('tools').play === false) return; openInternal('play'); }
 function focusOmni(sel = true) {
-  if (fsActive() && win && !win.isDestroyed()) { closePopups(); return openMenu('tools', fsbarPos().r + 48); }   // layar penuh: bilah alamat tersembunyi, pakai kotak alamat di menu Tools
+  if (fsActive() && win && !win.isDestroyed()) { closePopups(); return openMenu('tools', fsbarPos().r + 94); }   // layar penuh: bilah alamat tersembunyi, pakai kotak alamat di menu Tools
   if (!alive(chromeWC)) return; chromeWC.focus(); sendTo(chromeWC, 'focus-omni', sel); }
 
 function addHistory(t, url) {
@@ -865,9 +865,8 @@ function mainMenuSpec() {
   const t = curTab(), st = t ? tabState().find(x => x.id === t.id) : {};
   const I = (id, label, o = {}) => Object.assign({ id, label }, o);
   // Kelompok: Tab | Pustaka | Tampilan halaman | Aplikasi. "Hapus data penjelajahan" ada di Pengaturan → Privasi & Keamanan (pintasan Ctrl+Shift+Del tetap jalan).
-  const fsOn = fsActive();
+  // Layar penuh: tombolnya ada di toolbar (kiri Unduhan) dan tombol ✕ melayang; tidak lagi di menu ini (pintasan F11 tetap)
   return [
-    ...(fsOn ? [I('fullscreen', 'Keluar dari layar penuh', { key: 'F11', ic: 'exitfs' }), { sep: 1 }] : []),
     { head: 'Tab' },
     I('tab.new', 'Tab baru', { key: 'Ctrl+T' }), I('tab.incog', 'Tab Incognito baru', { key: 'Ctrl+Shift+N' }), I('tab.reopen', 'Buka tab tertutup', { key: 'Ctrl+Shift+T', off: !closed.length }),
     I('tabs.search', 'Cari tab…', { key: 'Ctrl+Shift+A', off: ctx.tabs.length < 2 && !closed.length }),
@@ -876,7 +875,7 @@ function mainMenuSpec() {
     I('open.bookmarks', 'Bookmark', { key: 'Ctrl+Shift+O' }), I('open.history', 'Histori', { key: 'Ctrl+H' }), I('open.downloads', 'Unduhan', { key: 'Ctrl+J' }), I('open.offline', 'Halaman offline'), I('open.passwords', 'Kata sandi'),
     { sep: 1 }, { head: 'Tampilan halaman' },
     { zoom: st.zoom || 100 },
-    !fsOn && I('fullscreen', 'Layar penuh', { key: 'F11' }), I('devtools', 'Alat pengembang', { key: 'F12' }),
+    I('devtools', 'Alat pengembang', { key: 'F12' }),
     { sep: 1 },
     I('open.settings', 'Pengaturan', { key: 'Ctrl+,' }), I('quit', 'Keluar')
   ].filter(Boolean);
@@ -1671,7 +1670,7 @@ function toolsMenuSpec() {
       ? [I('split.close', 'Tutup tampilan terpisah', { key: 'Ctrl+Alt+V' }), I('split.swap', 'Tukar posisi panel'), I('split.mode', 'Susunan: ' + ({ auto: 'otomatis', h: 'berdampingan', v: 'atas-bawah' }[setting('splitMode')] || 'otomatis')), I('split.reset', 'Samakan lebar panel (50:50)')]
       : []) : [],
     // Terjemahan
-    [on('translate') && (setting('ptr') !== false ? I('translate', 'Terjemahkan halaman', { key: 'Ctrl+Alt+T', check: !!st.trOn, off: !web }) : I('goto.play', 'Terjemahkan halaman', { dim: true, ic: 'translate', note: 'Dimatikan di Play' })),
+    [on('translate') && (setting('ptr') !== false ? I('translate', 'Terjemahkan halaman…', { check: !!st.trOn, off: !web }) : I('goto.play', 'Terjemahkan halaman', { dim: true, ic: 'translate', note: 'Dimatikan di Play' })),
      on('chat') && I('chat', 'Terjemahkan chat live', { check: !!setting('tr') }),
      on('stt') && (rd.ok ? I('stt', 'Terjemahan Suara', { key: 'Ctrl+Alt+S', check: STT.active(), off: !web }) : I('goto.' + rd.sec, 'Terjemahan Suara', { dim: true, ic: 'mic', note: rd.short })),
      on('transcript') && I('transcript.side', 'Riwayat terjemahan suara', { key: 'Ctrl+Alt+H' }),
@@ -1765,6 +1764,8 @@ function menuAction(id) {
   if (id === 'menu.tabgroup') return openMenuSide('tabgroup');
   if (id === 'menu.trsrc') return openMenu('trsrc');
   if (id === 'menu.trlang') return openMenu('trlang');
+  // Tools → Terjemahkan halaman…: buka pilihan bahasa asal & tujuan di tempat menu Tools (Ctrl+Alt+T tetap menerjemahkan langsung ke bahasa default)
+  if (id === 'translate') { const t0 = curTab(); if (!t0 || !/^https?:/.test(t0.url)) { OV.menu = null; renderOverlay(); return ctx.toast('Buka sebuah situs dulu untuk menerjemahkan'); } return openMenu('trlang', OV.menu && OV.menu.right); }
   if (id === 'tools.iconmode') { saveSetting('iconMenu', !setting('iconMenu')); const m = OV.menu; return openMenu(m ? m.kind : 'tools', m && m.right); }   // menu tetap terbuka, hanya berganti tampilan
   OV.menu = null; renderOverlay();
   const t = curTab(), wc = curWC();
@@ -1832,7 +1833,7 @@ function saveSession() {
 }
 
 /* ================= API untuk UI & halaman internal ================= */
-const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'tools.open', 'tr.open', 'site.open', 'site.act', 'note.state', 'note.save', 'note.close', 'note.min', 'note.restore', 'note.drag', 'note.clip', 'note.export', 'note.pick', 'sm.state', 'sm.set', 'sm.reset', 'sm.switch', 'sm.all', 'sm.close', 'sm.min', 'sm.restore', 'sm.drag']);
+const UIONLY = new Set(['ui.ready', 'tab.new', 'tab.close', 'tab.select', 'tab.move', 'tab.menu', 'tab.togroup', 'group.toggle', 'group.menu', 'tabs.search', 'nav.back', 'nav.forward', 'nav.reload', 'nav.stop', 'nav.home', 'omni.suggest', 'omni.sel', 'omni.hide', 'omni.go', 'menu.open', 'ov.menu', 'split.drag', 'split.dragend', 'split.nudge', 'split.reset', 'split.close', 'split.new', 'stt.hist', 'stt.restore', 'stt.minidrag', 'stt.copylast', 'ov.zoom', 'ov.pick', 'ov.close', 'modal.result', 'bookmark.toggle', 'find.start', 'find.next', 'find.stop', 'infobar.act', 'chrome.height', 'tab.mute', 'dl.open', 'stt.stop', 'stt.drag', 'clip.read', 'fsbar.drag', 'fsbar.pos', 'fs.toggle', 'tools.open', 'tr.open', 'site.open', 'site.act', 'note.state', 'note.save', 'note.close', 'note.min', 'note.restore', 'note.drag', 'note.clip', 'note.export', 'note.pick', 'sm.state', 'sm.set', 'sm.reset', 'sm.switch', 'sm.all', 'sm.close', 'sm.min', 'sm.restore', 'sm.drag']);
 const SETKEYS = Object.keys(SV.DEFAULTS).filter(k => k !== 'lock');
 const API = {
   'ui.ready': () => ({ settings: publicSettings(), tabs: tabState(), bookmarks: ctx.bm.data.slice(0, 60), dl: SV.dlSummary() }),
@@ -1922,6 +1923,7 @@ const API = {
   'fsbar.drag': (e, ph, dx, dy) => fsbarDrag(String(ph), dx, dy),
   'fsbar.pos': () => fsbarPos(),
   'menu.open': (e, right) => { right = fsRight(e, right); if (OV.menu && OV.menu.kind === 'main') { closePopups(); return; } openMenu('main', right); },
+  'fs.toggle': () => { closePopups(); toggleFullscreen(); },   // tombol layar penuh di toolbar & tombol ✕ melayang
   'tr.open': (e, right) => { if (OV.menu && (OV.menu.kind === 'trlang' || OV.menu.kind === 'trsrc')) { closePopups(); return; } const t = curTab(); if (!t || !/^https?:/.test(t.url)) return ctx.toast('Buka sebuah situs dulu untuk menerjemahkan'); openMenu('trlang', right); },
   'tools.open': (e, right) => { right = fsRight(e, right); if (OV.menu && OV.menu.kind === 'tools') { closePopups(); return; } openMenu('tools', right); },
   'ov.menu': (e, id) => menuAction(id),

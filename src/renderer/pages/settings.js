@@ -164,11 +164,11 @@
       // pratinjau: dua tombol dengan gaya yang sama seperti di layar penuh, di atas latar bergaris supaya transparansi terlihat
       const pv = el('<div style="display:flex;gap:8px;padding:14px 18px;border-radius:12px;background:repeating-conic-gradient(#8884 0 25%,#fff4 0 50%) 0 0/16px 16px"></div>');
       const pbg = F.bg || (S.dark ? (S.amoled ? '#000000' : '#0b0b0d') : '#ffffff'), pfg = F.fg || (S.dark ? '#f4f4f5' : '#111113');
-      ['tools', 'more'].forEach(n => { const b = el(`<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);box-shadow:var(--shadow)">${ICON(n, 20)}</div>`); b.style.background = `color-mix(in srgb, ${pbg} ${F.bgop}%, transparent)`; b.style.color = pfg; b.style.opacity = F.op / 100; pv.appendChild(b); });
-      A(acc('fsb', 'Tombol menu layar penuh', 'Warna dan transparansi tombol Tools dan ⋮ yang melayang saat layar penuh', [
+      ['tools', 'more', 'close'].forEach(n => { const b = el(`<div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);box-shadow:var(--shadow)">${ICON(n, 20)}</div>`); b.style.background = `color-mix(in srgb, ${pbg} ${F.bgop}%, transparent)`; b.style.color = pfg; b.style.opacity = F.op / 100; pv.appendChild(b); });
+      A(acc('fsb', 'Tombol menu layar penuh', 'Warna dan transparansi tombol Tools, ⋮, dan ✕ yang melayang saat layar penuh', [
         row('Pratinjau', 'Seret tombolnya di layar penuh untuk memindahkan posisinya', pv),
         colorRow('Warna tombol', 'Warna latar tombol. "Ikuti tema" memakai warna tema terang/gelap', F.bg, S.dark ? '#0b0b0d' : '#ffffff', v => sf('bg', v), true),
-        colorRow('Warna ikon', 'Warna ikon Tools dan ⋮', F.fg, S.dark ? '#f4f4f5' : '#111113', v => sf('fg', v), true),
+        colorRow('Warna ikon', 'Warna ikon Tools, ⋮, dan ✕', F.fg, S.dark ? '#f4f4f5' : '#111113', v => sf('fg', v), true),
         slider('Transparansi latar', '0% = latar tombol pekat, 100% = latar hilang dan hanya ikon yang terlihat', 0, 100, 1, 100 - F.bgop, v => v + '%', v => sf('bgop', 100 - v)),
         slider('Transparansi tombol', 'Seberapa pudar seluruh tombol saat tidak disentuh. Saat kursor di atasnya tombol selalu jelas', 0, 90, 1, 100 - F.op, v => v + '%', v => sf('op', 100 - v)),
         button('Pengaturan bawaan', 'Kembalikan warna dan transparansi tombol', 'Setel ulang', () => set('fsb', D.fsb))]));
@@ -240,7 +240,7 @@
       }
       if (toolsSub === 'terjemahan') {
       A(grp('Terjemahan')); A(box([
-        tgp('translate', 'Terjemahkan halaman', 'Ctrl+Alt+T. Juga perlu dinyalakan di Play → Terjemahkan situs', 'ptr', 'Terjemahkan situs'),
+        tgp('translate', 'Terjemahkan halaman', 'Membuka pilihan bahasa asal & tujuan (Ctrl+Alt+T tetap menerjemahkan langsung ke bahasa default). Juga perlu dinyalakan di Play → Terjemahkan situs', 'ptr', 'Terjemahkan situs'),
         tg('chat', 'Terjemahkan chat live', 'YouTube dan Twitch'),
         tgp('stt', 'Terjemahan Suara', 'Ctrl+Alt+S. Juga perlu dinyalakan di Play → Terjemahan Suara', 'stt', 'Terjemahan Suara'),
         tg('transcript', 'Riwayat terjemahan suara', 'Ctrl+Alt+H. Daftar kalimat hasil Terjemahan Suara'),

@@ -2,7 +2,7 @@
   let tabs = [], groups = [], S = {}, bms = [], infos = [], dragId = null, selIdx = -1, sugCount = 0, typed = '', omniFocused = false;
   const url = $('#url');
   const set = (id, ic) => { $('#' + id).innerHTML = ICON(ic); };
-  set('newtab', 'plus'); set('tabsrch', 'search'); set('back', 'back'); set('fwd', 'fwd'); set('home', 'home'); set('star', 'star'); set('trb', 'translate'); set('menub', 'more'); set('toolsb', 'tools'); $('#toolsb').insertAdjacentHTML('beforeend', '<span class="tl">Tools</span>');
+  set('newtab', 'plus'); set('tabsrch', 'search'); set('back', 'back'); set('fwd', 'fwd'); set('home', 'home'); set('star', 'star'); set('fsb', 'fullscreen'); set('menub', 'more'); set('toolsb', 'tools'); $('#toolsb').insertAdjacentHTML('beforeend', '<span class="tl">Tools</span>');
   $('#dlb').insertAdjacentHTML('afterbegin', ICON('download')); set('fp', 'up'); set('fn', 'down'); set('fx', 'close');
   $('#reload').innerHTML = ICON('reload');
   const cur = () => tabs.find(t => t.active);
@@ -79,7 +79,6 @@
       if (/^https?:/.test(t.url) && !t.secure) { s.classList.add('bad'); s.title = 'Pengaturan situs (koneksi tidak aman)'; }
     }
     $('#star').classList.toggle('on', !!t.bookmarked); $('#star').style.display = t.internal ? 'none' : '';
-    $('#trb').classList.toggle('on', !!t.trOn);
     document.title = (t.title || 'Alethra') + ' — Alethra';
   }
   function renderBm() {
@@ -114,9 +113,9 @@
   $('#sec').onmousedown = e => e.preventDefault();   // jangan ambil fokus supaya kotak alamat tidak ikut menyala
   $('#sec').onclick = () => { const r = $('#omni').getBoundingClientRect(); api('site.open', Math.round(r.left)); };
   $('#home').onclick = () => api('nav.home'); $('#star').onclick = () => api('bookmark.toggle');
-  $('#trb').onclick = () => { const r = $('#trb').getBoundingClientRect(); api('tr.open', Math.round(window.innerWidth - r.right)); }; $('#dlb').onclick = () => api('dl.open'); $('#menub').onclick = () => api('menu.open');
+  $('#fsb').onclick = () => api('fs.toggle'); $('#dlb').onclick = () => api('dl.open'); $('#menub').onclick = () => api('menu.open');
   $('#toolsb').onclick = () => { const r = $('#toolsb').getBoundingClientRect(); api('tools.open', Math.round(window.innerWidth - r.right)); };
-  document.addEventListener('mousedown', e => { if (!e.target.closest('#omni, #menub, #toolsb, #trb, #sec')) api('omni.hide'); }, true);   // tombol menu menangani buka/tutup sendiri (toggle), jangan ditutup dulu saat mouse ditekan
+  document.addEventListener('mousedown', e => { if (!e.target.closest('#omni, #menub, #toolsb, #fsb, #sec')) api('omni.hide'); }, true);   // tombol menu menangani buka/tutup sendiri (toggle), jangan ditutup dulu saat mouse ditekan
   $('#tabstrip').addEventListener('dblclick', e => { if (e.target.id === 'tabstrip') api('tab.new'); });
 
   /* ---------- omnibox ---------- */
