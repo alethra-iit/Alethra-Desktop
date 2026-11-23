@@ -18,6 +18,8 @@ const DEFAULTS = {
   logo: true, grad: false, wall: 0, dim: 1,
   // widget kalender di beranda. on = tampil, ws = awal pekan (1 Senin, 0 Minggu), hol = tanggal merah, wk = nomor pekan, p = posisi (m di bawah jam, b di bawah pintasan), b = latar kartu
   cal: { on: true, ws: 1, hol: true, wk: false, p: 'm', z: 1, b: true, s: 'l', k: 'a', al: 'l', m: 'f' },   // s gaya: l lengkap, c ringkas, w pekan, a agenda, b bilah; k warna: t teks, a aksen, g emas, b biru, h hijau; al perataan; m penanda hari ini: f penuh, o garis tepi, d garis atas
+  // letak widget beranda (menu Tools → Widget). s: 0 = bawaan, 1 = diatur pengguna. rows = daftar baris; tiap baris berisi widget { id, w: lebar 1-5 kolom, h: tinggi minimum dalam baris (0 = otomatis) }, jumlah w per baris maksimal 5
+  hl: { s: 0, rows: [] },
   calev: {},   // catatan kalender { 'YYYY-MM-DD': [{ i: id, t: teks, m: 'HH:MM' }] }
   playresume: 'off',   // AlethPlay: lanjutkan video dari posisi terakhir — off | auto | ask
   ptr: true, stt: true, stengine: 'cloud', stmodel: '', stwmodel: '', stvmodel: '', trmode: 'online', sttTr: '', mymemfb: true, mymemEmail: '', upauto: true, mtfb: true, hfmirror: '', sthist: true, stauto: false, stside: false, splitMode: 'auto', splitRatio: 0.5, ofthreads: 0, stprov: 'groq', stspeed: 'bal', stlang: '', stcurl: '', stcmodel: 'whisper-1',
@@ -27,7 +29,7 @@ const DEFAULTS = {
   // kotak terjemahan suara di luar layar penuh. Kosong ('') = ikut tema terang/gelap.
   stb: { bgop: 100, bgcol: '', color: '', size: 20, bold: true, width: 720, height: 168, radius: 16, border: true, prev: true, shadow: 'auto' },
   // item menu Tools yang ditampilkan
-  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, adsite: true, split: true, note: true, mini: true, clips: true, xl: true, sm: true, transcript: true, play: true },
+  tools: { find: true, print: true, pdf: true, offline: true, translate: true, chat: true, stt: true, reader: true, vq: true, pip: true, adsite: true, split: true, note: true, mini: true, clips: true, widget: true, xl: true, sm: true, transcript: true, play: true },
   // posisi & ukuran Notepad melayang (-1 = otomatis); ix/iy = posisi ikon saat diperkecil
   notebox: { x: -1, y: -1, w: 340, h: 340, ix: -1, iy: -1 },
   // posisi & ukuran Mini browser melayang (-1 = otomatis) dan daftar situs favoritnya

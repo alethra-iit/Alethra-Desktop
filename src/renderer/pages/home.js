@@ -15,14 +15,14 @@ async function apply(){
   if(P.get('o')==='1')R.setAttribute('data-amoled','1');else R.removeAttribute('data-amoled');
   var a=P.get('a'),okA=a&&/^#[0-9a-f]{6}$/i.test(a);
   if(okA){R.style.setProperty('--acc',a);var an=parseInt(a.slice(1),16);R.style.setProperty('--onacc',(0.299*(an>>16)+0.587*((an>>8)&255)+0.114*(an&255))/255>0.6?'#111':'#fff')}else{R.style.removeProperty('--acc');R.style.removeProperty('--onacc')}
-  document.querySelector('.hero').style.display=P.get('l')==='0'?'none':'';
+  HEROOFF=P.get('l')==='0';document.querySelector('.hero').style.display=HEROOFF?'none':'';
   var wv=P.get('w');
   if(wv&&wv!=='0'){var dd=[.2,.4,.62][parseInt(P.get('d')||'1',10)]||.4;var ov=R.getAttribute('data-theme')==='dark'?'rgba(0,0,0,'+dd+')':'rgba(255,255,255,'+dd+')';var b=document.body.style;b.backgroundImage='linear-gradient('+ov+','+ov+'),url(alethra://wallpaper/w.jpg?v='+wv+')';b.backgroundSize='cover';b.backgroundPosition='center';b.backgroundAttachment='scroll';b.backgroundRepeat='no-repeat'}
   else if(P.get('g')==='1'){var c=okA?a:(R.getAttribute('data-theme')==='dark'?'#ffffff':'#000000');var cc='rgba('+parseInt(c.substr(1,2),16)+','+parseInt(c.substr(3,2),16)+','+parseInt(c.substr(5,2),16);document.body.style.backgroundImage='linear-gradient(180deg,'+cc+',.2),'+cc+',0) 60%)';document.body.style.backgroundRepeat='no-repeat'}else document.body.style.backgroundImage='none';
   var no={c:P.get('c')||'analog',p:P.get('p')||'mid',z:parseInt(P.get('z')||'1',10),k:P.get('k')||'t',al:P.get('al')||'c',d:parseInt(P.get('d2')||'0',10),h24:P.get('h')!=='0',s:P.get('q')==='1',y:P.get('y')!=='0',n:P.get('n')!=='0',b:P.get('b')!=='0'};
   var sig=JSON.stringify(no);if(sig!==window.__cs){window.__cs=sig;CS=no.c;O={p:no.p,z:no.z,k:no.k,al:no.al,d:no.d,h24:no.h24,s:no.s,y:no.y,n:no.n,b:no.b};build()}
   var ST=(await api('settings.get'))||{};var s=ST.shortcuts||[];
-  CAL=Object.assign({on:true,ws:1,hol:true,wk:false,p:'m',z:1,b:true,s:'l',k:'a',al:'l',m:'f'},ST.cal||{});EV=ST.calev||{};renderCal();
+  CAL=Object.assign({on:true,ws:1,hol:true,wk:false,p:'m',z:1,b:true,s:'l',k:'a',al:'l',m:'f'},ST.cal||{});EV=ST.calev||{};HL=ST.hl||null;renderCal();render();
   var g=document.getElementById('grid');g.innerHTML='';
   s.forEach(function(x,i){
     var d=document.createElement('div');d.className='tile';
@@ -41,10 +41,10 @@ async function apply(){
   a.innerHTML='<div class="ic"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></div><div class="lb">Tambah</div>';
   a.onclick=async function(){var r=await askText('Tambah pintasan',[{l:'Nama',p:'mis. Berita'},{l:'Alamat situs',p:'contoh.com'}],'Tambah');if(r&&r[1])api('shortcut.add',r[0],r[1])};
   g.appendChild(a);
+  if(!READY){READY=true;if(PEND){var pm=PEND;PEND=false;doEdit(pm)}}
 }
 apply();alethra.on('settings',function(){apply()});
-function place(c){var b=document.body,hero=document.querySelector('.hero'),g=document.getElementById('grid');
-  if(O.p==='top')b.insertBefore(c,b.firstChild);else if(O.p==='bot')b.insertBefore(c,g.nextSibling);else b.insertBefore(c,g)}
+function place(){}   // letak jam/kalender kini ditentukan tata letak widget (render)
 function build(){
   var c=document.getElementById('clock');place(c);
   var al={l:' al-l',r:' al-r'}[O.al]||' al-c';
@@ -80,6 +80,168 @@ if(document.getElementById('hh')){
  set('hh',((hh%12)+mm/60)*30);set('mh',(mm+ss/60)*6);set('sh',ss*6)}
 }
 
+/* ================= tata letak widget =================
+   Beranda = daftar BARIS. Tiap baris punya widget dengan lebar 1-5 kolom (jumlah maksimal 5) dan tinggi minimum dalam satuan baris (0 = otomatis).
+   Baris yang tidak penuh diratakan ke tengah. Di jendela sempit (< 720px) semua widget ditumpuk 1 kolom ke bawah.
+   Mode atur (Tools → Widget): perubahan hanya draf (DRAFT) sampai "Simpan posisi" / klik Widget lagi; Batal / Esc membuang draf. */
+var RU=72,GAP=16,NARROW=720;
+var WG={hero:{n:'Logo & judul',min:1,w:5},search:{n:'Pencarian',min:2,w:3},clock:{n:'Jam',min:1,w:2},cal:{n:'Kalender',min:2,w:3},grid:{n:'Pintasan',min:1,w:5}};
+var WDEF=[[{id:'hero',w:5,h:0}],[{id:'search',w:3,h:0}],[{id:'clock',w:2,h:0},{id:'cal',w:3,h:0}],[{id:'grid',w:5,h:0}]];
+var HL=null,DRAFT=null,READY=false,PEND=false,HEROOFF=false,DR=null;
+function cp(o){return JSON.parse(JSON.stringify(o))}
+function wOn(id){return id==='hero'?!HEROOFF:id==='clock'?CS!=='off':id==='cal'?CAL.on!==false:true}
+function curRows(){return DRAFT||(HL&&HL.s&&Array.isArray(HL.rows)?HL.rows:WDEF)}
+function wEl(id){return document.querySelector('.w[data-w="'+id+'"]')}
+function findW(id,R){R=R||DRAFT;for(var r=0;r<R.length;r++)for(var c=0;c<R[r].length;c++)if(R[r][c].id===id)return{r:r,c:c,it:R[r][c]};return null}
+function setSize(n,x){
+  n.style.setProperty('--w',x.w);
+  n.style.setProperty('--mh',x.h>0?'calc('+x.h+' * var(--ru) + '+(x.h-1)+' * var(--gap))':'0px');
+  var l=n.querySelector('.wl');if(l)l.textContent=WG[x.id].n+' · '+x.w+' kolom'+(x.h>0?' × '+x.h+' baris':' · tinggi otomatis');
+}
+function render(){
+  var wg=document.getElementById('wg'),st=document.getElementById('wstore'),rows=curRows(),shown=0;
+  [].slice.call(wg.querySelectorAll('.w')).forEach(function(n){st.appendChild(n)});
+  [].slice.call(wg.querySelectorAll('.wr,.wempty')).forEach(function(n){n.remove()});
+  rows.forEach(function(r,ri){
+    var rd=document.createElement('div');rd.className='wr';rd.setAttribute('data-r',ri);
+    r.forEach(function(x){var n=wOn(x.id)&&wEl(x.id);if(!n)return;setSize(n,x);rd.appendChild(n);shown++});
+    if(rd.children.length)wg.appendChild(rd)
+  });
+  if(!shown){var e=document.createElement('div');e.className='wempty';e.textContent=DRAFT?'Belum ada widget. Tambahkan dari bilah di atas.':'Tidak ada widget. Buka Tools → Widget beranda untuk menambahkan.';wg.appendChild(e)}
+  if(DRAFT)tray()
+}
+function initWo(){[].forEach.call(document.querySelectorAll('#wstore .w'),function(n){var o=document.createElement('div');o.className='wo';o.innerHTML='<span class="wl"></span><button class="wx" data-a="rm" title="Sembunyikan widget">✕</button><i class="wrz" data-a="rw" title="Tarik untuk mengubah lebar"></i><i class="wrh" data-a="rh" title="Tarik untuk mengubah tinggi. Klik dua kali: otomatis"></i>';n.appendChild(o)})}
+function tray(){
+  var inL={},h='';DRAFT.forEach(function(r){r.forEach(function(x){inL[x.id]=1})});
+  Object.keys(WG).forEach(function(id){if(!inL[id]&&wOn(id))h+='<button data-e="add" data-id="'+id+'">+ '+WG[id].n+'</button>'});
+  document.getElementById('etray').innerHTML=h?'Tersembunyi: '+h:''
+}
+function msg(t){var m=document.getElementById('emsg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(function(){m.style.display='none'},3200)}
+function enterEdit(){
+  if(DRAFT)return;
+  if(window.innerWidth<NARROW){msg('Lebarkan jendela (minimal '+NARROW+' px) untuk mengatur widget. Di jendela sempit widget otomatis ditumpuk 1 kolom.');return}
+  DRAFT=cp(curRows());document.body.classList.add('ed');document.getElementById('ebar').hidden=false;
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+  render();fixPad();api('home.editing',true)
+}
+function fixPad(){var b=document.getElementById('ebar');document.body.style.paddingTop=DRAFT?(b.offsetHeight+28)+'px':''}
+function exitEdit(save){
+  if(!DRAFT)return;
+  var d=DRAFT;DRAFT=null;DR=null;document.body.classList.remove('ed');document.getElementById('ebar').hidden=true;document.getElementById('ind').style.display='none';document.body.style.paddingTop='';
+  if(save){HL={s:1,rows:d};api('settings.set','hl',HL)}
+  render();api('home.editing',false);
+  if(!save)msg('Perubahan posisi dibatalkan')
+}
+function doEdit(m){if(m==='start'){enterEdit();return}if(DRAFT)exitEdit(true);else enterEdit()}
+alethra.on('home.edit',function(m){if(!READY){PEND=m;return}doEdit(m)});
+window.addEventListener('pagehide',function(){try{api('home.editing',false)}catch(e){}});
+function clean(){DRAFT=DRAFT.filter(function(r){return r.length})}
+function hideW(id){var f=findW(id);if(!f)return;DRAFT[f.r].splice(f.c,1);clean();render()}
+function addW(id){DRAFT.push([{id:id,w:WG[id].w,h:0}]);render();var n=wEl(id);if(n&&n.scrollIntoView)n.scrollIntoView({block:'center'})}
+// ----- ubah ukuran: lebar menyesuaikan tetangga (kanan dulu, lalu kiri) -----
+function fitRow(row,it,nw,ow){
+  row.forEach(function(x,i){x.w=ow[i]});
+  it.w=Math.max(WG[it.id].min,Math.min(5,nw));
+  var tot=0,over,k,i=row.indexOf(it),order=[];
+  row.forEach(function(x){tot+=x.w});over=tot-5;
+  for(k=i+1;k<row.length;k++)order.push(row[k]);for(k=i-1;k>=0;k--)order.push(row[k]);
+  order.forEach(function(n){if(over<=0)return;var t=Math.min(n.w-WG[n.id].min,over);if(t>0){n.w-=t;over-=t}});
+  if(over>0)it.w-=over
+}
+function syncRow(row){row.forEach(function(x){var n=wEl(x.id);if(n)setSize(n,x)})}
+// ----- tempat jatuh saat memindah -----
+function hit(x,y){
+  var wg=document.getElementById('wg'),rows=[].slice.call(wg.querySelectorAll('.wr')),R=DRAFT,id=DR.id,out=null,i,rc,ri,edge;
+  if(!rows.length)return{nr:0};
+  for(i=0;i<rows.length;i++){
+    rc=rows[i].getBoundingClientRect();ri=+rows[i].getAttribute('data-r');edge=Math.min(20,rc.height/3);
+    if(y<rc.top+edge){out={nr:ri};break}
+    if(y<=rc.bottom-edge){out={row:ri,rc:rc,rowEl:rows[i]};break}
+  }
+  if(!out)return{nr:(+rows[rows.length-1].getAttribute('data-r'))+1};
+  if(out.nr!=null)return out;
+  var src=findW(id),it=src.it,others=R[out.row].filter(function(o){return o.id!==id}),sum=0,w=it.w;
+  others.forEach(function(o){sum+=o.w});
+  if(sum+w>5){var free=5-sum;if(free>=WG[id].min)w=free;else return{nr:y<out.rc.top+out.rc.height/2?out.row:out.row+1}}
+  var els=[].slice.call(out.rowEl.querySelectorAll('.w')).filter(function(n){return n.getAttribute('data-w')!==id}),idx=0;
+  els.forEach(function(n){var b=n.getBoundingClientRect();if(b.left+b.width/2<x)idx++});
+  return{row:out.row,idx:idx,w:w,rc:out.rc,els:els}
+}
+function drawInd(t){
+  var ind=document.getElementById('ind'),wg=document.getElementById('wg'),b=wg.getBoundingClientRect(),rows=[].slice.call(wg.querySelectorAll('.wr')),i,v;
+  if(!t){ind.style.display='none';return}
+  ind.style.display='block';
+  if(t.nr!=null){
+    var before=null;for(i=0;i<rows.length;i++)if(+rows[i].getAttribute('data-r')>=t.nr){before=rows[i];break}
+    v=before?before.getBoundingClientRect().top-GAP/2:rows[rows.length-1].getBoundingClientRect().bottom+GAP/2;
+    ind.style.left='0px';ind.style.width=b.width+'px';ind.style.top=(v-b.top-2)+'px';ind.style.height='4px'
+  }else{
+    var e=t.els,x;
+    if(!e.length)x=t.rc.left+t.rc.width/2;
+    else if(t.idx===0)x=e[0].getBoundingClientRect().left-GAP/2;
+    else if(t.idx>=e.length)x=e[e.length-1].getBoundingClientRect().right+GAP/2;
+    else x=(e[t.idx-1].getBoundingClientRect().right+e[t.idx].getBoundingClientRect().left)/2;
+    ind.style.left=(x-b.left-2)+'px';ind.style.width='4px';ind.style.top=(t.rc.top-b.top)+'px';ind.style.height=t.rc.height+'px'
+  }
+}
+function applyMove(id,t){
+  var R=DRAFT,s=findW(id),it=R[s.r].splice(s.c,1)[0];
+  if(t.nr!=null)R.splice(t.nr,0,[it]);
+  else{
+    it.w=t.w;
+    var dom=R[t.row].filter(function(o){return wOn(o.id)}),ref=dom[t.idx],pos=ref?R[t.row].indexOf(ref):R[t.row].length;
+    R[t.row].splice(pos,0,it)
+  }
+  clean()
+}
+function dragMove(e){
+  if(!DR)return;
+  if(DR.k==='m'){
+    if(!DR.on&&Math.abs(e.clientX-DR.sx)+Math.abs(e.clientY-DR.sy)<6)return;
+    DR.on=true;DR.el.classList.add('dragging');
+    if(e.clientY<70)window.scrollBy(0,-14);else if(e.clientY>window.innerHeight-70)window.scrollBy(0,14);
+    DR.t=hit(e.clientX,e.clientY);drawInd(DR.t)
+  }else if(DR.k==='rw'){
+    var nw=DR.w0+Math.round((e.clientX-DR.sx)/DR.unit);fitRow(DR.row,DR.it,nw,DR.ow);syncRow(DR.row)
+  }else if(DR.k==='rh'){
+    DR.it.h=Math.max(1,Math.min(14,Math.round(DR.h0+(e.clientY-DR.sy)/(RU+GAP))));syncRow(DR.row)
+  }
+}
+function dragEnd(e,cancel){
+  if(!DR)return;
+  var d=DR;DR=null;window.removeEventListener('pointermove',dragMove);window.removeEventListener('pointerup',dragEnd);window.removeEventListener('pointercancel',dragCancel);
+  if(d.k==='m'){d.el.classList.remove('dragging');drawInd(null);if(d.on&&d.t&&!cancel){applyMove(d.id,d.t);render()}}
+}
+function dragCancel(e){dragEnd(e,true)}
+function dragStart(d){DR=d;window.addEventListener('pointermove',dragMove);window.addEventListener('pointerup',dragEnd);window.addEventListener('pointercancel',dragCancel)}
+(function(){
+  initWo();
+  var wg=document.getElementById('wg');
+  wg.addEventListener('pointerdown',function(e){
+    if(!DRAFT||e.button!==0||DR)return;
+    var w=e.target.closest('.w');if(!w)return;
+    var a=e.target.getAttribute('data-a')||'',id=w.getAttribute('data-w'),f=findW(id);if(!f)return;
+    e.preventDefault();
+    if(a==='rm'){hideW(id);return}
+    var rowEl=w.parentNode,row=DRAFT[f.r];
+    if(a==='rw'){var rc=rowEl.getBoundingClientRect();dragStart({k:'rw',id:id,it:f.it,row:row,sx:e.clientX,w0:f.it.w,ow:row.map(function(x){return x.w}),unit:(rc.width+GAP)/5});return}
+    if(a==='rh'){dragStart({k:'rh',id:id,it:f.it,row:row,sy:e.clientY,h0:f.it.h>0?f.it.h:Math.max(1,Math.round((w.offsetHeight+GAP)/(RU+GAP)))});return}
+    dragStart({k:'m',id:id,el:w,sx:e.clientX,sy:e.clientY,on:false,t:null})
+  });
+  wg.addEventListener('dblclick',function(e){
+    if(!DRAFT||e.target.getAttribute('data-a')!=='rh')return;
+    var w=e.target.closest('.w'),f=findW(w.getAttribute('data-w'));if(f){f.it.h=0;syncRow(DRAFT[f.r])}
+  });
+  document.getElementById('ebar').addEventListener('click',function(e){
+    var b=e.target.closest('[data-e]');if(!b)return;var a=b.getAttribute('data-e');
+    if(a==='save')exitEdit(true);else if(a==='cancel')exitEdit(false);
+    else if(a==='reset'){DRAFT=cp(WDEF);render()}
+    else if(a==='add')addW(b.getAttribute('data-id'))
+  });
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&DRAFT){if(DR)dragEnd(e,true);else exitEdit(false)}});
+  window.addEventListener('resize',function(){if(DRAFT&&window.innerWidth<NARROW){exitEdit(false);msg('Mode atur ditutup karena jendela terlalu sempit')}else fixPad()});
+})();
+
 /* ================= kalender ================= */
 function pk(y,m,d){return y+'-'+(m<9?'0':'')+(m+1)+'-'+(d<10?'0':'')+d}
 function tk(dt){return pk(dt.getFullYear(),dt.getMonth(),dt.getDate())}
@@ -88,11 +250,7 @@ function isoWeek(dt){var t=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.g
 function holOf(y){if(HC[y])return HC[y];var o={},k;for(k in HF)o[k]=[HF[k],'n'];if(HY[y])for(k in HY[y])o[k]=HY[y][k];return HC[y]=o}
 function holFor(k){return CAL.hol?(holOf(+k.slice(0,4))[k.slice(5)]||null):null}
 function longDate(k){var d=parseK(k);return DL[d.getDay()]+', '+d.getDate()+' '+MN[d.getMonth()]+' '+d.getFullYear()}
-function placeCal(){
-  var c=document.getElementById('cal'),g=document.getElementById('grid'),ck=document.getElementById('clock');if(!c||!g)return;
-  if(CAL.p==='b'){var an=(O.p==='bot'&&CS!=='off')?ck:g;if(c.previousSibling!==an)document.body.insertBefore(c,an.nextSibling)}
-  else if(c.nextSibling!==g)document.body.insertBefore(c,g)
-}
+function placeCal(){}
 function evSorted(k){return (EV[k]||[]).slice().sort(function(a,b){return (a.m||'')<(b.m||'')?-1:(a.m||'')>(b.m||'')?1:0})}
 function saveEv(){api('settings.set','calev',EV)}
 function addEv(){
@@ -199,4 +357,4 @@ function renderCal(){
 })();
 
 document.getElementById('sf').onsubmit=function(e){e.preventDefault();var v=document.getElementById('sq').value.trim();if(v)api('nav.search',v)};
-document.getElementById('sq').focus();
+if(!DRAFT)document.getElementById('sq').focus();

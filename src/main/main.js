@@ -1649,6 +1649,19 @@ function smDrag(ph, dx, dy) {
   else return;
   smView.setBounds(smBounds(true));
 }
+/* ================= Widget beranda (menu Tools → Widget) ================= */
+// Klik pertama membuka mode atur di beranda (draf di halaman), klik berikutnya menyimpan posisi. Status "sedang mengatur" dilaporkan halaman lewat home.editing.
+let homeEditWC = null;
+function homeEditing() { const t = curTab(); return !!(t && homeEditWC && alive(homeEditWC) && t.view.webContents === homeEditWC && internalName(t.url) === 'home'); }
+function homeWidgetToggle() {
+  if (setting('tools').widget === false) return;
+  const t = curTab();
+  if (t && internalName(t.url) === 'home') return sendTo(t.view.webContents, 'home.edit', 'toggle');
+  const ex = ctx.tabs.find(x => internalName(x.url) === 'home');
+  if (ex) { selectTab(ex.id); return sendTo(ex.view.webContents, 'home.edit', 'start'); }
+  const n = createTab('alethra://home');
+  n.view.webContents.once('did-finish-load', () => sendTo(n.view.webContents, 'home.edit', 'start'));
+}
 /* ================= menu Tools (overlay) ================= */
 // Item mana yang tampil diatur di Pengaturan > Tools. Fitur yang dimatikan di Pengaturan > Play tetap ditampilkan (redup)
 // dengan keterangan, supaya pengguna tahu kenapa tidak bisa dipakai; klik membuka Pengaturan di tempat yang tepat.
@@ -1683,7 +1696,8 @@ function toolsMenuSpec() {
     // Alat melayang
     [on('note') && I('note', 'Notepad', { key: 'Ctrl+Alt+N', check: noteShown() }),
      on('mini') && I('mini', 'Mini browser', { key: 'Ctrl+Alt+B', check: miniShown() }),
-     on('clips') && I('clips', 'Riwayat clipboard', { key: 'Ctrl+Alt+C', check: clipShown() })],
+     on('clips') && I('clips', 'Riwayat clipboard', { key: 'Ctrl+Alt+C', check: clipShown() }),
+     on('widget') && I('hwidget', homeEditing() ? 'Simpan posisi widget' : 'Widget beranda', { check: homeEditing() })],
     // Situs
     [on('emu') && I('emu', 'Mode perangkat' + (st.emu ? ': ' + st.emu : ' (ponsel/tablet)'), { key: 'Ctrl+Shift+M', check: !!st.emu, off: !web }),
      on('adsite') && I('adsite', 'Blokir iklan di situs ini', { check: web && !st.adoff, off: !web })]
@@ -1799,6 +1813,7 @@ function menuAction(id) {
     case 'note': return noteToggle();
     case 'mini': return miniToggle();
     case 'clips': return clipToggle();
+    case 'hwidget': return homeWidgetToggle();
     case 'xl': return xlToggle();
     case 'sm': return smToggle();
     case 'goto.play': return openSettingsAt('play');
@@ -1941,6 +1956,7 @@ const API = {
   /* pengaturan */
   'settings.get': () => publicSettings(),
   'settings.home': () => homeParams(),
+  'home.editing': (e, on) => { if (on) homeEditWC = e.sender; else if (homeEditWC === e.sender) homeEditWC = null; try { renderOverlay(); } catch {} },
   'settings.set': (e, k, v) => {
     if (!SETKEYS.includes(k)) return false;
     const d = SV.DEFAULTS[k];
@@ -1960,6 +1976,22 @@ const API = {
       v = { bg: hx(v.bg, ''), fg: hx(v.fg, ''), bgop: cl(v.bgop, 0, 100, d.bgop), op: cl(v.op, 10, 100, d.op) };
     }
     if (k === 'cal') { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; v = { on: v.on !== false, ws: v.ws === 0 ? 0 : 1, hol: v.hol !== false, wk: !!v.wk, p: v.p === 'b' ? 'b' : 'm', z: [0, 1, 2].includes(v.z) ? v.z : 1, b: v.b !== false, s: ['l', 'c', 'w', 'a', 'b'].includes(v.s) ? v.s : 'l', k: ['t', 'a', 'g', 'b', 'h'].includes(v.k) ? v.k : 'a', al: ['l', 'c', 'r'].includes(v.al) ? v.al : 'l', m: ['f', 'o', 'd'].includes(v.m) ? v.m : 'f' }; }
+    if (k === 'hl') {
+      if (!v || typeof v !== 'object' || Array.isArray(v) || !Array.isArray(v.rows)) return false;
+      const IDS = ['hero', 'search', 'clock', 'cal', 'grid'], seen = new Set(), rows = [];
+      for (const r of v.rows.slice(0, 30)) {
+        if (!Array.isArray(r)) continue;
+        const row = []; let sum = 0;
+        for (const x of r.slice(0, 5)) {
+          if (!x || !IDS.includes(x.id) || seen.has(x.id)) continue;
+          let w = Math.max(1, Math.min(5, Math.round(+x.w) || 1)); if (sum + w > 5) w = 5 - sum; if (w < 1) continue;
+          const h = Number.isFinite(+x.h) ? Math.max(0, Math.min(14, Math.round(+x.h))) : 0;
+          seen.add(x.id); sum += w; row.push({ id: x.id, w, h });
+        }
+        if (row.length) rows.push(row);
+      }
+      v = { s: v.s ? 1 : 0, rows };
+    }
     if (k === 'calev') {
       if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
       const o = {}; let n = 0;

@@ -130,13 +130,69 @@ svg.clk{width:calc(124px*var(--z,1));height:calc(124px*var(--z,1));flex:none;str
 .cal.st-b .ag{margin-top:6px}
 .tile{position:relative;cursor:pointer}.tile .rm{position:absolute;top:-6px;right:6px;width:20px;height:20px;border-radius:50%;border:0;background:var(--surf);color:var(--sub);font-size:12px;line-height:1;display:none;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .tile:hover .rm{display:block}.tile:hover .ic{filter:brightness(.95)}
+
+/* ===== tata letak widget: baris × 5 kolom ===== */
+:root{--gap:16px;--ru:72px}
+body{padding:8px 20px 40px}
+.wg{position:relative;width:100%;max-width:1180px;margin-top:6vh;display:flex;flex-direction:column;gap:var(--gap)}
+.wr{display:flex;justify-content:center;align-items:stretch;gap:var(--gap)}
+.w{position:relative;container-type:inline-size;flex:0 0 calc((100% - 4*var(--gap))*var(--w,5)/5 + (var(--w,5) - 1)*var(--gap));min-width:0;min-height:var(--mh,0px);display:flex;flex-direction:column;justify-content:center}
+.w>.hero{margin:0;padding:6px 0}
+.w>.sbox,.w>.clock,.w>.cal,.w>.grid{margin:0!important;max-width:none;width:100%}
+.w>.clock,.w>.cal{flex:1 1 auto}
+.w>.clock:not(.analog):not(.dial):not(.bar){display:flex;flex-direction:column;justify-content:center}
+.w>.grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));align-content:start;gap:22px 8px}
+.wempty{text-align:center;color:var(--sub);padding:40px 0;font-size:15px}
+@container (max-width:340px){
+  .clock .tm{font-size:calc(38px*var(--z,1))}
+  .clock.analog{flex-direction:column-reverse;justify-content:center;text-align:center;gap:10px;padding:16px}
+  .clock.analog.al-r{flex-direction:column-reverse}
+  .clock.analog .tm{font-size:calc(28px*var(--z,1))}
+  .clock.text .tm,.clock.bar .tm{font-size:calc(24px*var(--z,1))}
+  .clock.bar{flex-wrap:wrap}
+}
+@media (max-width:719px){
+  body{padding:8px 12px 32px}
+  .wg{margin-top:3vh}
+  .wr{flex-direction:column;align-items:stretch}
+  .w{flex:0 0 auto;width:100%;min-height:0}
+}
+/* ===== mode atur widget ===== */
+.wo{display:none}
+body.ed{padding-top:76px}
+body.ed .wg{margin-top:0}
+body.ed .w{outline:2px dashed color-mix(in srgb,var(--acc,var(--fg)) 60%,transparent);outline-offset:4px;border-radius:20px;cursor:grab;user-select:none;-webkit-user-select:none}
+body.ed .w>*:not(.wo){pointer-events:none}
+body.ed .w.dragging{opacity:.35}
+body.ed .wr{min-height:44px}
+body.ed .wo{display:block;position:absolute;inset:0;z-index:5;border-radius:20px;touch-action:none}
+.wo .wl{position:absolute;left:8px;top:8px;max-width:calc(100% - 52px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 11px system-ui,sans-serif;padding:3px 9px;border-radius:9px;background:var(--fg);color:var(--bg);opacity:.92}
+.wo .wx{position:absolute;right:8px;top:8px;width:24px;height:24px;border-radius:50%;border:0;padding:0;background:var(--fg);color:var(--bg);font-size:12px;line-height:1;cursor:pointer}
+.wo .wrz,.wo .wrh{position:absolute;background:var(--acc,#4f8ef7);border-radius:6px;box-shadow:0 0 0 2px var(--bg)}
+.wo .wrz{right:-8px;top:50%;width:12px;height:44px;margin-top:-22px;cursor:ew-resize}
+.wo .wrh{bottom:-8px;left:50%;height:12px;width:44px;margin-left:-22px;cursor:ns-resize}
+#ind{display:none;position:absolute;z-index:30;pointer-events:none;border-radius:3px;background:var(--acc,#4f8ef7);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc,#4f8ef7) 30%,transparent)}
+#ebar{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;flex-wrap:wrap;justify-content:center;gap:8px 10px;max-width:calc(100vw - 24px);padding:10px 14px;border-radius:18px;background:var(--surf);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.22);font-size:13px}
+#ebar[hidden]{display:none}
+#ebar b{font-size:14px}
+#ebar .eh{color:var(--sub)}
+#ebar button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;height:32px;padding:0 12px}
+#ebar button:hover{background:var(--line)}
+#ebar button.pri{background:var(--acc,var(--fg));border-color:transparent;color:var(--onacc,var(--bg));font-weight:600}
+#etray{display:flex;align-items:center;gap:6px;color:var(--sub)}
+#emsg{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:70;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:13px;display:none}
 </style></head><body>
 
-<div class="hero">
+<div id="ebar" hidden><b>Atur widget</b><span class="eh">Seret = pindah · tarik tepi kanan/bawah = ukuran · klik dua kali tepi bawah = tinggi otomatis</span><span id="etray"></span><button data-e="reset">Atur ulang</button><button data-e="cancel">Batal</button><button class="pri" data-e="save">Simpan posisi</button></div>
+<div id="emsg"></div>
+<div class="wg" id="wg"><div id="ind"></div></div>
+<div id="wstore" style="display:none">
+<section class="w" data-w="hero"><div class="hero">
 <svg class="logo" viewBox="0 0 24 24"><path d="M4 21L12 3l8 18"/><path d="M8.2 15h7.6"/></svg>
-<h1>Alethra</h1><p>Jelajahi lebih jauh.</p></div>
-<form id="sf" class="sbox"><svg class="i" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-5-5"/></svg><input id="sq" placeholder="Cari di web atau ketik alamat" autocomplete="off" spellcheck="false"></form>
-<div class="clock" id="clock"></div>
-<div class="cal" id="cal"></div>
-<div class="grid" id="grid"></div>
+<h1>Alethra</h1><p>Jelajahi lebih jauh.</p></div></section>
+<section class="w" data-w="search"><form id="sf" class="sbox"><svg class="i" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-5-5"/></svg><input id="sq" placeholder="Cari di web atau ketik alamat" autocomplete="off" spellcheck="false"></form></section>
+<section class="w" data-w="clock"><div class="clock" id="clock"></div></section>
+<section class="w" data-w="cal"><div class="cal" id="cal"></div></section>
+<section class="w" data-w="grid"><div class="grid" id="grid"></div></section>
+</div>
 <script src="alethra://app/shared.js"></script><script src="alethra://app/pages/home.js"></script></body></html>

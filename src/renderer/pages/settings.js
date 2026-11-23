@@ -188,7 +188,6 @@
         select('Warna kalender', 'Dipakai untuk penanda hari ini, tanggal terpilih, dan catatan', [['a', 'Aksen'], ['t', 'Teks'], ['g', 'Emas'], ['b', 'Biru'], ['h', 'Hijau']], K.k, v => sk('k', v)),
         select('Penanda hari ini', '', [['f', 'Lingkaran penuh'], ['o', 'Garis tepi'], ['d', 'Garis atas']], K.m, v => sk('m', v)),
         select('Awal pekan', '', [[1, 'Senin'], [0, 'Minggu']], K.ws, v => sk('ws', +v)),
-        select('Posisi', '', [['m', 'Di bawah jam'], ['b', 'Di bawah pintasan']], K.p, v => sk('p', v)),
         select('Ukuran', '', [[0, 'Kecil'], [1, 'Sedang'], [2, 'Besar']], K.z, v => sk('z', +v)),
         kk('hol', 'Tanggal merah', 'Tandai libur nasional dan cuti bersama (data SKB 3 Menteri 2026 & 2027; tahun lain hanya libur tetap)'),
         kk('wk', 'Nomor pekan', 'Tampilkan nomor pekan ISO di sisi kiri'),
@@ -272,6 +271,7 @@
       if (toolsSub === 'alat') {
       A(grp('Alat melayang')); A(box([
         tg('note', 'Notepad', 'Ctrl+Alt+N. Catatan melayang di atas halaman: bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya banyak lembar kerja. Tetap terbuka saat berpindah tab'),
+        tg('widget', 'Widget beranda', 'Mengatur letak dan ukuran widget di beranda (pencarian, jam, kalender, pintasan) langsung di halamannya. Klik sekali untuk mulai mengatur, klik lagi untuk menyimpan posisi'),
         tg('mini', 'Mini browser', 'Ctrl+Alt+B. Jendela web kecil yang melayang di atas halaman, mis. kamus, Google Terjemahan, atau chat. Bisa digeser, diubah ukurannya, diperkecil jadi ikon, dan punya daftar situs favorit'),
         tg('clips', 'Riwayat clipboard', 'Ctrl+Alt+C. Daftar teks yang baru disalin: ketuk untuk menyalin lagi, atau tempel langsung ke halaman. Riwayat hanya di memori (hilang saat Alethra ditutup), kecuali item yang disematkan. Tidak merekam di tab Incognito')]));
       }

@@ -23,6 +23,7 @@ npm run dist     # hasilkan .exe di folder dist/ (di Windows)
 |---|---|
 | Tab & tab Incognito (sesi memori, terhapus saat ditutup) | Tab bar ala Chrome: seret untuk urutkan, klik-tengah tutup, bisukan tab, Ctrl+Shift+T |
 | Bilah alamat + saran bookmark/histori | Omnibox dengan saran. Ikon di kiri omnibox adalah tombol **Pengaturan situs** (seperti Chrome): *Koneksi aman/tidak aman*, *Cookie dan data situs* (lihat jumlah, hapus), dan *Pengaturan situs* (izin Lokasi/Kamera/Mikrofon/Notifikasi/Papan klip per situs, blokir iklan, setel ulang izin) |
+| Widget beranda (grid 5 kolom) | Menu Tools → **Widget beranda**: klik sekali untuk mengatur, klik lagi (atau tombol *Simpan posisi*) untuk menyimpan. Beranda berupa baris; tiap widget (Logo, Pencarian, Jam, Kalender, Pintasan) lebarnya 1–5 kolom per baris (mis. 2+3, atau 5 penuh) dan tingginya bisa diatur. Seret widget untuk memindah (garis biru = tempat jatuh; ke tepi atas/bawah baris = baris baru), tarik pegangan kanan/bawah untuk ukuran (klik dua kali pegangan bawah = tinggi otomatis), ✕ menyembunyikan (muncul lagi lewat tombol *+* di bilah). *Batal*/Esc membuang perubahan, *Atur ulang* mengembalikan susunan bawaan. Di jendela sempit (< 720 px) semua widget otomatis ditumpuk 1 kolom ke bawah |
 | Beranda (jam, pintasan, aksen, wallpaper) | `alethra://home` + kotak pencarian; opsi jam di Pengaturan → Tampilan |
 | Bookmark (folder, impor/ekspor HTML) | Halaman Bookmark + bilah bookmark (Ctrl+Shift+B) |
 | Histori | Dikelompokkan per hari, cari, hapus |
