@@ -1959,6 +1959,21 @@ const API = {
       const hx = (c, dflt) => (c === '' || /^#[0-9a-f]{6}$/i.test(c)) ? c : dflt, cl = (n, a, b, dflt) => Number.isFinite(+n) ? Math.max(a, Math.min(b, Math.round(+n))) : dflt;
       v = { bg: hx(v.bg, ''), fg: hx(v.fg, ''), bgop: cl(v.bgop, 0, 100, d.bgop), op: cl(v.op, 10, 100, d.op) };
     }
+    if (k === 'cal') { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; v = { on: v.on !== false, ws: v.ws === 0 ? 0 : 1, hol: v.hol !== false, wk: !!v.wk, p: v.p === 'b' ? 'b' : 'm', z: [0, 1, 2].includes(v.z) ? v.z : 1, b: v.b !== false, s: ['l', 'c', 'w', 'a', 'b'].includes(v.s) ? v.s : 'l', k: ['t', 'a', 'g', 'b', 'h'].includes(v.k) ? v.k : 'a', al: ['l', 'c', 'r'].includes(v.al) ? v.al : 'l', m: ['f', 'o', 'd'].includes(v.m) ? v.m : 'f' }; }
+    if (k === 'calev') {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+      const o = {}; let n = 0;
+      for (const dk of Object.keys(v)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dk) || !Array.isArray(v[dk])) continue;
+        const a = [];
+        for (const e of v[dk].slice(0, 50)) {
+          if (!e || typeof e.t !== 'string' || !e.t.trim() || n >= 5000) continue;
+          a.push({ i: String(e.i || '').slice(0, 24) || Math.random().toString(36).slice(2, 10), t: e.t.slice(0, 160), m: /^([01]\d|2[0-3]):[0-5]\d$/.test(e.m || '') ? e.m : '' }); n++;
+        }
+        if (a.length) o[dk] = a;
+      }
+      v = o;
+    }
     if (['clock', 'sta', 'stf', 'stb', 'tools'].includes(k)) { if (!v || typeof v !== 'object' || Array.isArray(v)) return false; const o = {}; for (const kk of Object.keys(d)) if (typeof v[kk] === typeof d[kk]) o[kk] = v[kk]; v = (k === 'stf' || k === 'stb') ? STT.sanitize(k, o) : o; }
     if (k === 'stprov' && !['groq', 'openai', 'custom'].includes(v)) return false;
     if (k === 'stengine' && !['cloud', 'offline', 'tjs', 'vosk'].includes(v)) return false;

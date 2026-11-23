@@ -48,6 +48,86 @@ svg.clk{width:calc(124px*var(--z,1));height:calc(124px*var(--z,1));flex:none;str
 .sbox{width:100%;max-width:600px;margin-top:26px;display:flex;align-items:center;gap:10px;background:var(--surf);border:2px solid transparent;border-radius:28px;padding:0 20px;height:52px}
 .sbox:focus-within{border-color:var(--acc,var(--fg))}.sbox svg{width:20px;height:20px;color:var(--sub)}
 .sbox input{flex:1;height:100%;border:0;outline:0;background:none;font-size:16px;color:var(--fg)}
+.cal{--cz:1;--ck:var(--acc,var(--fg));--cok:var(--onacc,var(--bg));width:100%;max-width:560px;margin-top:20px;background:var(--surf);border-radius:26px;padding:16px 16px 14px;color:var(--fg);font-size:calc(14px*var(--cz))}
+.cal.nobg{background:none;padding:4px}
+.cal button{font:inherit;color:inherit;cursor:pointer}
+.cal svg.i{width:18px;height:18px;flex:none}
+.cal .ch{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.cal .cn{display:flex;align-items:center;gap:2px}
+.cal .ct{border:0;background:none;font-size:calc(18px*var(--cz));font-weight:700;letter-spacing:-.3px;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px}
+.cal .ct svg.i{width:14px;height:14px;color:var(--sub)}
+.cal .cb{border:0;background:none;height:32px;min-width:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;padding:0 8px;font-size:13px}
+.cal .cb.td{color:var(--ck);font-weight:600;margin-right:4px}
+.cal .ct:hover,.cal .cb:hover{background:var(--line)}
+.cal .gd{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.cal .gd.wk{grid-template-columns:26px repeat(7,1fr)}
+.cal .dh{font-size:calc(12px*var(--cz));color:var(--sub);font-weight:600;padding:4px 0}
+.cal .dh.su{color:#e5484d}
+.cal .wn{font-size:11px;color:var(--sub);opacity:.7;display:flex;align-items:center;justify-content:center}
+.cal .dc{position:relative;height:calc(38px*var(--cz));border:0;background:none;border-radius:12px;font-size:calc(14px*var(--cz));font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0}
+.cal .dc:hover{background:var(--line)}
+.cal .dc.o{color:var(--sub);opacity:.45}
+.cal .dc.su,.cal .dc.hl{color:#e5484d}
+.cal .dc.cu{color:#e08a1e}
+.cal .dc.sl{box-shadow:inset 0 0 0 2px var(--ck)}
+.cal .dc.tdy{background:var(--ck);color:var(--cok);font-weight:700}
+.cal .dc.tdy:hover{filter:brightness(1.12)}
+.cal .dts{display:flex;gap:3px;height:4px}
+.cal .dts i{width:4px;height:4px;border-radius:50%;background:var(--ck)}
+.cal .dc.tdy .dts i{background:var(--cok)}
+.cal .mp{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 0 6px}
+.cal .mp button{height:calc(46px*var(--cz));border:0;background:none;border-radius:12px;font-size:calc(14px*var(--cz))}
+.cal .mp button:hover{background:var(--line)}
+.cal .mp button.sl{box-shadow:inset 0 0 0 2px var(--ck)}
+.cal .mp button.tdy{background:var(--ck);color:var(--cok);font-weight:700}
+.cal .ag{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.cal .ah{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.cal .ah b{font-size:calc(14px*var(--cz))}
+.cal .hc{font-size:12px;padding:2px 9px;border-radius:10px;background:rgba(229,72,77,.15);color:#e5484d}
+.cal .hc.cu{background:rgba(224,138,30,.15);color:#e08a1e}
+.cal .ei{display:flex;align-items:center;gap:10px;padding:6px 4px 6px 10px;border-radius:10px;border-left:3px solid var(--ck)}
+.cal .ei:hover{background:var(--line)}
+.cal .et{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums;min-width:40px}
+.cal .ex{flex:1;min-width:0;overflow-wrap:anywhere}
+.cal .ei .cb{height:26px;min-width:26px;padding:0;color:var(--sub);opacity:0}
+.cal .ei:hover .cb,.cal .ei .cb:focus{opacity:1}
+.cal .em{color:var(--sub);font-size:13px;padding:2px 4px 6px}
+.cal .ad{display:flex;gap:6px;margin-top:8px}
+.cal .ci{height:36px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:0 10px;outline:0;font:inherit;font-size:13px;min-width:0}
+.cal .ci:focus{border-color:var(--ck)}
+.cal .ci.tm{width:96px;flex:none}.cal #ctx{flex:1}
+.cal .ab{height:36px;width:36px;flex:none;border:0;border-radius:10px;background:var(--ck);color:var(--cok);display:flex;align-items:center;justify-content:center}
+.cal .up{margin-top:12px;color:var(--sub);font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.cal .ui{width:100%;display:flex;gap:10px;align-items:center;border:0;background:none;text-align:left;padding:6px 8px;border-radius:10px;font-size:13px}
+.cal .ui:hover{background:var(--line)}
+.cal .ui .ud{color:var(--sub);min-width:78px;font-size:12px}
+.cal .ui .ux{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal.st-c{padding:12px 14px}.cal.st-c .dc{height:calc(32px*var(--cz))}
+.cal.al-r .ch{flex-direction:row-reverse}
+.cal.al-c .ch{justify-content:center;gap:6px}.cal.al-c .cn{display:contents}
+.cal.al-c .cb[data-a=prev]{order:0}.cal.al-c .ct{order:1}.cal.al-c .cb[data-a=next]{order:2}.cal.al-c .cb.td{order:3;margin:0 0 0 6px}
+.cal.al-r .cb.td{margin:0 0 0 4px}
+.cal.al-c .ah{justify-content:center}.cal.al-r .ah{justify-content:flex-end}
+.cal.m-o .dc.tdy{background:none;color:var(--ck);box-shadow:inset 0 0 0 2px var(--ck)}
+.cal.m-o .dc.tdy .dts i,.cal.m-d .dc.tdy .dts i{background:var(--ck)}
+.cal.m-d .dc.tdy{background:none;color:var(--ck)}
+.cal.m-d .dc.tdy::before{content:"";position:absolute;top:3px;width:16px;height:3px;border-radius:2px;background:var(--ck)}
+.cal.m-o .mp button.tdy{background:none;color:var(--ck);box-shadow:inset 0 0 0 2px var(--ck)}.cal.m-d .mp button.tdy{background:none;color:var(--ck)}
+.cal span.ct{pointer-events:none}
+.cal .ga{display:flex;gap:16px;align-items:flex-start}.cal.al-r .ga{flex-direction:row-reverse}
+.cal .gl{flex:none;width:calc(116px*var(--cz));text-align:center;padding:6px 0}
+.cal .gdn{font-size:calc(54px*var(--cz));font-weight:700;line-height:1;color:var(--ck);font-variant-numeric:tabular-nums}
+.cal .gdw{margin-top:6px;font-size:calc(16px*var(--cz));font-weight:600}
+.cal .gdm{font-size:calc(13px*var(--cz));color:var(--sub);margin-bottom:8px}
+.cal .gr{flex:1;min-width:0}.cal .ga .ag{margin:0;border:0;padding:0}.cal .ga .up{margin-top:10px}
+.cal.st-b{padding:10px 14px;border-radius:22px}
+.cal .br{width:100%;border:0;background:none;display:flex;align-items:center;gap:10px;text-align:left;padding:6px 2px;border-radius:12px;font-size:calc(14px*var(--cz))}
+.cal .br:hover{background:var(--line)}
+.cal .bd{font-weight:700;color:var(--ck);white-space:nowrap}
+.cal .bx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--sub)}
+.cal.al-r .br{flex-direction:row-reverse;text-align:right}
+.cal.al-c .br{justify-content:center}.cal.al-c .bx{flex:0 1 auto}
+.cal.st-b .ag{margin-top:6px}
 .tile{position:relative;cursor:pointer}.tile .rm{position:absolute;top:-6px;right:6px;width:20px;height:20px;border-radius:50%;border:0;background:var(--surf);color:var(--sub);font-size:12px;line-height:1;display:none;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .tile:hover .rm{display:block}.tile:hover .ic{filter:brightness(.95)}
 </style></head><body>
@@ -57,5 +137,6 @@ svg.clk{width:calc(124px*var(--z,1));height:calc(124px*var(--z,1));flex:none;str
 <h1>Alethra</h1><p>Jelajahi lebih jauh.</p></div>
 <form id="sf" class="sbox"><svg class="i" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-5-5"/></svg><input id="sq" placeholder="Cari di web atau ketik alamat" autocomplete="off" spellcheck="false"></form>
 <div class="clock" id="clock"></div>
+<div class="cal" id="cal"></div>
 <div class="grid" id="grid"></div>
 <script src="alethra://app/shared.js"></script><script src="alethra://app/pages/home.js"></script></body></html>

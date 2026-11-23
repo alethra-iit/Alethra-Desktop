@@ -178,6 +178,22 @@
         select('Warna jam', '', [['t', 'Teks'], ['a', 'Aksen'], ['g', 'Emas'], ['b', 'Biru'], ['h', 'Hijau']], C.k, v => sc('k', v)),
         select('Format tanggal', '', [[0, 'Lengkap'], [1, 'Singkat'], [2, 'Sembunyikan']], C.d2, v => sc('d2', +v)),
         ck('h24', 'Format 24 jam'), ck('q', 'Tampilkan detik'), ck('n', 'Angka pada jam analog'), ck('y', 'Tampilkan zona waktu'), ck('b', 'Latar kartu jam')]));
+      const K = Object.assign({ on: true, ws: 1, hol: true, wk: false, p: 'm', z: 1, b: true, s: 'l', k: 'a', al: 'l', m: 'f' }, S.cal || {});
+      const sk = (k, v) => { K[k] = v; set('cal', Object.assign({}, K)); };
+      const kk = (k, t, d) => { const c = el(`<label class="sw"><input type="checkbox"><i></i></label>`); c.firstChild.checked = !!K[k]; c.firstChild.onchange = () => sk(k, c.firstChild.checked); return row(t, d, c); };
+      A(acc('kal', 'Kalender', 'Kalender bulanan dengan catatan per tanggal di beranda', [
+        kk('on', 'Tampilkan kalender', 'Widget kalender terpisah dari jam'),
+        select('Gaya kalender', 'Lengkap: bulan penuh + catatan. Ringkas: hanya bulan. Pekan: satu baris. Agenda: tanggal besar + daftar. Bilah: satu baris tipis', [['l', 'Lengkap'], ['c', 'Ringkas'], ['w', 'Pekan'], ['a', 'Agenda'], ['b', 'Bilah']], K.s, v => sk('s', v)),
+        select('Perataan', '', [['l', 'Kiri'], ['c', 'Tengah'], ['r', 'Kanan']], K.al, v => sk('al', v)),
+        select('Warna kalender', 'Dipakai untuk penanda hari ini, tanggal terpilih, dan catatan', [['a', 'Aksen'], ['t', 'Teks'], ['g', 'Emas'], ['b', 'Biru'], ['h', 'Hijau']], K.k, v => sk('k', v)),
+        select('Penanda hari ini', '', [['f', 'Lingkaran penuh'], ['o', 'Garis tepi'], ['d', 'Garis atas']], K.m, v => sk('m', v)),
+        select('Awal pekan', '', [[1, 'Senin'], [0, 'Minggu']], K.ws, v => sk('ws', +v)),
+        select('Posisi', '', [['m', 'Di bawah jam'], ['b', 'Di bawah pintasan']], K.p, v => sk('p', v)),
+        select('Ukuran', '', [[0, 'Kecil'], [1, 'Sedang'], [2, 'Besar']], K.z, v => sk('z', +v)),
+        kk('hol', 'Tanggal merah', 'Tandai libur nasional dan cuti bersama (data SKB 3 Menteri 2026 & 2027; tahun lain hanya libur tetap)'),
+        kk('wk', 'Nomor pekan', 'Tampilkan nomor pekan ISO di sisi kiri'),
+        kk('b', 'Latar kartu kalender'),
+        button('Hapus semua catatan', 'Menghapus seluruh catatan kalender di beranda', 'Hapus…', async () => { if (await askConfirm('Hapus semua catatan?', 'Semua catatan kalender akan dihapus dan tidak bisa dikembalikan.', 'Hapus', true)) set('calev', {}); }, 'danger')]));
     }
     if (sec === 'tampilan') {
       A(box([select('Tema', '', [['system', 'Ikuti sistem'], ['light', 'Terang'], ['dark', 'Gelap']], S.theme, v => set('theme', v)), toggle('amoled', 'Mode AMOLED', 'Latar hitam pekat saat tema gelap')]));
